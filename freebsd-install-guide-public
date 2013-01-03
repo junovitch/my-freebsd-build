@@ -1,0 +1,1345 @@
+################################################################################
+##----------------------------------------------------------------------------##
+##                   FreeBSD 9.1 Release Installation Notes                   ##
+##----------------------------------------------------------------------------##
+################################################################################
+# This guide covers everything I did to setup my FreeBSD Server. I will cover
+# the following key areas
+#
+# - Static IP address setup with extra aliases for jails
+# - Pkg setup and Ports installations (using Portmaster) of several utilities
+# - Setup of OpenNTPD for time and NUT for UPS monitoring 
+# - OpenSMTPD for external emailing of periodic emails (including IPMI checks)
+# - ZFS setup for AF 4K drives and snapshotting script
+# - Mostly jail friendly NFSv4 support (with v2/v3 support commented)
+# - Ezjail setup split to DMZ/LAN segments with sysloging to the host system
+# - Basic FTP/iRedMail/Wordpress/Owncloud/OpenVPN Certificate Authority jails
+#
+# This version is slightly modified to remove any passwords, IPs, or domain
+# names that may be sensitive. For the most part, if you use a find/replace on
+# the find and replace section and the initial configuration section you can
+# probably copy and paste most of what you see here straight into a terminal. 
+#
+# Written in 2012 by Jason Unovitch
+#   jason.unovitch@gmail.com
+#   https://github.com/junovitch
+#
+# To the extent possible under law, the author(s) have dedicated all copyright
+# and related and neighboring rights to this software to the public domain
+# worldwide. This software is distributed without any warranty.
+#
+# You should have received a copy of the CC0 Public Domain Dedication along with
+# this software. If not, see http://creativecommons.org/publicdomain/zero/1.0/
+#
+################################################################################
+##----------------------------------------------------------------------------##
+##                       Install Notes (TRIM Support)                         ##
+##----------------------------------------------------------------------------##
+################################################################################
+#
+# If using an SSD, be sure to enable TRIM support during the install. This
+# can be done during the initial partitioning if doing it manually. Otherwise
+# drop to a shell post install or boot into single user mode and enter the
+# below commands for the data partition.
+#
+# mount
+# tunefs -t enable /dev/ada0p2
+#
+# Some info can be found on the forums
+# http://forums.freebsd.org/showthread.php?t=28004
+#
+# If not using and SSD this is not needed.
+#
+################################################################################
+##----------------------------------------------------------------------------##
+##                          Find and Replace Section                          ##
+##----------------------------------------------------------------------------##
+################################################################################
+# Fix and do a find and replace. Use `:g/changeme/s//newvalue/g` in Vi(m)
+################################################################################
+
+setenv GMAIL_EMAIL_FULL 'jason.unovitch@gmail.com'
+setenv GMAIL_EMAIL_PERL 'jason.unovitch\@gmail.com'
+setenv GMAIL_PASSWORD 'CHANGETHISTOTHEPASSWORD'
+
+setenv UPS_ADMIN_PASSWORD 'adminpassword'
+setenv UPS_MONITOR_PASSWORD 'UPSMonUserPassword'
+
+setenv WORDPRESS_MYSQL_USERNAME 'wordpress_db_user'
+setenv WORDPRESS_MYSQL_PASSWORD 'wordpress_db_password'
+setenv WORDPRESS_MYSQL_ROOT_PASSWORD 'MySQL_root_password'
+
+################################################################################
+##----------------------------------------------------------------------------##
+##                       Initial Configuration Section                        ##
+##----------------------------------------------------------------------------##
+################################################################################
+# We're going to erase the current resolv.conf and rc.conf and build our own
+# with all static IPs.  Carefully review and change the information below.
+# Do a find and replace and change it to your liking.
+#
+# We'll also pre-set several extra IP aliases so we have them ready without
+# having to muck around with ifconfig or doing a`service netif restart` or 
+# `/etc/rc.d/netif restart` in the future. This will make it easy to setup more
+# jails whenever we feel like it.
+#
+# Once all the addresses are valid, copy-paste up until the __EOF__ marker.
+################################################################################
+
+echo '# Domain Name and DNS Server' > /etc/resolv.conf
+echo 'search mydomain.name' >> /etc/resolv.conf
+echo 'nameserver 192.168.102.1' >> /etc/resolv.conf
+
+cat > /etc/rc.conf << __EOF__
+# General System Config
+# Set dumpdev to "AUTO" to enable crash dumps, "NO" to disable
+dumpdev="AUTO"
+powerd_enable="YES"
+
+# General Network Configuration
+hostname="xts-bsd.mydomain.name"
+sshd_enable="YES"
+defaultrouter="192.168.102.1"
+ipv6_defaultrouter="2001:123:4567:890::1"
+static_routes="-net 10.100.0.0 10.100.102.1 255.255.0.0"
+ipv6_static_routes=""
+
+# DMZ/External Interface Configuration
+#ifconfig_em0="DHCP"   #Uncomment for DHCP IPv4 Address
+#ifconfig_em0_ipv6="inet6 accept_rtadv"   #Uncomment for RTADV IPv6 Address
+ifconfig_em0="inet 192.168.102.2 netmask 0xffffff00"             # global zone
+ifconfig_em0_ipv6="inet6 2001:123:4567:890::2 prefixlen 64"      # global zone
+ifconfig_em0_alias0="inet 192.168.102.11 netmask 0xffffffff"     # xts-ms1.mydomain.name
+ifconfig_em0_alias1="inet6 2001:123:4567:890::11 prefixlen 128"  # xts-ms1.mydomain.name
+ifconfig_em0_alias2="inet 192.168.102.12 netmask 0xffffffff"     # xts-ms2.mydomain.name
+ifconfig_em0_alias3="inet6 2001:123:4567:890::12 prefixlen 128"  # xts-ms2.mydomain.name
+ifconfig_em0_alias4="inet 192.168.102.13 netmask 0xffffffff"     # xts-www1.mydomain.name
+ifconfig_em0_alias5="inet6 2001:123:4567:890::13 prefixlen 128"  # xts-www1.mydomain.name
+ifconfig_em0_alias6="inet 192.168.102.14 netmask 0xffffffff"     # xts-www2.mydomain.name
+ifconfig_em0_alias7="inet6 2001:123:4567:890::14 prefixlen 128"  # xts-www2.mydomain.name
+ifconfig_em0_alias8="inet 192.168.102.15 netmask 0xffffffff"     # xts-www3.mydomain.name
+ifconfig_em0_alias9="inet6 2001:123:4567:890::15 prefixlen 128"  # xts-www3.mydomain.name
+ifconfig_em0_alias10="inet 192.168.102.16 netmask 0xffffffff"    # xts-www4.mydomain.name
+ifconfig_em0_alias11="inet6 2001:123:4567:890::16 prefixlen 128" # xts-www4.mydomain.name
+ifconfig_em0_alias12="inet 192.168.102.17 netmask 0xffffffff"    # unused
+ifconfig_em0_alias13="inet6 2001:123:4567:890::17 prefixlen 128" # unused
+ifconfig_em0_alias14="inet 192.168.102.18 netmask 0xffffffff"    # unused
+ifconfig_em0_alias15="inet6 2001:123:4567:890::18 prefixlen 128" # unused
+ifconfig_em0_alias16="inet 192.168.102.19 netmask 0xffffffff"    # unused
+ifconfig_em0_alias17="inet6 2001:123:4567:890::19 prefixlen 128" # unused
+
+# LAN/Internal Interface Configuration
+#ifconfig_em1="DHCP"   #Uncomment for DHCP IPv4 Address
+#ifconfig_em1_ipv6="inet6 accept_rtadv"   #Uncomment for RTADV IPv6 Address
+ifconfig_em1="inet 10.100.102.2 netmask 0xffffff00"            # global zone
+ifconfig_em1_ipv6="inet6 2001:123:4:5678::2 prefixlen 64"      # global zone
+ifconfig_em1_alias0="inet 10.100.102.11 netmask 0xffffffff"    # xts-puppet.mydomain.name
+ifconfig_em1_alias1="inet6 2001:123:4:5678::11 prefixlen 128"  # xts-puppet.mydomain.name
+ifconfig_em1_alias2="inet 10.100.102.12 netmask 0xffffffff"    # xts-ftp.mydomain.name
+ifconfig_em1_alias3="inet6 2001:123:4:5678::12 prefixlen 128"  # xts-ftp.mydomain.name
+ifconfig_em1_alias4="inet 10.100.102.13 netmask 0xffffffff"    # xts-pki.mydomain.name
+ifconfig_em1_alias5="inet6 2001:123:4:5678::13 prefixlen 128"  # xts-pki.mydomain.name
+ifconfig_em1_alias6="inet 10.100.102.14 netmask 0xffffffff"    # unused
+ifconfig_em1_alias7="inet6 2001:123:4:5678::14 prefixlen 128"  # unused
+ifconfig_em1_alias8="inet 10.100.102.15 netmask 0xffffffff"    # unused
+ifconfig_em1_alias9="inet6 2001:123:4:5678::15 prefixlen 128"  # unused
+ifconfig_em1_alias10="inet 10.100.102.16 netmask 0xffffffff"   # unused
+ifconfig_em1_alias11="inet6 2001:123:4:5678::16 prefixlen 128" # unused
+ifconfig_em1_alias12="inet 10.100.102.17 netmask 0xffffffff"   # unused
+ifconfig_em1_alias13="inet6 2001:123:4:5678::17 prefixlen 128" # unused
+ifconfig_em1_alias14="inet 10.100.102.18 netmask 0xffffffff"   # unused
+ifconfig_em1_alias15="inet6 2001:123:4:5678::18 prefixlen 128" # unused
+ifconfig_em1_alias16="inet 10.100.102.19 netmask 0xffffffff"   # unused
+ifconfig_em1_alias17="inet6 2001:123:4:5678::19 prefixlen 128" # unused
+
+# Syslog Configuration, bind (-b) to LAN Internal address
+syslogd_enable="YES"
+syslogd_flags="-v -v -b 10.100.102.2:syslog"
+
+# NTPDATE Support for initial time sync during boot
+ntpdate_enable="YES"
+ntpdate_hosts="192.168.102.1"
+__EOF__
+
+################################################################################
+# Once the above is in place and validated either `reboot` or restart the
+# services impacted by copy/pasting in the following.
+################################################################################
+
+hostname xts-bsd.mydomain.name
+service powerd restart
+service netif restart
+service routing restart
+service syslogd restart
+route add -net 10.100.0.0 10.100.102.1 255.255.0.0
+
+################################################################################
+# User Add examples
+################################################################################
+
+pw groupadd -n unovitch -g 2194
+pw useradd -m -n jason -c "Jason Unovitch,,," -u 1986 -g unovitch -G wheel -s /bin/tcsh
+passwd jason
+
+################################################################################
+##----------------------------------------------------------------------------##
+##               Configure General Programs for Host System Use               ##
+##----------------------------------------------------------------------------##
+################################################################################
+# Looking to the future, let's convert to the new pkgng system for easier
+# package management in the future and updated the periodic scripts for it.
+# http://www5.us.freebsd.org/doc/en_US.ISO8859-1/books/handbook/pkgng-intro.html
+################################################################################
+
+/usr/sbin/pkg
+echo 'daily_backup_pkgdb_enable="NO"' >> /etc/periodic.conf
+echo 'weekly_status_pkg_enable="YES"' >> /etc/periodic.conf
+echo 'pkg_version="pkg version"' >> /etc/periodic.conf
+
+################################################################################
+# Let's get an initial ports tree for any installs from source.
+# http://www5.us.freebsd.org/doc/en_US.ISO8859-1/books/handbook/updating-upgrading-portsnap.html
+################################################################################
+
+portsnap fetch extract
+
+################################################################################
+# Portmaster - A powerful tool for managing installs, upgrades, and removal
+# of unused ports. Installed with Bash completions and PKGNG support.
+# http://www5.us.freebsd.org/doc/en_US.ISO8859-1/books/handbook/ports-using.html
+# http://www.cyberciti.biz/faq/freebsd-updating-software-ports-applications/ 
+# Examples:
+#    `portmaster -L` to show what can be updated
+#    `portmaster port_name` to install or update one port only
+#    `portmaster -a` to update all (-a) installed ports
+#    `portmaster -e port_name` to expunge (-e) a port and all dependencies
+#    `portmaster -s` to remove stale (-s) ports no longer depended on
+#    `portmaster` while in a /usr/ports/ directory to install that port
+################################################################################
+
+cd /usr/ports/ports-mgmt/portmaster/ && make WITH_BASH="YES" WITH_PKGNGPATCH="YES" install clean
+echo 'WITH_PKGNG=yes' >> /etc/make.conf
+pkg2ng
+
+################################################################################
+# Tmux - Separates the terminal from the current login. Useful if an SSH link
+# gets broken during an install or you have to leave. Whatever is running
+# will keep running.
+################################################################################
+
+portmaster sysutils/tmux
+rehash
+tmux
+
+################################################################################
+# Bash - GNU Bourne Again Shell required for some ports and install scripts.
+################################################################################
+
+portmaster shells/bash
+
+################################################################################
+# Perl - Used for misc editing tasks and various programs.
+################################################################################
+
+portmaster lang/perl5.14
+
+################################################################################
+# OpenNTPD - Used for upkeep of time
+#
+# Perl in-place edits are used to change from the default pool.ntp.org servers
+# to using the default gateway for NTP.
+################################################################################
+
+portmaster net/openntpd
+
+perl -pwi -e 's^#server ntp.example.org^server 192.168.102.1^' /usr/local/etc/ntpd.conf
+perl -pwi -e 's^servers pool.ntp.org^#servers pool.ntp.org^' /usr/local/etc/ntpd.conf
+
+echo '' >> /etc/rc.conf
+echo '# OpenNTPD Support for upkeep of time' >> /etc/rc.conf
+echo 'openntpd_enable="YES"' >> /etc/rc.conf
+
+service openntpd start
+
+################################################################################
+# OpenSMTPD - Simple and secure email MTA used for system notification emails.
+#
+# The guide link below is very helpful, but check `man smtpd.conf` for
+# examples on the syntax to use as this is a bit dated. If you use an address
+# other than @gmail.com checking the man page will probably be required.
+#
+# https://cooltrainer.org/2012/06/06/external-mailing-on-freebsd/
+################################################################################
+
+portmaster mail/opensmtpd
+
+cd /usr/local/etc/mail/
+cp smtpd.conf.sample smtpd.conf
+perl -pwi -e 'if ($_ =~ m/map/) { print "map \"secrets\" { source db \"/usr/local/etc/mail/secrets.db\" }\n" }' smtpd.conf
+perl -pwi -e 's^accept for all relay^accept from local for domain "gmail.com" relay via tls+auth://smtp.gmail.com:587 auth secrets^' smtpd.conf
+perl -pwi -e 's^listen on 127.0.0.1^listen on 10.100.102.2\nlisten on 2001:123:4:5678::2^' smtpd.conf
+echo 'accept from 10.100.0.0/16 for local alias aliases deliver to mbox' >> smtpd.conf
+
+cp /etc/mail/aliases /usr/local/etc/mail/aliases
+perl -pwi -e 's^# root:\tme\@my.domain^root:\tjason.unovitch\@gmail.com^' aliases
+newaliases
+
+echo 'smtp.gmail.com jason.unovitch@gmail.com:CHANGETHISTOTHEPASSWORD' >> secrets
+/usr/local/libexec/opensmtpd-portable/makemap secrets && rm secrets
+
+echo '' >> /etc/rc.conf
+echo '# Disable Sendmail MTA' >> /etc/rc.conf
+echo 'sendmail_enable="NO"' >> /etc/rc.conf
+echo 'sendmail_submit_enable="NO"' >> /etc/rc.conf
+echo 'sendmail_outbound_enable="NO"' >> /etc/rc.conf
+echo 'sendmail_msp_queue_enable="NO"' >> /etc/rc.conf
+echo '' >> /etc/rc.conf
+echo '# Enable OpenSMTPD MTA' >> /etc/rc.conf
+echo 'smtpd_enable="YES"' >> /etc/rc.conf
+
+service sendmail stop
+service smtpd start
+
+echo "Test message" | mail -s "Test Email" root
+
+################################################################################
+# Pstree - Better eye on process associations.
+# Use via `pstree`
+################################################################################
+
+portmaster sysutils/pstree
+
+################################################################################
+# Cmdwatch - Repeat a command every few seconds for monitoring/testing.
+# Use via `cmdwatch`
+################################################################################
+
+portmaster sysutils/cmdwatch 
+
+################################################################################
+# Uprecords - Track uptime trends/percentages.
+# Use via `uprecords`
+################################################################################
+
+portmaster sysutils/uptimed 
+
+echo '' >> /etc/rc.conf
+echo '# Enable Uptimed' >> /etc/rc.conf
+echo 'uptimed_enable="YES"' >> /etc/rc.conf
+
+service uptimed start
+
+################################################################################
+# BSDStats - Report BSD usage, hardware, and software popularity.
+# Recommend agreeing to all defaults during install.
+################################################################################
+
+echo '' >> /etc/rc.conf
+echo '# Enable BSDStats' >> /etc/rc.conf
+portmaster sysutils/bsdstats
+
+################################################################################
+# ClamAV - Antivirus
+################################################################################
+
+portmaster security/clamav
+
+echo '' >> /etc/rc.conf
+echo '# Enable CLAMD' >> /etc/rc.conf
+echo 'clamav_freshclam_enable="YES"' >> /etc/rc.conf
+echo 'clamav_clamd_enable="YES"' >> /etc/rc.conf
+
+freshclam
+service clamav-freshclam start
+service clamav-clamd start
+
+################################################################################
+# Vim-lite - Handles most text editing, very useful for syntax highlighting.
+# Also enable "set nomodeline" per the security note.
+################################################################################
+
+portmaster editors/vim-lite
+
+echo 'set nomodeline' >> /etc/skel/.vimrc
+echo 'syntax on' >> /etc/skel/.vimrc
+cp /etc/skel/.vimrc /root/
+cp /etc/skel/.vimrc /home/jason/
+
+################################################################################
+# Port/Jail Audit tools - Check for vulnerabilities every day and email the
+# admin during the periodic check.
+# Test it out via `/usr/local/sbin/portaudit -Fda`
+################################################################################
+
+portmaster ports-mgmt/portaudit
+portmaster ports-mgmt/jailaudit
+echo 'daily_status_security_portaudit_enable="YES"' >> /etc/periodic.conf
+
+################################################################################
+# FreeIPMI Utilities and a basic status check during the daily periodic.
+# See `man freeipmi` for more than the what's listed.
+################################################################################
+ 
+portmaster sysutils/freeipmi
+
+cat > /usr/local/etc/periodic/daily/ipmi-daily.sh << __EOF__
+#!/bin/sh
+echo "IPMI Sensor Check"
+/usr/local/sbin/ipmi-sensors | grep -E "FAN|System|Chassis|Voltage"  | cut -d "|" -f "2 4 5 6" | sed 's/|//g' | awk '{gsub(/^ +|  +\$/,"")}1'
+__EOF__
+chmod 555 /usr/local/etc/periodic/daily/ipmi-daily.sh
+
+################################################################################
+# Nut (Network UPS Tools) - Monitor UPS status and auto-shutdown if necessary
+# http://people.freebsd.org/~thierry/nut_FreeBSD_HowTo.txt 
+################################################################################
+
+portmaster sysutils/nut
+
+# Still testing as of 31 December, almost there...
+
+################################################################################
+# Logcheck - Reviews log files.
+################################################################################
+
+# Setup
+portmaster security/logcheck
+
+# Fix permissions
+chown root:logcheck /var/log/auth.log
+chmod 640 /var/log/auth.log
+perl -pwi -e 's^/var/log/auth\.log\t\t\t600  7     100  \@0101T JC^/var/log/auth.log\troot:logcheck\t640  7     100  \@0101T JC^' /etc/newsyslog.conf
+
+# Redirect logcheck alias to root
+perl -pwi -e 's^# General redirections for pseudo accounts^# General redirections for pseudo accounts\nlogcheck:\troot^' /usr/local/etc/mail/aliases
+newaliases
+
+################################################################################
+# Cleanup periodic messages for readability on a phone.
+################################################################################
+
+echo 'daily_clean_hoststat_enable="NO"' >> /etc/periodic.conf
+echo 'daily_status_disks_df_flags="-t zfs,ufs -h"' >> /etc/periodic.conf
+echo 'weekly_noid_enable="NO"' >> /etc/periodic.conf  
+echo 'daily_status_network_enable="NO"' >> /etc/periodic.conf
+
+cat > /usr/local/etc/periodic/daily/netstat-short.sh << __EOF__
+#\!/bin/sh
+echo
+echo "Network interface status:"
+netstat -ibdh | sed 's/bytes/bts/g' | awk '/xts|Address/ {print \$4, "\t", \$8, "\t", \$11, "\t", \$6, "\t", \$7, "\t", \$10;}'
+__EOF__
+chmod 555 /usr/local/etc/periodic/daily/netstat-short.sh
+
+################################################################################
+# Move periodic to run 2 hours later and add a weekly `freebsd-update` check.
+################################################################################
+
+perl -pwi -e 's^1\t3\t\*\t\*\t\*\troot\tperiodic daily^1\t5\t*\t*\t*\troot\tperiodic daily^' /etc/crontab
+perl -pwi -e 's^15\t4\t\*\t\*\t6\troot\tperiodic weekly^15\t6\t*\t*\t6\troot\tperiodic weekly\n30\t6\t*\t*\t6\troot\tfreebsd-update cron^' /etc/crontab
+perl -pwi -e 's^30\t5\t1\t\*\t\*\troot\tperiodic monthly^30\t7\t1\t*\t*\troot\tperiodic monthly^' /etc/crontab
+
+################################################################################
+# Make default syslog sizes a bit bigger and keep more of them
+################################################################################
+
+perl -pwi -e 's^100\t^2000\t^' /etc/newsyslog.conf
+perl -pwi -e 's^3|5|7\t^9\t^' /etc/newsyslog.conf
+
+################################################################################
+##----------------------------------------------------------------------------##
+##                  Programs Related to Host System Storage                   ##
+##----------------------------------------------------------------------------##
+################################################################################
+# Smartd package for basic disk management and status checking.
+################################################################################
+
+portmaster sysutils/smartmontools
+
+cp /usr/local/etc/smartd.conf.sample /usr/local/etc/smartd.conf
+echo 'daily_status_smart_devices="/dev/ada0 /dev/ada1 /dev/ada2 /dev/ada3"' >> /etc/periodic.conf
+
+echo '' >> /etc/rc.conf
+echo '# Smartd disk monitoring' >> /etc/rc.conf
+echo 'smartd_enable="YES"' >> /etc/rc.conf
+
+service smartd start
+
+################################################################################
+# Rsync
+################################################################################
+
+portmaster net/rsync
+
+################################################################################
+# Unison
+################################################################################
+
+cd /usr/ports/net/unison && make config WITHOUT_X11="YES"
+portmaster net/unison
+
+################################################################################
+##----------------------------------------------------------------------------##
+##                   Configure Host System ZFS and RAIDZ pool                 ##
+##----------------------------------------------------------------------------##
+################################################################################
+# Enable ZFS
+################################################################################
+
+echo '' >> /etc/rc.conf
+echo '# ZFS Support' >> /etc/rc.conf
+echo 'zfs_enable="YES"' >> /etc/rc.conf
+service zfs start
+
+################################################################################
+# Setup RAIDZ pool
+# http://zfsguru.com/doc/bsd/zfs
+# http://savagedlight.me/2012/07/15/freebsd-zfs-advanced-format/
+################################################################################
+# Search for all hard drives in the `dmesg`, confirm with `smartctl`
+# Note the devices shown for later (i.e. /dev/ada0 and so on)
+#
+# If physical sector size matches the logical size below then you can likely
+# skip to the `zpool create zfs` step.
+#
+# Performance using native 4K sectors should be faster in Advanced Format
+# drives that use physical 4096K sector and fake a 512K sector to the OS. I
+# tested repeated transfers of 13.5 gb of files from the main SSD onto a raid-z
+# pool using each sector size.
+#
+# Mean write speed on a 512 byte pool  - 123.5 mb/sec
+# Mean write speed on a 4096 byte pool - 134.5 mb/sec (9% faster)
+################################################################################
+
+dmesg | grep "sectors"
+smartctl -a /dev/ada1 | grep "Sector Sizes"
+smartctl -a /dev/ada2 | grep "Sector Sizes"
+smartctl -a /dev/ada3 | grep "Sector Sizes"
+
+################################################################################
+# Erase any partition table on the planned pool drives by doing this.
+#
+# BE CAREFUL! Use the wrong output file (of=) and you may not be able boot. 
+# In this case, the main OS was on the first drive (/dev/ada0) so this will
+# clear the partition table of the remaining 3 drives.
+################################################################################
+
+dd if=/dev/zero of=/dev/ada1 bs=1m count=1
+dd if=/dev/zero of=/dev/ada2 bs=1m count=1
+dd if=/dev/zero of=/dev/ada3 bs=1m count=1
+
+################################################################################
+# Manually create the partition tables followed by a ZFS type (-t) partition
+# beginning (-b) at the 1 mb mark and aligned (-a) to 4096 sized sectors. The
+# label (-l) can be freely changed to whatever is intuitive.
+#
+# `smartctl -a /dev/ada1` will list all properties of the drive including
+# serial number which is used below.
+################################################################################
+
+gpart create -s gpt ada1
+gpart add -t freebsd-zfs -l bay2_WCAWZ0415892 -b 1M -a 4096 ada1
+gpart create -s gpt ada2
+gpart add -t freebsd-zfs -l bay3_WCAWZ0422739 -b 1M -a 4096 ada2
+gpart create -s gpt ada3
+gpart add -t freebsd-zfs -l bay4_WCAWZ0424121 -b 1M -a 4096 ada3
+
+################################################################################
+# Create gnop translation devices with 4096 sector sizes to force ZFS to
+# ignore 512 byte block size simulated by the drives.
+################################################################################
+
+gnop create -S 4096 gpt/bay2_WCAWZ0415892
+gnop create -S 4096 gpt/bay3_WCAWZ0422739
+gnop create -S 4096 gpt/bay4_WCAWZ0424121 
+
+################################################################################
+# Build the ZFS array using the translations.
+#
+# The name of the array used here and for the remaining guide is 'zfs'.
+################################################################################
+
+zpool create zfs raidz /dev/gpt/bay2_WCAWZ0415892.nop /dev/gpt/bay3_WCAWZ0422739.nop /dev/gpt/bay4_WCAWZ0424121.nop
+
+################################################################################
+# Build datasets as needed
+################################################################################
+
+zfs create zfs/homedirs
+zfs create zfs/homedirs/public
+zfs create zfs/homedirs/jason
+zfs create zfs/homedirs/common_media
+zfs create zfs/homedirs/common_assorted
+zfs set compression=on zfs/homedirs/common_assorted
+zfs create zfs/homedirs/family_albums
+zfs set dedup=on zfs/homedirs/family_albums
+zfs create zfs/local
+
+################################################################################
+# Export the zpool
+################################################################################
+
+zpool export zfs
+
+################################################################################
+# Trash the gnops
+################################################################################
+
+gnop destroy /dev/gpt/bay2_WCAWZ0415892.nop
+gnop destroy /dev/gpt/bay3_WCAWZ0422739.nop
+gnop destroy /dev/gpt/bay4_WCAWZ0424121.nop
+
+################################################################################
+# Re-import the zpool
+################################################################################
+
+zpool import -d /dev/gpt zfs
+
+################################################################################
+# Make sure the datasets set up are present and mounted
+################################################################################
+
+ls -l /zfs
+
+################################################################################
+# Verify ashift = 12 shows up
+################################################################################
+
+zdb 
+
+################################################################################
+# If all is well, enable reporting during daily updates and a weekly scrub.
+################################################################################
+
+echo 'daily_status_zfs_enable="YES"' >> /etc/periodic.conf
+echo 'daily_scrub_zfs_enable="YES"' >> /etc/periodic.conf
+echo 'daily_scrub_zfs_default_threshold="6"' >> /etc/periodic.conf
+
+################################################################################
+# Quick Rolling snapshot scripts for a month's worth of snapshot along with
+# a permanent snapshot made on the first of every month. 
+################################################################################
+
+cat > /usr/local/etc/periodic/daily/rollingsnap << __EOF__
+#\!/bin/sh
+zfs destroy -r zfs/homedirs@31daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@30daysago @31daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@29daysago @30daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@28daysago @29daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@27daysago @28daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@26daysago @27daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@25daysago @26daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@24daysago @25daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@23daysago @24daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@22daysago @23daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@21daysago @22daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@20daysago @21daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@19daysago @20daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@18daysago @19daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@17daysago @18daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@16daysago @17daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@15daysago @16daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@14daysago @15daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@13daysago @14daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@12daysago @13daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@11daysago @12daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@10daysago @11daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@9daysago @10daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@8daysago @9daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@7daysago @8daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@6daysago @7daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@5daysago @6daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@4daysago @5daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@3daysago @4daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@2daysago @3daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@yesterday @2daysago > /dev/null 2>&1
+zfs rename -r zfs/homedirs@today @yesterday > /dev/null 2>&1
+zfs snapshot -r zfs/homedirs@today
+__EOF__
+chmod 555 /usr/local/etc/periodic/daily/rollingsnap
+
+cat > /usr/local/etc/periodic/monthly/monthlysnap << __EOF__
+#\!/bin/sh
+SNAPDATE=\$(/bin/date "+%Y%m%d")
+zfs rename -r zfs/homedirs@today @\$SNAPDATE-automonthly > /dev/null 2>&1
+__EOF__
+chmod 555 /usr/local/etc/periodic/monthly/monthlysnap
+
+################################################################################
+##----------------------------------------------------------------------------##
+##                    Configure Host System NFS Support                       ##
+##----------------------------------------------------------------------------##
+################################################################################
+# Enable jail friendly NFS Support. NFSv4 is currently in use and the prior
+# v2/v3 configurations are available but commented out.
+################################################################################
+
+touch /etc/exports
+echo '' >> /etc/rc.conf
+echo '# NFS V2/V3 Support' >> /etc/rc.conf
+echo '#rpcbind_enable="YES"' >> /etc/rc.conf
+echo '#rpcbind_flags="-h 10.100.102.2 -h 2001:123:4:5678::2"' >> /etc/rc.conf
+echo '#nfs_server_enable="YES"' >> /etc/rc.conf
+echo '#nfs_server_flags="-u -t -n 4 -h 10.100.102.2 -h 2001:123:4:5678::2"' >> /etc/rc.conf
+echo '#mountd_enable="YES"' >> /etc/rc.conf
+echo '#mountd_flags="-r -h 10.100.102.2 -h 2001:123:4:5678::2"' >> /etc/rc.conf
+echo '#rpc_lockd_enable="YES"' >> /etc/rc.conf
+echo '#rpc_lockd_flags="-h 10.100.102.2 -h 2001:123:4:5678::2"' >> /etc/rc.conf
+echo '#rpc_statd_enable="YES"' >> /etc/rc.conf
+echo '#rpc_statd_flags="-h 10.100.102.2 -h 2001:123:4:5678::2"' >> /etc/rc.conf
+echo '' >> /etc/rc.conf
+echo '# NFSv4 Configuration' >> /etc/rc.conf
+echo 'nfs_server_enable="YES"' >> /etc/rc.conf
+echo 'nfsv4_server_enable="YES"' >> /etc/rc.conf
+echo 'nfsuserd_enable="YES"' >> /etc/rc.conf
+echo 'nfs_server_flags="-u -t -n 4 -h 10.100.102.2 -h 2001:123:4:5678::2"' >> /etc/rc.conf
+echo 'rpcbind_enable="YES"' >> /etc/rc.conf
+echo 'rpcbind_flags="-h 10.100.102.2 -h 2001:123:4:5678::2"' >> /etc/rc.conf
+echo 'mountd_enable="YES"' >> /etc/rc.conf
+echo 'mountd_flags="-r -h 10.100.102.2 -h 2001:123:4:5678::2"' >> /etc/rc.conf
+
+################################################################################
+# Configure the /etc/exports file for NFSv4 mounts. This won't be required if
+# not using NFSv4 and only the next two commands would apply.
+# http://forums.freebsd.org/showthread.php?p=135531
+################################################################################
+
+echo 'V4: / -sec=sys -network 10.100.0.0 -mask 255.255.0.0' >> /etc/exports
+
+################################################################################
+# Enable the 'sharenfs' property on the ZFS set and sharing of /usr/home
+# Be aware of the security implications of using "-maproot=root".
+#
+# This is mainly to make sure root on the Linux NFS clients can read the
+# .encfs6.xml file used by my EncFS home directors and easily change
+# permissions.
+################################################################################
+
+zfs set sharenfs='-network 10.100.0.0 -mask 255.255.0.0 -maproot=root' zfs/homedirs
+echo '/usr/home/ -maproot=root -network 10.100.0.0 -mask 255.255.0.0' >> /etc/exports
+
+################################################################################
+# Lock to NFSv4 only (optional)
+################################################################################
+
+echo '' >> /etc/sysctl.conf
+echo '# NFSv4 Support Only' >> /etc/sysctl.conf
+echo 'vfs.nfsd.server_min_nfsvers=4' >> /etc/sysctl.conf
+sysctl vfs.nfsd.server_min_nfsvers=4
+
+################################################################################
+# Start & control NFS servers
+#
+# For NFSv4, all services can be completely stopped with:
+# service nfsd stop ; service mountd stop ; service rpcbind stop ; service nfsuserd stop
+# All services can be started with:
+# service nfsd start
+#
+# For NFSv2/v3, all services can be completely stopped with:
+# service statd stop ; service lockd stop ; service nfsd stop ; service mountd stop ; service rpcbind stop
+# All services can be started with:
+# service rpcbind start && service mountd start && service nfsd start && service lockd start
+#
+# For all NFS versions, if the '/etc/exports' is changed it can be refreshed by:
+# service mountd reload
+#
+# Changing `zfs set sharenfs...` automatically does this and will update
+# the '/etc/zfs/exports' file for you.
+#
+################################################################################
+
+service nfsd start
+
+################################################################################
+##----------------------------------------------------------------------------##
+##                    Host System Initial Jail Configuration                  ##
+##----------------------------------------------------------------------------##
+################################################################################
+# Setup Ezjail scripts
+#
+# Type this to allow pings from inside the jail for testing purposes
+# sysctl security.jail.allow_raw_sockets=1
+################################################################################
+
+portmaster sysutils/ezjail
+ezjail-admin install
+ezjail-admin update -P
+echo 'daily_status_security_jailaudit_enable="YES"' >> /etc/periodic.conf
+
+################################################################################
+# Make SSH jail friendly by not allowing it to listen to all IP aliases
+################################################################################
+
+perl -pwi -e 's^#ListenAddress\ 0\.0\.0\.0^ListenAddress 10.100.102.2\nListenAddress 192.168.102.2^g' /etc/ssh/sshd_config
+perl -pwi -e 's^#ListenAddress\ ::^ListenAddress 2001:123:4:5678::2\nListenAddress 2001:123:4567:890::2^g' /etc/ssh/sshd_config
+service sshd restart
+
+################################################################################
+# Enable jails in rc.conf and load Apache module into kernel for www jails.
+################################################################################
+
+echo '' >> /etc/rc.conf
+echo '# Ezjail Configuration' >> /etc/rc.conf
+echo 'ezjail_enable="YES"' >> /etc/rc.conf
+
+echo 'accf_http_load="YES"' >> /boot/loader.conf
+kldload accf_http
+
+echo '' >> /etc/sysctl.conf
+echo '# Uncomment to allow pings within a jail on upon reboot' >> /etc/sysctl.conf
+echo '#security.jail.allow_raw_sockets=1' >> /etc/sysctl.conf
+
+################################################################################
+# First, build default packages used by all jails.
+# Second, copy vim dot files into jail, enable sshd, and enable syslogd with
+# the host system as the destination
+# Third, set up remaining for all jail's rc.conf
+################################################################################
+
+mkdir -p /usr/jails/newjail/pkgs
+cd /usr/jails/newjail/pkgs
+pkg create portmaster
+pkg create bash
+pkg create vim-lite
+pkg create gettext
+pkg create libiconv
+
+cp /etc/skel/.vimrc /usr/jails/newjail/etc/skel/
+cp /etc/skel/.vimrc /usr/jails/newjail/root/
+perl -pwi -e 's^# sshd_enable="YES"^sshd_enable="YES"^g' /usr/jails/flavours/example/etc/rc.conf
+perl -pwi -e 's^syslogd_flags="-ss"^syslogd_flags="-s -v -v"^g' /usr/jails/flavours/example/etc/rc.conf
+perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.100.102.2^g' /usr/jails/newjail/etc/syslog.conf
+
+echo '' >> /usr/jails/flavours/example/etc/rc.conf
+echo '# Kernel Secure Level' >> /usr/jails/flavours/example/etc/rc.conf
+echo 'kern_securelevel_enable="YES"' >> /usr/jails/flavours/example/etc/rc.conf
+echo 'kern_securelevel="3"' >> /usr/jails/flavours/example/etc/rc.conf
+echo '' >> /usr/jails/flavours/example/etc/rc.conf
+echo '# Clear Tmp' >> /usr/jails/flavours/example/etc/rc.conf
+echo 'clear_tmp_enable="YES"' >> /usr/jails/flavours/example/etc/rc.conf
+echo '' >> /usr/jails/flavours/example/etc/rc.conf
+echo '# Local Jail Configuration Follows' >> /usr/jails/flavours/example/etc/rc.conf
+mkdir /usr/jails/newjail/zfs
+
+################################################################################
+# Create Jail flavors based on network segment 
+################################################################################
+
+cd /usr/jails/flavours/
+cp -Rp example dmz
+cp -Rp example lan
+
+################################################################################
+# DMZ-specific segment config
+################################################################################
+
+echo 'search mydomain.name' >> /usr/jails/flavours/dmz/etc/resolv.conf
+echo 'nameserver 192.168.102.1' >> /usr/jails/flavours/dmz/etc/resolv.conf
+echo 'defaultrouter="192.168.102.1"' >> /usr/jails/flavours/dmz/etc/rc.conf
+
+################################################################################
+# LAN-specific segment config 
+################################################################################
+
+echo 'search mydomain.name' >> /usr/jails/flavours/lan/etc/resolv.conf
+echo 'nameserver 10.100.102.1' >> /usr/jails/flavours/lan/etc/resolv.conf
+echo 'defaultrouter="10.100.102.1"' >> /usr/jails/flavours/lan/etc/rc.conf
+
+################################################################################
+#  WWW jail prerequisite - self signed keys used for testing
+################################################################################
+
+cat > /root/make-quicksha256-key.sh << __EOF__
+#\!/bin/sh
+mkdir -p /root/mycert
+cd /root/mycert
+
+mkdir -p /usr/local/etc/apache22/ssl.key
+mkdir -p /usr/local/etc/apache22/ssl.crt
+chmod 0400 /usr/local/etc/apache22/ssl.key
+chmod 0400 /usr/local/etc/apache22/ssl.crt
+
+openssl genrsa -des3 -out \$1.key 1024
+openssl req -new -x509 -nodes -sha256 -days 365 -key \$1.key -out \$1.crt
+
+cp \$1.key \$1.key.orig
+openssl rsa -in \$1.key.orig -out \$1.key
+
+cp \$1.key /usr/local/etc/apache22/
+cp \$1.crt /usr/local/etc/apache22/
+chmod 0400 /usr/local/etc/apache22/\$1.key
+chmod 0400 /usr/local/etc/apache22/\$1.crt
+__EOF__
+chmod u+x /root/make-quicksha256-key.sh
+cd /root && ./make-quicksha256-key.sh www.mydomain.name
+################################################################################
+##----------------------------------------------------------------------------##
+##                          Puppet Jail Configuration                         ##
+##----------------------------------------------------------------------------##
+################################################################################
+# References:
+# http://docs.puppetlabs.com/guides/installation.html
+# https://help.ubuntu.com/11.04/serverguide/puppet.html
+################################################################################
+
+ezjail-admin create -f lan xts-puppet.mydomain.name 10.100.102.11,2001:123:4:5678::11
+ezjail-admin console -f xts-puppet.mydomain.name
+passwd
+
+cd /pkgs
+pkg add *
+echo 'WITH_PKGNG=yes' >> /etc/make.conf
+
+portmaster sysutils/puppet
+
+################################################################################
+##----------------------------------------------------------------------------##
+##                          FTP Jail Configuration                            ##
+##----------------------------------------------------------------------------##
+################################################################################
+# Anonymous FTP suited for a few quick internal uses only.
+#
+# Modified from:
+# http://157.85.32.130/freebsd/servers/ftp/ftpd.html
+# http://www5.us.freebsd.org/doc/handbook/network-ftp.html
+################################################################################
+
+ezjail-admin create -f lan xts-ftp.mydomain.name 10.100.102.12,2001:123:4:5678::12
+ezjail-admin console -f xts-ftp.mydomain.name
+passwd
+
+cd /pkgs
+pkg add *
+echo 'WITH_PKGNG=yes' >> /etc/make.conf
+
+# Add anonymous user
+pw useradd -m -n ftp -c "Anonymous FTP User,,," -s /sbin/nologin -d "/var/ftp"
+
+# Remove the skel directory created above and create default ftp structure
+cd /var/ftp
+rm -r .*
+mkdir etc pub incoming
+chown -R root:ftp /var/ftp/
+chmod 755 etc pub
+chown -R nobody incoming
+chmod 5777 incoming
+echo "ftp" >> /etc/ftpchroot
+touch /var/log/ftpd
+
+# Finalize and activate
+echo 'ftpd_enable="YES"' >> /etc/rc.conf
+echo 'ftpd_flags="-ASll"' >> /etc/rc.conf
+service ftpd start
+
+################################################################################
+##----------------------------------------------------------------------------##
+##                       Owncloud Jail Configuration                          ##
+##----------------------------------------------------------------------------##
+################################################################################
+# References:
+# http://blog.gurb.org/index.php?post/2012/03/07/Installation-de-OwnCloud-sous-FreeBSD-9.02 
+# https://wiki.archlinux.org/index.php/Owncloud
+#############################################################################
+
+ezjail-admin create -f dmz xts-www1.mydomain.name 192.168.102.13,2001:123:4567:890::13
+mkdir /usr/jails/xts-www1.mydomain.name/usr/local/etc/apache22/
+cp /root/mycert/www.mydomain.name.* /usr/jails/xts-www1.mydomain.name/usr/local/etc/apache22/
+ezjail-admin console -f xts-www1.mydomain.name
+passwd
+
+cd /pkgs
+pkg add *
+echo 'WITH_PKGNG=yes' >> /etc/make.conf
+
+# Assign Apache module build to the PHP5 config then start the full build.
+cd /usr/ports/lang/php5 && make config WITH_APACHE=YES
+portmaster www/apache22 lang/php5 www/owncloud
+
+# Setup httpd.conf file
+cd /usr/local/etc/apache22; cp httpd.conf httpd.conf.original
+perl -pwi -e 's^ServerAdmin you\@example\.com^ServerAdmin jason.unovitch\@gmail.com^g' httpd.conf
+perl -pwi -e 's^#ServerName www.example.com:80^ServerName www.mydomain.name:80^g' httpd.conf
+perl -pwi -e 's^DocumentRoot "/usr/local/www/apache22/data"^DocumentRoot "/usr/local/www/owncloud"^g' httpd.conf
+perl -pwi -e 's^<Directory "/usr/local/www/apache22/data">^<Directory /usr/local/www/owncloud>^g' httpd.conf
+perl -pwi -e 's^DirectoryIndex index.html^DirectoryIndex index.html index.php^g' httpd.conf
+perl -pwi -e 's^AddType application/x-gzip .gz .tgz^AddType application/x-gzip .gz .tgz\n    AddType application/x-httpd-php .php\n    AddType application/x-httpd-php-source .phps^g' httpd.conf
+perl -pwi -e 's^#Include etc/apache22/extra/httpd-ssl.conf^Include etc/apache22/extra/httpd-ssl.conf^g' httpd.conf
+
+# Secure the httpd-default.conf file
+cd /usr/local/etc/apache22/extra; cp httpd-default.conf httpd-default.conf.original
+perl -pwi -e 's^ServerTokens Full^ServerTokens Prod^g' httpd-default.conf
+perl -pwi -e 's^ServerSignature On^ServerSignature Off^g' httpd-default.conf
+
+# Setup httpd-ssl.conf file
+cd /usr/local/etc/apache22/extra; cp httpd-ssl.conf httpd-ssl.conf.original
+perl -pwi -e 's^ServerAdmin you\@example\.com^ServerAdmin jason.unovitch\@gmail.com^g' httpd-ssl.conf
+perl -pwi -e 's^ServerName www.example.com:443^ServerName www.mydomain.name:443^g' httpd-ssl.conf
+perl -pwi -e 's^DocumentRoot "/usr/local/www/apache22/data"^DocumentRoot "/usr/local/www/owncloud"^g' httpd-ssl.conf
+perl -pwi -e 's^SSLCertificateFile "/usr/local/etc/apache22/server.crt"^SSLCertificateFile "/usr/local/etc/apache22/www.mydomain.name.crt"^g' httpd-ssl.conf
+perl -pwi -e 's^SSLCertificateKeyFile "/usr/local/etc/apache22/server.key"^SSLCertificateKeyFile "/usr/local/etc/apache22/www.mydomain.name.key"^g' httpd-ssl.conf
+
+chmod u+x /usr/local/www/owncloud/.htaccess
+
+# Finalize and activate
+echo 'apache22_enable="YES"' >> /etc/rc.conf.local
+apachectl start
+
+################################################################################
+##----------------------------------------------------------------------------##
+##                     Apache WebDAV-only Jail Configuration                  ##
+##----------------------------------------------------------------------------##
+################################################################################
+
+ezjail-admin create -f dmz xts-www2.mydomain.name 192.168.102.14,2001:123:4567:890::14
+mkdir /usr/jails/xts-www2.mydomain.name/usr/local/etc/apache22/
+cp /root/mycert/www.mydomain.name.* /usr/jails/xts-www2.mydomain.name/usr/local/etc/apache22/
+ezjail-admin console -f xts-www2.mydomain.name
+passwd
+
+cd /pkgs
+pkg add *
+echo 'WITH_PKGNG=yes' >> /etc/make.conf
+
+# Install apache
+portmaster www/apache22
+
+# Setup httpd.conf file
+cd /usr/local/etc/apache22; cp httpd.conf httpd.conf.original
+perl -pwi -e 's^ServerAdmin you\@example\.com^ServerAdmin jason.unovitch\@gmail.com^g' httpd.conf
+perl -pwi -e 's^#Include etc/apache22/extra/httpd-dav.conf^Include etc/apache22/extra/httpd-dav.conf^g' httpd.conf
+perl -pwi -e 's^#Include etc/apache22/extra/httpd-default.conf^Include etc/apache22/extra/httpd-default.conf^g' httpd.conf
+perl -pwi -e 's^#Include etc/apache22/extra/httpd-ssl.conf^Include etc/apache22/extra/httpd-ssl.conf^g' httpd.conf
+
+# Secure the httpd-default.conf file
+cd /usr/local/etc/apache22/extra; cp httpd-default.conf httpd-default.conf.original
+perl -pwi -e 's^ServerTokens Full^ServerTokens Prod^g' httpd-default.conf
+perl -pwi -e 's^ServerSignature On^ServerSignature Off^g' httpd-default.conf
+
+# Setup httpd-ssl.conf file
+cd /usr/local/etc/apache22/extra; cp httpd-ssl.conf httpd-ssl.conf.original
+perl -pwi -e 's^ServerAdmin you\@example\.com^ServerAdmin jason.unovitch\@gmail.com^g' httpd-ssl.conf
+perl -pwi -e 's^ServerName www.example.com:443^ServerName www.mydomain.name:443^g' httpd-ssl.conf
+perl -pwi -e 's^SSLCertificateFile "/usr/local/etc/apache22/server.crt"^SSLCertificateFile "/usr/local/etc/apache22/www.mydomain.name.crt"^g' httpd-ssl.conf
+perl -pwi -e 's^SSLCertificateKeyFile "/usr/local/etc/apache22/server.key"^SSLCertificateKeyFile "/usr/local/etc/apache22/www.mydomain.name.key"^g' httpd-ssl.conf
+
+# Secure WebDAV
+htdigest -c "/usr/local/user.passwd" DAV-upload admin
+cd /usr/local/etc/apache22/extra; cp httpd-dav.conf httpd-dav.conf.original
+mkdir /usr/local/uploads
+
+# Finalize and activate
+echo 'apache22_enable="YES"' >> /etc/rc.conf.local
+apachectl start
+
+################################################################################
+##----------------------------------------------------------------------------##
+##                       Wordpress Jail Configuration                         ##
+##----------------------------------------------------------------------------##
+################################################################################
+# Adapted from:
+# http://forums.freebsd.org/showthread.php?t=30268
+################################################################################ 
+
+ezjail-admin create -f dmz xts-www3.mydomain.name 192.168.102.15,2001:123:4567:890::15
+ezjail-admin console -f xts-www3.mydomain.name
+passwd
+
+cd /pkgs
+pkg add *
+echo 'WITH_PKGNG=yes' >> /etc/make.conf
+
+# Select options and then install
+cd /usr/ports/lang/perl5.14 && make config WITH_THREADS="YES"
+cd /usr/ports/lang/php5 && make config WITH_FPM="YES"
+portmaster www/nginx lang/perl5.14 lang/php5 databases/mysql55-server www/wordpress
+
+# Enable MySQL
+cp /usr/local/share/mysql/my-large.cnf /var/db/mysql/my.cnf
+echo 'mysql_enable="YES"' >> /etc/rc.conf
+service mysql-server start
+
+# Configure MySQL
+mysql -u root << __EOF__
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'::1' IDENTIFIED BY 'MySQL_root_password' WITH GRANT OPTION;
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY 'MySQL_root_password' WITH GRANT OPTION;
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'xts-www3.mydomain.name' IDENTIFIED BY 'MySQL_root_password' WITH GRANT OPTION;
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' IDENTIFIED BY 'MySQL_root_password' WITH GRANT OPTION;
+DROP USER ''@'localhost';
+DROP USER ''@'xts-www3.mydomain.name';
+CREATE DATABASE wordpress;
+GRANT ALL ON wordpress.* to 'wordpress_db_user'@'localhost' IDENTIFIED BY 'wordpress_db_password';
+GRANT ALL ON wordpress.* to 'wordpress_db_user'@'xts-www3.mydomain.name' IDENTIFIED BY 'wordpress_db_password';
+GRANT ALL ON wordpress.* to 'wordpress_db_user'@'192.168.102.15' IDENTIFIED BY 'wordpress_db_password';
+FLUSH PRIVILEGES;
+QUIT;
+__EOF__
+
+# Configure PHP-FPM
+perl -pwi -e 's^; events.mechanism = epoll^events.mechanism = kqueue^g' /usr/local/etc/php-fpm.conf
+perl -pwi -e 's^listen = 127.0.0.1:9000^listen = /var/run/php-fpm.sock^g' /usr/local/etc/php-fpm.conf
+perl -pwi -e 's^;listen.owner = www^listen.owner = www^g' /usr/local/etc/php-fpm.conf
+perl -pwi -e 's^;listen.group = www^listen.group = www^g' /usr/local/etc/php-fpm.conf
+perl -pwi -e 's^;listen.mode = 0666^listen.mode = 0666^g' /usr/local/etc/php-fpm.conf
+echo 'php_fpm_enable="YES"' >> /etc/rc.conf
+service php-fpm start
+
+# Configure Wordpress
+cp /usr/local/www/wordpress/wp-config-sample.php /usr/local/www/wordpress/wp-config.php
+chmod 640 /usr/local/www/wordpress/wp-config.php
+perl -pwi -e 's^database_name_here^wordpress^g' /usr/local/www/wordpress/wp-config.php
+perl -pwi -e 's^username_here^wordpress_db_user^g' /usr/local/www/wordpress/wp-config.php
+perl -pwi -e 's^password_here^wordpress_db_password^g' /usr/local/www/wordpress/wp-config.php
+perl -pwi -e 's^localhost^192.168.102.15^g' /usr/local/www/wordpress/wp-config.php
+perl -pwi -e 's^put your unique phrase here^join "", map { ("a".."z","A".."Z",0..9,qw(! @ $ % & *) ) [rand(68)] } 1..64^eg' /usr/local/www/wordpress/wp-config.php
+
+################################################################################ 
+# Configure nginx - copy and paste whole patch up to next comment block
+################################################################################ 
+################################################################################
+cat > /root/nginx.conf.diff << __EOF__
+--- /usr/local/etc/nginx/nginx.conf.orig     2012-12-25 03:12:56.000000000 +0000
++++ /usr/local/etc/nginx/nginx.conf  2012-12-25 03:42:22.000000000 +0000
+@@ -1,16 +1,17 @@
+ 
+-#user  nobody;
+-worker_processes  1;
++user  www www;
++worker_processes  4;
+ 
+ #error_log  logs/error.log;
+ #error_log  logs/error.log  notice;
+ #error_log  logs/error.log  info;
+ 
+-#pid        logs/nginx.pid;
++pid        /var/run/nginx.pid;
+ 
+ 
+ events {
+     worker_connections  1024;
++    use kqueue;
+ }
+ 
+ 
+@@ -30,19 +31,24 @@
+     #keepalive_timeout  0;
+     keepalive_timeout  65;
+ 
+-    #gzip  on;
++    gzip  on;
+ 
+     server {
+         listen       80;
+-        server_name  localhost;
++        server_name  xts-www3.mydomain.name;
++
++        root /usr/local/www/wordpress;
++        index  index.php;
+ 
+         #charset koi8-r;
+ 
+         #access_log  logs/host.access.log  main;
+ 
+         location / {
+-            root   /usr/local/www/nginx;
+-            index  index.html index.htm;
++            # If request URI doesn't match any existing file, directory or symbolic link, rewrite the URL to the index.php
++            if (!-e \$request_filename) {
++                rewrite ^ /index.php last;
++            }
+         }
+ 
+         #error_page  404              /404.html;
+@@ -54,6 +60,14 @@
+             root   /usr/local/www/nginx-dist;
+         }
+ 
++        # For all PHP requests, pass them on to PHP-FPM via FastCGI
++        location ~ \.php\$ {
++           fastcgi_pass unix:/var/run/php-fpm.sock;
++           fastcgi_param SCRIPT_FILENAME /usr/local/www/wordpress\$fastcgi_script_name;
++           fastcgi_param PATH_INFO \$fastcgi_script_name;
++           include fastcgi_params; # include extra FCGI params
++        }
++
+         # proxy the PHP scripts to Apache listening on 127.0.0.1:80
+         #
+         #location ~ \.php\$ {
+@@ -97,7 +111,7 @@
+     #
+     #server {
+     #    listen       443;
+-    #    server_name  localhost;
++    #    server_name  xts-www3.mydomain.name;
+ 
+     #    ssl                  on;
+     #    ssl_certificate      cert.pem;
+__EOF__
+
+cd /usr/local/etc/nginx
+patch < /root/nginx.conf.diff
+################################################################################
+
+# Finally activate nginx
+echo 'nginx_enable="YES"' >> /etc/rc.conf
+service nginx start
+################################################################################
+##----------------------------------------------------------------------------##
+##                       iRedMail Jail Configuration                          ##
+##----------------------------------------------------------------------------##
+################################################################################
+# References:
+# http://www.iredmail.org/install_iredmail_on_freebsd.html
+# http://iredmail.com/wiki/index.php?title=Install/iRedMail/FreeBSD.Jail
+################################################################################
+
+ezjail-admin create -f dmz xts-ms1.mydomain.name 192.168.102.11,2001:123:4567:890::11
+ezjail-admin console -f xts-ms1.mydomain.name
+passwd
+
+cd /pkgs
+pkg add *
+echo 'WITH_PKGNG=yes' >> /etc/make.conf
+
+fetch https://bitbucket.org/zhb/iredmail/downloads/iRedMail-0.8.3.tar.bz2
+tar xjf iRedMail-0.8.3.tar.bz2
+cd iRedMail-0.8.3
+
+bash
+################################################################################
+# Apply extra flush privileges patch since MySQL doesn't seem to accept the
+# root password change without it (in a jail)
+################################################################################
+cd functions
+cat > mysql.sh.diff << __EOF__
+--- mysql.sh.orig       2012-12-31 04:44:23.000000000 +0000
++++ mysql.sh    2012-12-31 04:44:51.000000000 +0000
+@@ -60,6 +60,7 @@
+ GRANT ALL PRIVILEGES ON *.* TO '\${MYSQL_ROOT_USER}'@'\${SQL_HOSTNAME}' IDENTIFIED BY '\${MYSQL_ROOT_PASSWD}';
+ -- Allow GRANT privilege
+ UPDATE user SET Grant_priv='Y' WHERE User='\${MYSQL_ROOT_USER}' AND Host='\${SQL_HOSTNAME}';
++FLUSH PRIVILEGES;
+ EOF
+     fi
+ 
+__EOF__
+patch < mysql.sh.diff
+cd ..
+################################################################################
+cd pkgs && bash get_all.sh
+cd .. && LOCAL_ADDRESS='192.168.102.11' bash iRedMail.sh
+
+# If and when the OpenLDAP install crashes...
+cd /basejail/usr/ports/net/openldap24-server && make clean && make install
+cd -
+echo "export status_install_port_net_openldap24server='DONE' # Manually installed" >> ".status"
+LOCAL_ADDRESS='192.168.102.11' bash iRedMail.sh
+
+################################################################################
+##----------------------------------------------------------------------------##
+##                    OpenVPN Certificate Authority Jail                      ##
+##----------------------------------------------------------------------------##
+################################################################################
+
+ezjail-admin create -f lan xts-pki.mydomain.name 10.100.102.13,2001:123:4:5678::13
+cd /usr/jails/xts-pki.mydomain.name/pkgs && pkg create perl
+ezjail-admin console -f xts-pki.mydomain.name
+
+cd /pkgs
+pkg add *
+echo 'WITH_PKGNG=yes' >> /etc/make.conf
+
+portmaster security/openvpn
+
+cp -Rv /usr/local/share/doc/openvpn/easy-rsa/2.0/ /usr/local/etc/certauth
+cd /usr/local/etc/certauth
+chmod u+w vars build-key build-ca
+chmod u+x whichopensslcnf build* pkitool clean-all
+perl -pwi -e 's^KEY_PROVINCE=.*^KEY_PROVINCE="PA"^g' vars
+perl -pwi -e 's^KEY_SIZE=.*^KEY_SIZE=2048^g' vars
+perl -pwi -e 's^KEY_CITY=.*^KEY_CITY="Someplace"^g' vars
+perl -pwi -e 's^KEY_ORG=.*^KEY_ORG="SomethingSomewhere"^g' vars
+perl -pwi -e 's^KEY_EMAIL="\b\w+.*?"^KEY_EMAIL="jason.unovitch\@gmail.com"^g' vars
+perl -pwi -e 's^KEY_EMAIL=\b\w+.*^KEY_EMAIL=jason.unovitch\@gmail.com^' vars
+perl -pwi -e 's^KEY_CN=.*^KEY_CN=SomethingSomewhere^' vars
+perl -pwi -e 's^KEY_NAME=.*^KEY_NAME=SomethingSomewhere^' vars
+perl -pwi -e 's^KEY_OU=.*^KEY_OU=SomethingSomewhere^' vars
+perl -pwi -e 's^PKCS11_MODULE_PATH=.*^PKCS11_MODULE_PATH=SomethingSomewhere^' vars
+perl -pwi -e 's^PKCS11_PIN=.*^PKCS11_PIN=1234^' vars
+perl -pwi.interact -e 's^ --interact^^g' build-ca build-key
+bash
+. ./vars
+./clean-all
+./build-dh
+export KEY_CN=xts-bsd.mydomain.name && export KEY_NAME=xts-pki.mydomain.name && ./build-ca
+export KEY_CN=xts-rtr.mydomain.name && export KEY_NAME=xts-rtr.mydomain.name && ./build-key-server xts-rtr.mydomain.name
+export KEY_CN=xju-rtr.mydomain.name && export KEY_NAME=xju-rtr.mydomain.name && ./build-key xju-rtr.mydomain.name
+export KEY_CN=jason && export KEY_NAME=jason && ./build-key jason
+
+/usr/local/sbin/openvpn --genkey --secret keys/ta.key
+
+scp keys/ca.crt root@xts-rtr:/etc/openvpn/keys
+scp keys/ca.crt root@xju-rtr:/etc/openvpn/keys
+
+scp keys/ta.key root@xts-rtr:/etc/openvpn/keys
+scp keys/ta.key root@xju-rtr:/etc/openvpn/keys
+
+scp keys/dh2048.pem root@xts-rtr:/etc/openvpn/keys
+scp keys/dh2048.pem root@xju-rtr:/etc/openvpn/keys
+
+scp keys/xts-rtr.* root@xts-rtr:/etc/openvpn/keys
+scp keys/xju-rtr.* root@xju-rtr:/etc/openvpn/keys
+
+################################################################################
+##----------------------------------------------------------------------------##
+##                                   Cleanup                                  ##
+##----------------------------------------------------------------------------##
+################################################################################
+
+## Set Kernel Secure Level
+echo '' >> /etc/rc.conf
+echo '# Kernel Secure Level' >> /etc/rc.conf
+echo 'kern_securelevel_enable="YES"' >> /etc/rc.conf
+echo 'kern_securelevel="1"' >> /etc/rc.conf
+sysctl kern.securelevel=1
+
+## Enable Auditing
+echo '' >> /etc/rc.conf
+echo '# Auditing' >> /etc/rc.conf
+echo 'auditd_enable="YES"' >> /etc/rc.conf
+service auditd start
+
+################################################################################
+##----------------------------------------------------------------------------##
+##                             Maintenance Notes                              ##
+##----------------------------------------------------------------------------##
+################################################################################
+# Keep the ports tree in check! Every time you log in and are about to install
+# ports, be sure to update the ports tree on both the host and jailed system!
+################################################################################
+
+portsnap fetch update
+ezjail-admin update -P
+
+################################################################################
+# Binary Updates with an ezjail update immediately after
+# http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/updating-upgrading-freebsdupdate.html
+################################################################################
+
+freebsd-update upgrade -r 9.1-RELEASE
+freebsd-update install
+shutdown -r now
+freebsd-update install
+shutdown -r now
+
+service ezjail stop
+ezjail-admin update -u
+service ezjail start
+
+################################################################################
+# CONSOLE USE ONLY
+# Major system updates short of kernel updates, go to single-user mode
+################################################################################
+
+shutdown now
+# Perform maintenance, then back to multiuser mode
+return
