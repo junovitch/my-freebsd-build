@@ -6,13 +6,12 @@
 # This guide covers everything I did to setup my FreeBSD Server. I will cover
 # the following key areas
 #
-# - Static IP address setup with extra aliases for jails
-# - Pkg setup and Ports installations (using Portmaster) of several utilities
-# - Setup of OpenNTPD for time and NUT for UPS monitoring 
+# - Pkg setup and ports installation mostly with portmaster
+# - Setup utilities such as OpenNTPD for time and NUT for UPS monitoring
 # - OpenSMTPD for external emailing of periodic emails (including IPMI checks)
 # - ZFS setup for AF 4K drives and snapshotting script
-# - Mostly jail friendly NFSv4 support (with v2/v3 support commented)
-# - Ezjail setup split to DMZ/LAN segments with sysloging to the host system
+# - Mostly jail friendly NFSv4 (with v2/v3 support commented)
+# - Qjail setup split to DMZ/LAN segments with syslog to host system
 # - Basic FTP/iRedMail/Wordpress/Owncloud/OpenVPN Certificate Authority jails
 #
 # This version is slightly modified to remove any passwords, IPs, or domain
@@ -74,21 +73,12 @@ setenv WORDPRESS_MYSQL_ROOT_PASSWORD 'MySQL_root_password'
 ##                       Initial Configuration Section                        ##
 ##----------------------------------------------------------------------------##
 ################################################################################
-# We're going to erase the current resolv.conf and rc.conf and build our own
-# with all static IPs.  Carefully review and change the information below.
+# We're going to erase the current rc.conf and build our own.
+# Carefully review and change the information below.
 # Do a find and replace and change it to your liking.
-#
-# We'll also pre-set several extra IP aliases so we have them ready without
-# having to muck around with ifconfig or doing a`service netif restart` or 
-# `/etc/rc.d/netif restart` in the future. This will make it easy to setup more
-# jails whenever we feel like it.
 #
 # Once all the addresses are valid, copy-paste up until the __EOF__ marker.
 ################################################################################
-
-echo '# Domain Name and DNS Server' > /etc/resolv.conf
-echo 'search mydomain.name' >> /etc/resolv.conf
-echo 'nameserver 192.168.102.1' >> /etc/resolv.conf
 
 cat > /etc/rc.conf << __EOF__
 # General System Config
@@ -99,58 +89,18 @@ powerd_enable="YES"
 # General Network Configuration
 hostname="xts-bsd.mydomain.name"
 sshd_enable="YES"
-defaultrouter="192.168.102.1"
-ipv6_defaultrouter="2001:123:4567:890::1"
 static_routes="-net 10.100.0.0 10.100.102.1 255.255.0.0"
 ipv6_static_routes=""
 
 # DMZ/External Interface Configuration
-#ifconfig_em0="DHCP"   #Uncomment for DHCP IPv4 Address
-#ifconfig_em0_ipv6="inet6 accept_rtadv"   #Uncomment for RTADV IPv6 Address
-ifconfig_em0="inet 192.168.102.2 netmask 0xffffff00"             # global zone
-ifconfig_em0_ipv6="inet6 2001:123:4567:890::2 prefixlen 64"      # global zone
-ifconfig_em0_alias0="inet 192.168.102.11 netmask 0xffffffff"     # xts-ms1.mydomain.name
-ifconfig_em0_alias1="inet6 2001:123:4567:890::11 prefixlen 128"  # xts-ms1.mydomain.name
-ifconfig_em0_alias2="inet 192.168.102.12 netmask 0xffffffff"     # xts-ms2.mydomain.name
-ifconfig_em0_alias3="inet6 2001:123:4567:890::12 prefixlen 128"  # xts-ms2.mydomain.name
-ifconfig_em0_alias4="inet 192.168.102.13 netmask 0xffffffff"     # xts-www1.mydomain.name
-ifconfig_em0_alias5="inet6 2001:123:4567:890::13 prefixlen 128"  # xts-www1.mydomain.name
-ifconfig_em0_alias6="inet 192.168.102.14 netmask 0xffffffff"     # xts-www2.mydomain.name
-ifconfig_em0_alias7="inet6 2001:123:4567:890::14 prefixlen 128"  # xts-www2.mydomain.name
-ifconfig_em0_alias8="inet 192.168.102.15 netmask 0xffffffff"     # xts-www3.mydomain.name
-ifconfig_em0_alias9="inet6 2001:123:4567:890::15 prefixlen 128"  # xts-www3.mydomain.name
-ifconfig_em0_alias10="inet 192.168.102.16 netmask 0xffffffff"    # xts-www4.mydomain.name
-ifconfig_em0_alias11="inet6 2001:123:4567:890::16 prefixlen 128" # xts-www4.mydomain.name
-ifconfig_em0_alias12="inet 192.168.102.17 netmask 0xffffffff"    # unused
-ifconfig_em0_alias13="inet6 2001:123:4567:890::17 prefixlen 128" # unused
-ifconfig_em0_alias14="inet 192.168.102.18 netmask 0xffffffff"    # unused
-ifconfig_em0_alias15="inet6 2001:123:4567:890::18 prefixlen 128" # unused
-ifconfig_em0_alias16="inet 192.168.102.19 netmask 0xffffffff"    # unused
-ifconfig_em0_alias17="inet6 2001:123:4567:890::19 prefixlen 128" # unused
+ifconfig_em0="DHCP"
+ifconfig_em0_ipv6="inet6 accept_rtadv"
 
 # LAN/Internal Interface Configuration
 #ifconfig_em1="DHCP"   #Uncomment for DHCP IPv4 Address
 #ifconfig_em1_ipv6="inet6 accept_rtadv"   #Uncomment for RTADV IPv6 Address
-ifconfig_em1="inet 10.100.102.2 netmask 0xffffff00"            # global zone
-ifconfig_em1_ipv6="inet6 2001:123:4:5678::2 prefixlen 64"      # global zone
-ifconfig_em1_alias0="inet 10.100.102.11 netmask 0xffffffff"    # xts-puppet.mydomain.name
-ifconfig_em1_alias1="inet6 2001:123:4:5678::11 prefixlen 128"  # xts-puppet.mydomain.name
-ifconfig_em1_alias2="inet 10.100.102.12 netmask 0xffffffff"    # xts-ftp.mydomain.name
-ifconfig_em1_alias3="inet6 2001:123:4:5678::12 prefixlen 128"  # xts-ftp.mydomain.name
-ifconfig_em1_alias4="inet 10.100.102.13 netmask 0xffffffff"    # xts-pki.mydomain.name
-ifconfig_em1_alias5="inet6 2001:123:4:5678::13 prefixlen 128"  # xts-pki.mydomain.name
-ifconfig_em1_alias6="inet 10.100.102.14 netmask 0xffffffff"    # unused
-ifconfig_em1_alias7="inet6 2001:123:4:5678::14 prefixlen 128"  # unused
-ifconfig_em1_alias8="inet 10.100.102.15 netmask 0xffffffff"    # unused
-ifconfig_em1_alias9="inet6 2001:123:4:5678::15 prefixlen 128"  # unused
-ifconfig_em1_alias10="inet 10.100.102.16 netmask 0xffffffff"   # unused
-ifconfig_em1_alias11="inet6 2001:123:4:5678::16 prefixlen 128" # unused
-ifconfig_em1_alias12="inet 10.100.102.17 netmask 0xffffffff"   # unused
-ifconfig_em1_alias13="inet6 2001:123:4:5678::17 prefixlen 128" # unused
-ifconfig_em1_alias14="inet 10.100.102.18 netmask 0xffffffff"   # unused
-ifconfig_em1_alias15="inet6 2001:123:4:5678::18 prefixlen 128" # unused
-ifconfig_em1_alias16="inet 10.100.102.19 netmask 0xffffffff"   # unused
-ifconfig_em1_alias17="inet6 2001:123:4:5678::19 prefixlen 128" # unused
+ifconfig_em1="inet 10.100.102.2 netmask 0xffffff00"
+ifconfig_em1_ipv6="inet6 2001:123:4:5678::2 prefixlen 64"
 
 # Syslog Configuration, bind (-b) to LAN Internal address
 syslogd_enable="YES"
@@ -755,16 +705,38 @@ service nfsd start
 ##                    Host System Initial Jail Configuration                  ##
 ##----------------------------------------------------------------------------##
 ################################################################################
-# Setup Ezjail scripts
+# Setup Qjail scripts
 #
 # Type this to allow pings from inside the jail for testing purposes
 # sysctl security.jail.allow_raw_sockets=1
 ################################################################################
 
-portmaster sysutils/ezjail
-ezjail-admin install
-ezjail-admin update -P
+portmaster sysutils/qjail
+qjail install
+qjail update -p
 echo 'daily_status_security_jailaudit_enable="YES"' >> /etc/periodic.conf
+
+################################################################################
+# As of 6 January, Qjail 2.0 while overwrite the /usr/share/ symlink when
+# making a jail, this will allow following the symlink and preventing that
+# until a better fix is implemented. 
+################################################################################
+cd /usr/local/bin
+cat > qjail.diff << __EOF__
+--- /usr/local/bin/qjail.orig	2013-01-06 04:37:38.000000000 +0000
++++ /usr/local/bin/qjail	2013-01-06 05:20:49.000000000 +0000
+@@ -699,7 +699,7 @@
+     for flavor in \${qjail_flavor}; do
+        
+       cd "\${qjail_flavors_dir}/\${flavor}" && find . | \
+-          cpio -p -u    "\${qjail_rootdir}" 1> /dev/null 2>&1
++          cpio -p --insecure "\${qjail_rootdir}" 1> /dev/null 2>&1
+       [ \$? -eq 0 ] || 
+         echo "Warning: Could not fully install flavor \${qjail_flavor}."
+     done
+__EOF__
+patch -l < qjail.diff
+################################################################################
 
 ################################################################################
 # Make SSH jail friendly by not allowing it to listen to all IP aliases
@@ -779,8 +751,8 @@ service sshd restart
 ################################################################################
 
 echo '' >> /etc/rc.conf
-echo '# Ezjail Configuration' >> /etc/rc.conf
-echo 'ezjail_enable="YES"' >> /etc/rc.conf
+echo '# Qjail Configuration' >> /etc/rc.conf
+echo 'qjail_enable="YES"' >> /etc/rc.conf
 
 echo 'accf_http_load="YES"' >> /boot/loader.conf
 kldload accf_http
@@ -796,54 +768,57 @@ echo '#security.jail.allow_raw_sockets=1' >> /etc/sysctl.conf
 # Third, set up remaining for all jail's rc.conf
 ################################################################################
 
-mkdir -p /usr/jails/newjail/pkgs
-cd /usr/jails/newjail/pkgs
+mkdir -p /usr/jails/newjail/usr/packages
+cd /usr/jails/newjail/usr/packages
 pkg create portmaster
 pkg create bash
 pkg create vim-lite
 pkg create gettext
 pkg create libiconv
 
+cp -a /usr/jails/flavors/ssh-default /usr/jails/flavors/my-default
 cp /etc/skel/.vimrc /usr/jails/newjail/etc/skel/
-cp /etc/skel/.vimrc /usr/jails/newjail/root/
-perl -pwi -e 's^# sshd_enable="YES"^sshd_enable="YES"^g' /usr/jails/flavours/example/etc/rc.conf
-perl -pwi -e 's^syslogd_flags="-ss"^syslogd_flags="-s -v -v"^g' /usr/jails/flavours/example/etc/rc.conf
+cp /etc/skel/.vimrc /usr/jails/newjail/root
+cp /etc/skel/.vimrc /usr/jails/flavors/my-default/usr/home/qjail
+cp -a /usr/home/jason/.ssh /usr/jails/flavors/my-default/usr/home/qjail/
+
+perl -pwi -e 's^syslogd_flags="-ss"^syslogd_flags="-s -v -v"^g' /usr/jails/flavors/my-default/etc/rc.conf
 perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.100.102.2^g' /usr/jails/newjail/etc/syslog.conf
 
-echo '' >> /usr/jails/flavours/example/etc/rc.conf
-echo '# Kernel Secure Level' >> /usr/jails/flavours/example/etc/rc.conf
-echo 'kern_securelevel_enable="YES"' >> /usr/jails/flavours/example/etc/rc.conf
-echo 'kern_securelevel="3"' >> /usr/jails/flavours/example/etc/rc.conf
-echo '' >> /usr/jails/flavours/example/etc/rc.conf
-echo '# Clear Tmp' >> /usr/jails/flavours/example/etc/rc.conf
-echo 'clear_tmp_enable="YES"' >> /usr/jails/flavours/example/etc/rc.conf
-echo '' >> /usr/jails/flavours/example/etc/rc.conf
-echo '# Local Jail Configuration Follows' >> /usr/jails/flavours/example/etc/rc.conf
+
+cat >> /usr/jails/flavors/my-default/etc/rc.conf << __EOF__
+
+# Kernel Secure Level
+kern_securelevel_enable="YES"
+kern_securelevel="3"
+
+# Clear Tmp
+clear_tmp_enable="YES"
+
+# Local Jail Configuration Follows
+__EOF__
+
 mkdir /usr/jails/newjail/zfs
 
 ################################################################################
 # Create Jail flavors based on network segment 
 ################################################################################
 
-cd /usr/jails/flavours/
-cp -Rp example dmz
-cp -Rp example lan
+cd /usr/jails/flavors/
+cp -Rp my-default dmz
+cp -Rp my-default lan
 
 ################################################################################
 # DMZ-specific segment config
 ################################################################################
 
-echo 'search mydomain.name' >> /usr/jails/flavours/dmz/etc/resolv.conf
-echo 'nameserver 192.168.102.1' >> /usr/jails/flavours/dmz/etc/resolv.conf
-echo 'defaultrouter="192.168.102.1"' >> /usr/jails/flavours/dmz/etc/rc.conf
 
 ################################################################################
 # LAN-specific segment config 
 ################################################################################
 
-echo 'search mydomain.name' >> /usr/jails/flavours/lan/etc/resolv.conf
-echo 'nameserver 10.100.102.1' >> /usr/jails/flavours/lan/etc/resolv.conf
-echo 'defaultrouter="10.100.102.1"' >> /usr/jails/flavours/lan/etc/rc.conf
+echo 'search mydomain.name' >> /usr/jails/flavors/lan/etc/resolv.conf
+echo 'nameserver 10.100.102.1' >> /usr/jails/flavors/lan/etc/resolv.conf
 
 ################################################################################
 #  WWW jail prerequisite - self signed keys used for testing
@@ -882,11 +857,12 @@ cd /root && ./make-quicksha256-key.sh www.mydomain.name
 # https://help.ubuntu.com/11.04/serverguide/puppet.html
 ################################################################################
 
-ezjail-admin create -f lan xts-puppet.mydomain.name 10.100.102.11,2001:123:4:5678::11
-ezjail-admin console -f xts-puppet.mydomain.name
+qjail create -f lan -n em1 xts-puppet.mydomain.name 10.100.102.11,2001:123:4:5678::11
+qjail start xts-puppet.mydomain.name
+qjail console xts-puppet.mydomain.name
 passwd
 
-cd /pkgs
+cd /usr/packages
 pkg add *
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
@@ -904,11 +880,12 @@ portmaster sysutils/puppet
 # http://www5.us.freebsd.org/doc/handbook/network-ftp.html
 ################################################################################
 
-ezjail-admin create -f lan xts-ftp.mydomain.name 10.100.102.12,2001:123:4:5678::12
-ezjail-admin console -f xts-ftp.mydomain.name
+qjail create -f lan -n em1 xts-ftp.mydomain.name 10.100.102.12,2001:123:4:5678::12
+qjail start xts-ftp.mydomain.name
+qjail console xts-ftp.mydomain.name
 passwd
 
-cd /pkgs
+cd /usr/packages
 pkg add *
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
@@ -941,13 +918,14 @@ service ftpd start
 # https://wiki.archlinux.org/index.php/Owncloud
 #############################################################################
 
-ezjail-admin create -f dmz xts-www1.mydomain.name 192.168.102.13,2001:123:4567:890::13
+qjail create -f dmz -n em0 xts-www1.mydomain.name 192.168.102.13,2001:123:4567:890::13
 mkdir /usr/jails/xts-www1.mydomain.name/usr/local/etc/apache22/
 cp /root/mycert/www.mydomain.name.* /usr/jails/xts-www1.mydomain.name/usr/local/etc/apache22/
-ezjail-admin console -f xts-www1.mydomain.name
+qjail start xts-www1.mydomain.name
+qjail console xts-www1.mydomain.name
 passwd
 
-cd /pkgs
+cd /usr/packages
 pkg add *
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
@@ -990,13 +968,14 @@ apachectl start
 ##----------------------------------------------------------------------------##
 ################################################################################
 
-ezjail-admin create -f dmz xts-www2.mydomain.name 192.168.102.14,2001:123:4567:890::14
+qjail create -f dmz -n em0 xts-www2.mydomain.name 192.168.102.14,2001:123:4567:890::14
 mkdir /usr/jails/xts-www2.mydomain.name/usr/local/etc/apache22/
 cp /root/mycert/www.mydomain.name.* /usr/jails/xts-www2.mydomain.name/usr/local/etc/apache22/
-ezjail-admin console -f xts-www2.mydomain.name
+qjail start xts-www2.mydomain.name
+qjail console xts-www2.mydomain.name
 passwd
 
-cd /pkgs
+cd /usr/packages
 pkg add *
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
@@ -1040,11 +1019,12 @@ apachectl start
 # http://forums.freebsd.org/showthread.php?t=30268
 ################################################################################ 
 
-ezjail-admin create -f dmz xts-www3.mydomain.name 192.168.102.15,2001:123:4567:890::15
-ezjail-admin console -f xts-www3.mydomain.name
+qjail create -f dmz -n em0 xts-www3.mydomain.name 192.168.102.15,2001:123:4567:890::15
+qjail start xts-www3.mydomain.name
+qjail console xts-www3.mydomain.name
 passwd
 
-cd /pkgs
+cd /usr/packages
 pkg add *
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
@@ -1192,11 +1172,12 @@ service nginx start
 # http://iredmail.com/wiki/index.php?title=Install/iRedMail/FreeBSD.Jail
 ################################################################################
 
-ezjail-admin create -f dmz xts-ms1.mydomain.name 192.168.102.11,2001:123:4567:890::11
-ezjail-admin console -f xts-ms1.mydomain.name
+qjail create -f dmz -n em0 xts-ms1.mydomain.name 192.168.102.11,2001:123:4567:890::11
+qjail start xts-ms1.mydomain.name
+qjail console xts-ms1.mydomain.name
 passwd
 
-cd /pkgs
+cd /usr/packages
 pkg add *
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
@@ -1240,11 +1221,12 @@ LOCAL_ADDRESS='192.168.102.11' bash iRedMail.sh
 ##----------------------------------------------------------------------------##
 ################################################################################
 
-ezjail-admin create -f lan xts-pki.mydomain.name 10.100.102.13,2001:123:4:5678::13
-cd /usr/jails/xts-pki.mydomain.name/pkgs && pkg create perl
-ezjail-admin console -f xts-pki.mydomain.name
+qjail create -f lan -n em1 xts-pki.mydomain.name 10.100.102.13,2001:123:4:5678::13
+cd /usr/jails/xts-pki.mydomain.name/usr/packages && pkg create perl
+qjail start xts-pki.mydomain.name
+qjail console xts-pki.mydomain.name
 
-cd /pkgs
+cd /usr/packages
 pkg add *
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
@@ -1318,22 +1300,34 @@ service auditd start
 ################################################################################
 
 portsnap fetch update
-ezjail-admin update -P
+qjail update -P
 
 ################################################################################
-# Binary Updates with an ezjail update immediately after
+# Binary Updates with a Qjail update immediately after.
 # http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/updating-upgrading-freebsdupdate.html
 ################################################################################
 
-freebsd-update upgrade -r 9.1-RELEASE
-freebsd-update install
+# Small Updates, I.E. 9.0-RELEASE to 9.0-RELEASE-p5
+freebsd-update fetch
+sed -i'' -e 's/kern_securelevel/#kern_securelevel/' /etc/rc.conf
 shutdown -r now
 freebsd-update install
+qjail stop
+qjail update -b
+sed -i'' -e 's/#kern_securelevel/kern_securelevel/' /etc/rc.conf
 shutdown -r now
 
-service ezjail stop
-ezjail-admin update -u
-service ezjail start
+# Big Updates, I.E. 9.0-RELEASE to 9.1-RELEASE
+freebsd-update upgrade -r 9.1-RELEASE
+sed -i'' -e 's/kern_securelevel/#kern_securelevel/' /etc/rc.conf
+shutdown -r now
+freebsd-update install
+shutdown -r now
+freebsd-update install
+qjail stop
+qjail update -b
+sed -i'' -e 's/#kern_securelevel/kern_securelevel/' /etc/rc.conf
+shutdown -r now
 
 ################################################################################
 # CONSOLE USE ONLY
