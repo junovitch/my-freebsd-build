@@ -613,7 +613,7 @@ zdb
 
 echo 'daily_status_zfs_enable="YES"' >> /etc/periodic.conf
 echo 'daily_scrub_zfs_enable="YES"' >> /etc/periodic.conf
-echo 'daily_scrub_zfs_default_threshold="6"' >> /etc/periodic.conf
+echo 'daily_scrub_zfs_default_threshold="7"' >> /etc/periodic.conf
 
 ################################################################################
 # Quick Rolling snapshot scripts for a month's worth of snapshot along with
