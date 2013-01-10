@@ -724,25 +724,11 @@ echo 'daily_status_security_jailaudit_enable="YES"' >> /etc/periodic.conf
 
 ################################################################################
 # As of 6 January, Qjail 2.0 while overwrite the /usr/share/ symlink when
-# making a jail, this will allow following the symlink and preventing that
-# until a better fix is implemented. 
+# making a jail, this will prevent that error.
 ################################################################################
-cd /usr/local/bin
-cat > qjail.diff << __EOF__
---- /usr/local/bin/qjail.orig	2013-01-06 04:37:38.000000000 +0000
-+++ /usr/local/bin/qjail	2013-01-06 05:20:49.000000000 +0000
-@@ -699,7 +699,7 @@
-     for flavor in \${qjail_flavor}; do
-        
-       cd "\${qjail_flavors_dir}/\${flavor}" && find . | \
--          cpio -p -u    "\${qjail_rootdir}" 1> /dev/null 2>&1
-+          cpio -p --insecure "\${qjail_rootdir}" 1> /dev/null 2>&1
-       [ \$? -eq 0 ] || 
-         echo "Warning: Could not fully install flavor \${qjail_flavor}."
-     done
-__EOF__
-patch -l < qjail.diff
-################################################################################
+
+rm -rf  /usr/jails/flavors/default/usr/share
+rm -rf  /usr/jails/flavors/ssh-default/usr/sharepatch -l < qjail.diff
 
 ################################################################################
 # Make SSH jail friendly by not allowing it to listen to all IP aliases
