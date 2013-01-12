@@ -728,7 +728,7 @@ echo 'daily_status_security_jailaudit_enable="YES"' >> /etc/periodic.conf
 ################################################################################
 
 rm -rf  /usr/jails/flavors/default/usr/share
-rm -rf  /usr/jails/flavors/ssh-default/usr/sharepatch -l < qjail.diff
+rm -rf  /usr/jails/flavors/ssh-default/usr/share
 
 ################################################################################
 # Make SSH jail friendly by not allowing it to listen to all IP aliases
