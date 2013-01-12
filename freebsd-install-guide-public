@@ -382,11 +382,20 @@ __EOF__
 chmod 555 /usr/local/etc/periodic/daily/netstat-short.sh
 
 ################################################################################
-# Move periodic to run 2 hours later and add a weekly `freebsd-update` check.
+# Move periodic to run 2 hours later and add a weekly `freebsd-update` check,
+# `portsnap cron` to keep the ports tree updated.
+#
+# The new /etc/crontab will look like this:
+#
+# 1	5	*	*	*	root	periodic daily
+# 15	6	*	*	6	root	periodic weekly
+# 30	6	*	*	6	root	freebsd-update cron
+# 30	7	*	*	6	root	portsnap cron
+# 30	7	1	*	*	root	periodic monthly
 ################################################################################
 
 perl -pwi -e 's^1\t3\t\*\t\*\t\*\troot\tperiodic daily^1\t5\t*\t*\t*\troot\tperiodic daily^' /etc/crontab
-perl -pwi -e 's^15\t4\t\*\t\*\t6\troot\tperiodic weekly^15\t6\t*\t*\t6\troot\tperiodic weekly\n30\t6\t*\t*\t6\troot\tfreebsd-update cron^' /etc/crontab
+perl -pwi -e 's^15\t4\t\*\t\*\t6\troot\tperiodic weekly^15\t6\t*\t*\t6\troot\tperiodic weekly\n30\t6\t*\t*\t6\troot\tfreebsd-update cron\n30\t7\t*\t*\t6\troot\tportsnap cron^' /etc/crontab
 perl -pwi -e 's^30\t5\t1\t\*\t\*\troot\tperiodic monthly^30\t7\t1\t*\t*\troot\tperiodic monthly^' /etc/crontab
 
 ################################################################################
@@ -720,7 +729,15 @@ service nfsd start
 portmaster sysutils/qjail
 qjail install
 qjail update -p
+
+################################################################################
+# Enable daily jailaudit for vulnerabilities in installed ports as well as add
+# to the `portsnap cron` we added earlier.  This will make sure the jail's ports
+# tree stays current.
+################################################################################
+
 echo 'daily_status_security_jailaudit_enable="YES"' >> /etc/periodic.conf
+perl -pwi -e 's^portsnap cron^portsnap cron && /usr/local/bin/qjail update -p^' /etc/crontab
 
 ################################################################################
 # As of 6 January, Qjail 2.0 while overwrite the /usr/share/ symlink when
