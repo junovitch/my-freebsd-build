@@ -791,6 +791,8 @@ cp /etc/skel/.vimrc /usr/jails/newjail/root
 cp /etc/skel/.vimrc /usr/jails/flavors/my-default/usr/home/qjail
 cp -a /usr/home/jason/.ssh /usr/jails/flavors/my-default/usr/home/qjail/
 
+chown -R 1001:0 /usr/jails/flavors/my-default/usr/home/qjail
+
 perl -pwi -e 's^syslogd_flags="-ss"^syslogd_flags="-s -v -v"^g' /usr/jails/flavors/my-default/etc/rc.conf
 perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.100.102.2^g' /usr/jails/newjail/etc/syslog.conf
 
