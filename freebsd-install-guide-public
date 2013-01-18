@@ -388,14 +388,14 @@ chmod 555 /usr/local/etc/periodic/daily/netstat-short.sh
 # The new /etc/crontab will look like this:
 #
 # 1	5	*	*	*	root	periodic daily
+# 5	5	*	*	6	root	portsnap cron
 # 15	6	*	*	6	root	periodic weekly
 # 30	6	*	*	6	root	freebsd-update cron
-# 30	7	*	*	6	root	portsnap cron
 # 30	7	1	*	*	root	periodic monthly
 ################################################################################
 
 perl -pwi -e 's^1\t3\t\*\t\*\t\*\troot\tperiodic daily^1\t5\t*\t*\t*\troot\tperiodic daily^' /etc/crontab
-perl -pwi -e 's^15\t4\t\*\t\*\t6\troot\tperiodic weekly^15\t6\t*\t*\t6\troot\tperiodic weekly\n30\t6\t*\t*\t6\troot\tfreebsd-update cron\n30\t7\t*\t*\t6\troot\tportsnap cron^' /etc/crontab
+perl -pwi -e 's^15\t4\t\*\t\*\t6\troot\tperiodic weekly^5\t5\t*\t*\t6\troot\tportsnap cron\n15\t6\t*\t*\t6\troot\tperiodic weekly\n30\t6\t*\t*\t6\troot\tfreebsd-update cron^' /etc/crontab
 perl -pwi -e 's^30\t5\t1\t\*\t\*\troot\tperiodic monthly^30\t7\t1\t*\t*\troot\tperiodic monthly^' /etc/crontab
 
 ################################################################################
