@@ -89,7 +89,8 @@ powerd_enable="YES"
 # General Network Configuration
 hostname="xts-bsd.mydomain.name"
 sshd_enable="YES"
-static_routes="-net 10.100.0.0 10.100.102.1 255.255.0.0"
+static_routes="lan"
+route_lan="-net 10.100.0.0/16 10.100.102.1"
 ipv6_static_routes=""
 
 # DMZ/External Interface Configuration
