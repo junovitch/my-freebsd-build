@@ -731,13 +731,10 @@ qjail install
 qjail update -p
 
 ################################################################################
-# Enable daily jailaudit for vulnerabilities in installed ports as well as add
-# to the `portsnap cron` we added earlier.  This will make sure the jail's ports
-# tree stays current.
+# Enable daily jailaudit for vulnerabilities in installed ports.
 ################################################################################
 
 echo 'daily_status_security_jailaudit_enable="YES"' >> /etc/periodic.conf
-perl -pwi -e 's^portsnap cron^portsnap cron && /usr/local/bin/qjail update -p^' /etc/crontab
 
 ################################################################################
 # As of 6 January, Qjail 2.0 while overwrite the /usr/share/ symlink when
