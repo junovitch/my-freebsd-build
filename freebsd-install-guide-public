@@ -120,7 +120,6 @@ __EOF__
 hostname xts-bsd.mydomain.name
 service powerd restart
 service netif restart
-service routing restart
 service syslogd restart
 route add -net 10.100.0.0 10.100.102.1 255.255.0.0
 
