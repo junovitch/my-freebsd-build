@@ -73,11 +73,19 @@ setenv WORDPRESS_MYSQL_ROOT_PASSWORD 'MySQL_root_password'
 ##                       Initial Configuration Section                        ##
 ##----------------------------------------------------------------------------##
 ################################################################################
-# We're going to erase the current rc.conf and build our own.
-# Carefully review and change the information below.
-# Do a find and replace and change it to your liking.
+# We're going to erase the current rc.conf and build our own. You should review
+# this listing closely and do a find and replace to change IPs prefixes and 
+# the domain name now. This information will repeat several times as we go
+# through the guide. Once all the addresses are valid, copy-paste up until the
+#  __EOF__ marker.
 #
-# Once all the addresses are valid, copy-paste up until the __EOF__ marker.
+# The rc.conf contains descriptive information about the local host name,
+# configuration details for any potential network interfaces and which services
+# should be started up at system intial boot time. You can get a good idea what
+# runs on a system by reviewing this file. If you are new to FreeBSD, you may
+# want to start with `man rc.conf` and review that page. One thing to note is
+# you can often do `man **.conf` on many files and learn how they should be
+# configured.
 ################################################################################
 
 cat > /etc/rc.conf << __EOF__
@@ -113,8 +121,9 @@ ntpdate_hosts="192.168.102.1"
 __EOF__
 
 ################################################################################
-# Once the above is in place and validated either `reboot` or restart the
-# services impacted by copy/pasting in the following.
+# Once the above is in place and validated either type `reboot` or just restart
+# the services impacted by copy/pasting in the following. If you use different
+# routes be sure to change or remove that statement.
 ################################################################################
 
 hostname xts-bsd.mydomain.name
@@ -138,6 +147,10 @@ passwd jason
 ################################################################################
 # Looking to the future, let's convert to the new pkgng system for easier
 # package management in the future and updated the periodic scripts for it.
+#
+# WARNING: pkg is still experimental in FreeBSD 9.1 and there aren't packages
+# built for it yet. Be warned that you may run into minor issues.
+#
 # http://www5.us.freebsd.org/doc/en_US.ISO8859-1/books/handbook/pkgng-intro.html
 ################################################################################
 
@@ -147,7 +160,9 @@ echo 'weekly_status_pkg_enable="YES"' >> /etc/periodic.conf
 echo 'pkg_version="pkg version"' >> /etc/periodic.conf
 
 ################################################################################
-# Let's get an initial ports tree for any installs from source.
+# Let's get an initial ports tree for any installs from source. After this point
+# you only have to `portsnap fetch update` to keep everything in check.
+#
 # http://www5.us.freebsd.org/doc/en_US.ISO8859-1/books/handbook/updating-upgrading-portsnap.html
 ################################################################################
 
