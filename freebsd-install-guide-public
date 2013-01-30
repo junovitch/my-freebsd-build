@@ -234,23 +234,29 @@ service openntpd start
 # other than @gmail.com checking the man page will probably be required.
 #
 # https://cooltrainer.org/2012/06/06/external-mailing-on-freebsd/
+#
+# Also see this link for notes and examples on the new syntax as of Jan 2013
+# http://forums.freebsd.org/showthread.php?t=36745
 ################################################################################
 
 portmaster mail/opensmtpd
 
 cd /usr/local/etc/mail/
 cp smtpd.conf.sample smtpd.conf
-perl -pwi -e 'if ($_ =~ m/map/) { print "map \"secrets\" { source db \"/usr/local/etc/mail/secrets.db\" }\n" }' smtpd.conf
-perl -pwi -e 's^accept for all relay^accept from local for domain "gmail.com" relay via tls+auth://smtp.gmail.com:587 auth secrets^' smtpd.conf
+perl -pwi -e 'if ($_ =~ m/table aliases/) { print "table secrets db:/usr/local/etc/mail/secrets.db\n" }' smtpd.conf
+perl -pwi -e 's^accept for any relay^accept from local for domain "gmail.com" relay via tls+auth://gmail_login\@smtp.gmail.com:587 auth <secrets>^' smtpd.conf
 perl -pwi -e 's^listen on 127.0.0.1^listen on 10.100.102.2\nlisten on 2001:123:4:5678::2^' smtpd.conf
-echo 'accept from 10.100.0.0/16 for local alias aliases deliver to mbox' >> smtpd.conf
+echo 'accept from 10.100.0.0/16 for local alias <aliases> deliver to mbox' >> smtpd.conf
+
+touch secrets
+chmod 640 secrets
+chown root:_smtpd secrets
+echo 'gmail_login  jason.unovitch:CHANGETHISTOTHEPASSWORD' >> secrets
+/usr/local/libexec/opensmtpd/makemap secrets
 
 cp /etc/mail/aliases /usr/local/etc/mail/aliases
 perl -pwi -e 's^# root:\tme\@my.domain^root:\tjason.unovitch\@gmail.com^' aliases
-newaliases
-
-echo 'smtp.gmail.com jason.unovitch@gmail.com:CHANGETHISTOTHEPASSWORD' >> secrets
-/usr/local/libexec/opensmtpd-portable/makemap secrets && rm secrets
+/usr/local/libexec/opensmtpd/makemap aliases
 
 echo '' >> /etc/rc.conf
 echo '# Disable Sendmail MTA' >> /etc/rc.conf
