@@ -421,6 +421,20 @@ perl -pwi -e 's^15\t4\t\*\t\*\t6\troot\tperiodic weekly^5\t5\t*\t*\t6\troot\tpor
 perl -pwi -e 's^30\t5\t1\t\*\t\*\troot\tperiodic monthly^30\t7\t1\t*\t*\troot\tperiodic monthly^' /etc/crontab
 
 ################################################################################
+# Put the portsnap cron into good use. Just run `portsup` with this script to
+# update ports with what has already been downloaded during the weekly cron.
+################################################################################
+
+cat > /usr/local/sbin/portsup << __EOF__
+#!/bin/sh
+# Just a short script to quickly put the portsnap cron right into use
+portsnap update
+[ -e "/usr/jails/basejail/usr/ports/.portsnap.INDEX" ] \
+    && portsnap -p "/usr/jails/basejail/usr/ports" update
+__EOF__
+chmod 555 /usr/local/sbin/portsup
+
+################################################################################
 # Make default syslog sizes a bit bigger and keep more of them
 ################################################################################
 
@@ -1328,6 +1342,7 @@ service auditd start
 # Keep the ports tree in check! Every time you log in and are about to install
 # ports, be sure to update the ports tree on both the host and jailed system!
 ################################################################################
+# Quick version:  portsup
 
 portsnap fetch update
 qjail update -P
