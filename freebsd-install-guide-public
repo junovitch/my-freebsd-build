@@ -1270,6 +1270,7 @@ qjail create -f lan -n em1 xts-pki.mydomain.name 10.100.102.13,2001:123:4:5678::
 cd /usr/jails/xts-pki.mydomain.name/usr/packages && pkg create perl
 qjail start xts-pki.mydomain.name
 qjail console xts-pki.mydomain.name
+passwd
 
 cd /usr/packages
 pkg add *
@@ -1277,7 +1278,7 @@ echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
 portmaster security/openvpn
 
-cp -Rv /usr/local/share/doc/openvpn/easy-rsa/2.0/ /usr/local/etc/certauth
+cp -Rv /usr/local/share/easy-rsa/ /usr/local/etc/certauth
 cd /usr/local/etc/certauth
 chmod u+w vars build-key build-ca
 chmod u+x whichopensslcnf build* pkitool clean-all
