@@ -571,6 +571,8 @@ zfs set compression=on zfs/homedirs/common_assorted
 zfs create zfs/homedirs/family_albums
 zfs set dedup=on zfs/homedirs/family_albums
 zfs create zfs/local
+zfs create zfs/local/jails
+zfs create zfs/local/jails/archive
 
 ################################################################################
 # Export the zpool
