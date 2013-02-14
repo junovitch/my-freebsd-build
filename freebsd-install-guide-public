@@ -632,39 +632,11 @@ echo 'daily_scrub_zfs_default_threshold="7"' >> /etc/periodic.conf
 
 cat > /usr/local/etc/periodic/daily/rollingsnap << __EOF__
 #\!/bin/sh
-zfs destroy -r zfs/homedirs@31daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@30daysago @31daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@29daysago @30daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@28daysago @29daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@27daysago @28daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@26daysago @27daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@25daysago @26daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@24daysago @25daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@23daysago @24daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@22daysago @23daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@21daysago @22daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@20daysago @21daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@19daysago @20daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@18daysago @19daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@17daysago @18daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@16daysago @17daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@15daysago @16daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@14daysago @15daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@13daysago @14daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@12daysago @13daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@11daysago @12daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@10daysago @11daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@9daysago @10daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@8daysago @9daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@7daysago @8daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@6daysago @7daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@5daysago @6daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@4daysago @5daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@3daysago @4daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@2daysago @3daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@yesterday @2daysago > /dev/null 2>&1
-zfs rename -r zfs/homedirs@today @yesterday > /dev/null 2>&1
-zfs snapshot -r zfs/homedirs@today
+_30DAYSAGO=\$(/bin/date -v -30d "+%Y%m%d")
+_SNAPDATE=\$(/bin/date "+%Y%m%d")
+
+zfs destroy -r zfs/homedirs@\$_30DAYSAGO-autodaily > /dev/null 2>&1
+zfs snapshot -r zfs/homedirs@\$_SNAPDATE-autodaily
 __EOF__
 chmod 555 /usr/local/etc/periodic/daily/rollingsnap
 
