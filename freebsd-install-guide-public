@@ -333,6 +333,13 @@ cp /etc/skel/.vimrc /root/
 cp /etc/skel/.vimrc /home/jason/
 
 ################################################################################
+# Checkbashisms - Checks for potential Bash specific commands in scripts that
+# could cause compatibility issues.
+################################################################################
+
+portmaster devel/checkbashisms
+
+################################################################################
 # Port/Jail Audit tools - Check for vulnerabilities every day and email the
 # admin during the periodic check.
 # Test it out via `/usr/local/sbin/portaudit -Fda`
