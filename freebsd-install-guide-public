@@ -442,12 +442,23 @@ perl -pwi -e 's^3|5|7\t^9\t^' /etc/newsyslog.conf
 ##                  Programs Related to Host System Storage                   ##
 ##----------------------------------------------------------------------------##
 ################################################################################
-# Smartd package for basic disk management and status checking.
+# Smartd package for basic disk management and status checking.  We'll set up
+# the smartd.conf for more detailed checks along with sending a notification
+# email to root if issues get detected.
+# 
+# Basic explanation (enter `man smartd.conf` to get more detailed info)
+# DEVICESCAN infers checking all drives
+# "-I 194 -W 4,35,45" sends emails for changes of 4 degrees, info notices at 
+#	35 degrees, and critical message above 45 degrees
+# "-s (S/../.././05|L/../../5/06)" runs short check daily at 5AM, long check
+#	weekly at 6 am on Friday.
 ################################################################################
 
 portmaster sysutils/smartmontools
 
 cp /usr/local/etc/smartd.conf.sample /usr/local/etc/smartd.conf
+perl -pwi -e 's^\ADEVICESCAN\n^DEVICESCAN -a -o on -S on -I 194 -W 4,35,45 -R 5 -m root -s (S/../.././05|L/../../5/06)\n^' /usr/local/etc/smartd.conf
+
 echo 'daily_status_smart_devices="/dev/ada0 /dev/ada1 /dev/ada2 /dev/ada3"' >> /etc/periodic.conf
 
 echo '' >> /etc/rc.conf
