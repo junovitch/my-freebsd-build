@@ -153,7 +153,7 @@ passwd jason
 /usr/sbin/pkg
 echo 'daily_backup_pkgdb_enable="NO"' >> /etc/periodic.conf
 echo 'weekly_status_pkg_enable="YES"' >> /etc/periodic.conf
-echo 'pkg_version="pkg version"' >> /etc/periodic.conf
+echo 'pkg_version="pkg version -I"' >> /etc/periodic.conf
 
 ################################################################################
 # Let's get an initial ports tree for any installs from source. After this point
@@ -759,14 +759,6 @@ qjail update -p
 ################################################################################
 
 echo 'daily_status_security_jailaudit_enable="YES"' >> /etc/periodic.conf
-
-################################################################################
-# As of 6 January, Qjail 2.0 while overwrite the /usr/share/ symlink when
-# making a jail, this will prevent that error.
-################################################################################
-
-rm -rf  /usr/jails/flavors/default/usr/share
-rm -rf  /usr/jails/flavors/ssh-default/usr/share
 
 ################################################################################
 # Make SSH jail friendly by not allowing it to listen to all IP aliases
