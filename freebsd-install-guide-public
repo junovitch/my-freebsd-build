@@ -102,8 +102,6 @@ ifconfig_em0="DHCP"
 ifconfig_em0_ipv6="inet6 accept_rtadv"
 
 # LAN/Internal Interface Configuration
-#ifconfig_em1="DHCP"   #Uncomment for DHCP IPv4 Address
-#ifconfig_em1_ipv6="inet6 accept_rtadv"   #Uncomment for RTADV IPv6 Address
 ifconfig_em1="inet 10.100.102.2 netmask 0xffffff00"
 ifconfig_em1_ipv6="inet6 2001:123:4:5678::2 prefixlen 64"
 
