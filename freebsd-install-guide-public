@@ -268,6 +268,50 @@ service smtpd start
 echo "Test message" | mail -s "Test Email" root
 
 ################################################################################
+# OpenVPN Certificate Authority
+################################################################################
+
+portmaster security/openvpn
+
+cp -Rv /usr/local/share/easy-rsa/ /usr/local/etc/openvpn-ca
+cd /usr/local/etc/openvpn-ca
+
+perl -pwi -e 's^KEY_PROVINCE=.*^KEY_PROVINCE="PA"^g' vars
+perl -pwi -e 's^KEY_SIZE=.*^KEY_SIZE=2048^g' vars
+perl -pwi -e 's^KEY_CITY=.*^KEY_CITY="Someplace"^g' vars
+perl -pwi -e 's^KEY_ORG=.*^KEY_ORG="SomethingSomewhere"^g' vars
+perl -pwi -e 's^KEY_EMAIL="\b\w+.*?"^KEY_EMAIL="jason.unovitch\@gmail.com"^g' vars
+perl -pwi -e 's^KEY_EMAIL=\b\w+.*^KEY_EMAIL=jason.unovitch\@gmail.com^' vars
+perl -pwi -e 's^KEY_CN=.*^KEY_CN=SomethingSomewhere^' vars
+perl -pwi -e 's^KEY_NAME=.*^KEY_NAME=SomethingSomewhere^' vars
+perl -pwi -e 's^KEY_OU=.*^KEY_OU=SomethingSomewhere^' vars
+perl -pwi -e 's^PKCS11_MODULE_PATH=.*^PKCS11_MODULE_PATH=SomethingSomewhere^' vars
+perl -pwi -e 's^PKCS11_PIN=.*^PKCS11_PIN=1234^' vars
+perl -pwi.interact -e 's^ --interact^^g' build-ca build-key
+
+bash
+. ./vars
+./clean-all
+./build-dh
+export KEY_CN=xts-bsd.mydomain.name && export KEY_NAME=xts-bsd.mydomain.name && ./build-ca
+export KEY_CN=xts-rtr.mydomain.name && export KEY_NAME=xts-rtr.mydomain.name && ./build-key-server xts-rtr.mydomain.name
+export KEY_CN=xju-rtr.mydomain.name && export KEY_NAME=xju-rtr.mydomain.name && ./build-key xju-rtr.mydomain.name
+export KEY_CN=jason && export KEY_NAME=jason && ./build-key jason
+
+/usr/local/sbin/openvpn --genkey --secret keys/ta.key
+
+scp keys/dh2048.pem root@xts-rtr:/etc/openvpn/keys
+
+scp keys/ca.crt root@xts-rtr:/etc/openvpn/keys
+scp keys/ca.crt root@xju-rtr:/etc/openvpn/keys
+
+scp keys/ta.key root@xts-rtr:/etc/openvpn/keys
+scp keys/ta.key root@xju-rtr:/etc/openvpn/keys
+
+scp keys/xts-rtr.* root@xts-rtr:/etc/openvpn/keys
+scp keys/xju-rtr.* root@xju-rtr:/etc/openvpn/keys
+
+################################################################################
 # Pstree - Better eye on process associations.
 # Use via `pstree`
 ################################################################################
@@ -1241,63 +1285,6 @@ cd /basejail/usr/ports/net/openldap24-server && make clean && make install
 cd -
 echo "export status_install_port_net_openldap24server='DONE' # Manually installed" >> ".status"
 LOCAL_ADDRESS='192.168.102.11' bash iRedMail.sh
-
-################################################################################
-##----------------------------------------------------------------------------##
-##                    OpenVPN Certificate Authority Jail                      ##
-##----------------------------------------------------------------------------##
-################################################################################
-
-qjail create -f lan -n em1 xts-pki.mydomain.name 10.100.102.13,2001:123:4:5678::13
-cd /usr/jails/xts-pki.mydomain.name/usr/packages && pkg create perl
-qjail start xts-pki.mydomain.name
-qjail console xts-pki.mydomain.name
-passwd
-
-cd /usr/packages
-pkg add *
-echo 'WITH_PKGNG=yes' >> /etc/make.conf
-
-portmaster security/openvpn
-
-cp -Rv /usr/local/share/easy-rsa/ /usr/local/etc/certauth
-cd /usr/local/etc/certauth
-chmod u+w vars build-key build-ca
-chmod u+x whichopensslcnf build* pkitool clean-all
-perl -pwi -e 's^KEY_PROVINCE=.*^KEY_PROVINCE="PA"^g' vars
-perl -pwi -e 's^KEY_SIZE=.*^KEY_SIZE=2048^g' vars
-perl -pwi -e 's^KEY_CITY=.*^KEY_CITY="Someplace"^g' vars
-perl -pwi -e 's^KEY_ORG=.*^KEY_ORG="SomethingSomewhere"^g' vars
-perl -pwi -e 's^KEY_EMAIL="\b\w+.*?"^KEY_EMAIL="jason.unovitch\@gmail.com"^g' vars
-perl -pwi -e 's^KEY_EMAIL=\b\w+.*^KEY_EMAIL=jason.unovitch\@gmail.com^' vars
-perl -pwi -e 's^KEY_CN=.*^KEY_CN=SomethingSomewhere^' vars
-perl -pwi -e 's^KEY_NAME=.*^KEY_NAME=SomethingSomewhere^' vars
-perl -pwi -e 's^KEY_OU=.*^KEY_OU=SomethingSomewhere^' vars
-perl -pwi -e 's^PKCS11_MODULE_PATH=.*^PKCS11_MODULE_PATH=SomethingSomewhere^' vars
-perl -pwi -e 's^PKCS11_PIN=.*^PKCS11_PIN=1234^' vars
-perl -pwi.interact -e 's^ --interact^^g' build-ca build-key
-bash
-. ./vars
-./clean-all
-./build-dh
-export KEY_CN=xts-bsd.mydomain.name && export KEY_NAME=xts-pki.mydomain.name && ./build-ca
-export KEY_CN=xts-rtr.mydomain.name && export KEY_NAME=xts-rtr.mydomain.name && ./build-key-server xts-rtr.mydomain.name
-export KEY_CN=xju-rtr.mydomain.name && export KEY_NAME=xju-rtr.mydomain.name && ./build-key xju-rtr.mydomain.name
-export KEY_CN=jason && export KEY_NAME=jason && ./build-key jason
-
-/usr/local/sbin/openvpn --genkey --secret keys/ta.key
-
-scp keys/ca.crt root@xts-rtr:/etc/openvpn/keys
-scp keys/ca.crt root@xju-rtr:/etc/openvpn/keys
-
-scp keys/ta.key root@xts-rtr:/etc/openvpn/keys
-scp keys/ta.key root@xju-rtr:/etc/openvpn/keys
-
-scp keys/dh2048.pem root@xts-rtr:/etc/openvpn/keys
-scp keys/dh2048.pem root@xju-rtr:/etc/openvpn/keys
-
-scp keys/xts-rtr.* root@xts-rtr:/etc/openvpn/keys
-scp keys/xju-rtr.* root@xju-rtr:/etc/openvpn/keys
 
 ################################################################################
 ##----------------------------------------------------------------------------##
