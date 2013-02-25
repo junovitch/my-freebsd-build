@@ -41,11 +41,17 @@
 # drop to a shell post install or boot into single user mode and enter the
 # below commands for the data partition.
 #
+# SU+J will also be disabled as the journaling may not be needed on SSDs.
+#
 # mount
 # tunefs -t enable /dev/ada0p2
+# tunefs -j disable /dev/ada0p2
+# reboot
 #
 # Some info can be found on the forums
 # http://forums.freebsd.org/showthread.php?t=28004
+# And here
+# http://www.wonkity.com/~wblock/docs/html/ssd.html
 #
 # If not using and SSD this is not needed.
 #
