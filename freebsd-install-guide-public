@@ -939,6 +939,8 @@ pkg add *
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
 portmaster sysutils/puppet
+portmaster devel/git
+echo 'puppetmaster_enable="YES"' >> /etc/rc.conf
 
 ################################################################################
 ##----------------------------------------------------------------------------##
