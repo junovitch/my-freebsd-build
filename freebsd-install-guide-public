@@ -933,6 +933,7 @@ qjail create -f lan -n em1 xts-puppet.mydomain.name 10.100.102.11,2001:123:4:567
 qjail start xts-puppet.mydomain.name
 qjail console xts-puppet.mydomain.name
 passwd
+passwd qjail
 
 cd /usr/packages
 pkg add *
@@ -958,6 +959,7 @@ qjail create -f lan -n em1 xts-ftp.mydomain.name 10.100.102.12,2001:123:4:5678::
 qjail start xts-ftp.mydomain.name
 qjail console xts-ftp.mydomain.name
 passwd
+passwd qjail
 
 cd /usr/packages
 pkg add *
@@ -998,6 +1000,7 @@ cp /root/mycert/www.mydomain.name.* /usr/jails/xts-www1.mydomain.name/usr/local/
 qjail start xts-www1.mydomain.name
 qjail console xts-www1.mydomain.name
 passwd
+passwd qjail
 
 cd /usr/packages
 pkg add *
@@ -1048,6 +1051,7 @@ cp /root/mycert/www.mydomain.name.* /usr/jails/xts-www2.mydomain.name/usr/local/
 qjail start xts-www2.mydomain.name
 qjail console xts-www2.mydomain.name
 passwd
+passwd qjail
 
 cd /usr/packages
 pkg add *
@@ -1097,6 +1101,7 @@ qjail create -f dmz -n em0 xts-www3.mydomain.name 192.168.102.15,2001:123:4567:8
 qjail start xts-www3.mydomain.name
 qjail console xts-www3.mydomain.name
 passwd
+passwd qjail
 
 cd /usr/packages
 pkg add *
