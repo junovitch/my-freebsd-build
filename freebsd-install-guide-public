@@ -942,6 +942,7 @@ cd /usr/packages
 pkg add *
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
+# WITH_ETCSYMLINK=on for ca_root_nss
 portmaster sysutils/puppet
 portmaster devel/git
 echo 'puppetmaster_enable="YES"' >> /etc/rc.conf
