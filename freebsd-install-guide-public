@@ -603,7 +603,7 @@ dd if=/dev/zero of=/dev/ada3 bs=1m count=1
 gpart create -s gpt ada1
 gpart add -t freebsd-zfs -l bay2_WCAWZ0415892 -b 1M -a 4096 ada1
 gpart create -s gpt ada2
-gpart add -t freebsd-zfs -l bay3_WCAWZ0422739 -b 1M -a 4096 ada2
+gpart add -t freebsd-zfs -l bay3_WCAWZ0416712 -b 1M -a 4096 ada2
 gpart create -s gpt ada3
 gpart add -t freebsd-zfs -l bay4_WCAWZ0424121 -b 1M -a 4096 ada3
 
@@ -613,7 +613,7 @@ gpart add -t freebsd-zfs -l bay4_WCAWZ0424121 -b 1M -a 4096 ada3
 ################################################################################
 
 gnop create -S 4096 gpt/bay2_WCAWZ0415892
-gnop create -S 4096 gpt/bay3_WCAWZ0422739
+gnop create -S 4096 gpt/bay3_WCAWZ0416712
 gnop create -S 4096 gpt/bay4_WCAWZ0424121 
 
 ################################################################################
@@ -622,7 +622,7 @@ gnop create -S 4096 gpt/bay4_WCAWZ0424121
 # The name of the array used here and for the remaining guide is 'zfs'.
 ################################################################################
 
-zpool create zfs raidz /dev/gpt/bay2_WCAWZ0415892.nop /dev/gpt/bay3_WCAWZ0422739.nop /dev/gpt/bay4_WCAWZ0424121.nop
+zpool create zfs raidz /dev/gpt/bay2_WCAWZ0415892.nop /dev/gpt/bay3_WCAWZ0416712.nop /dev/gpt/bay4_WCAWZ0424121.nop
 
 ################################################################################
 # Build datasets as needed
@@ -651,7 +651,7 @@ zpool export zfs
 ################################################################################
 
 gnop destroy /dev/gpt/bay2_WCAWZ0415892.nop
-gnop destroy /dev/gpt/bay3_WCAWZ0422739.nop
+gnop destroy /dev/gpt/bay3_WCAWZ0416712.nop
 gnop destroy /dev/gpt/bay4_WCAWZ0424121.nop
 
 ################################################################################
