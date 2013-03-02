@@ -350,8 +350,11 @@ service uptimed start
 ################################################################################
 
 echo '' >> /etc/rc.conf
-echo '# Enable BSDStats' >> /etc/rc.conf
+echo '# Enable BSDStats/FBSDmon' >> /etc/rc.conf
 portmaster sysutils/bsdstats
+portmaster ports-mgmt/fbsdmon
+echo 'weekly_fbsdmon_enable="YES"' >> /etc/periodic.conf
+echo 'fbsdmon_enable="YES"' >> /etc/rc.conf
 
 ################################################################################
 # ClamAV - Antivirus
