@@ -325,6 +325,13 @@ scp keys/xju-rtr.* root@xju-rtr:/etc/openvpn/keys
 portmaster sysutils/pstree
 
 ################################################################################
+# Iftop - useful tool for network monitoring, more details than `systat -ifs`
+# Use via `iftop -i em1` or `iftop -i em0`
+################################################################################
+
+portmaster net-mgmt/iftop
+
+################################################################################
 # Cmdwatch - Repeat a command every few seconds for monitoring/testing.
 # Use via `cmdwatch`
 ################################################################################
