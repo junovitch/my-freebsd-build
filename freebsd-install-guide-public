@@ -871,6 +871,7 @@ echo 'daily_show_success="NO"' >> /usr/jails/flavors/my-default/etc/periodic.con
 echo 'daily_status_security_inline="YES"' >> /usr/jails/flavors/my-default/etc/periodic.conf
 echo 'daily_status_disks_enable="NO"' >> /usr/jails/flavors/my-default/etc/periodic.conf
 echo 'daily_status_rwho_enable="NO"' >> /usr/jails/flavors/my-default/etc/periodic.conf
+echo 'daily_clean_tmps_enable="YES"' >> /usr/jails/flavors/my-default/etc/periodic.conf
 
 cat >> /usr/jails/flavors/my-default/etc/rc.conf << __EOF__
 
@@ -885,6 +886,48 @@ clear_tmp_enable="YES"
 __EOF__
 
 mkdir /usr/jails/newjail/zfs
+
+################################################################################
+# Quick script to display all periodic log files in all running jails.
+################################################################################
+
+cat > /usr/local/etc/periodic/daily/999.jail-periodic-daily << __EOF__
+#!/bin/sh
+#
+# /usr/local/etc/periodic/daily/999.jail-periodic-daily 2013-03-08
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+rc=0
+case "\$daily_jail_periodic_enable" in
+    [Yy][Ee][Ss])
+        echo
+        echo 'Checking daily periodic of all running jails'
+
+        paths=\`jls | awk '{ print \$4 }'\`
+        for path in \$paths; do
+            if [ -f \${path}/var/log/daily.log ]; then
+                echo ""
+                echo "Daily periodic log in \$path"
+                grep -v newsyslog \${path}/var/log/daily.log
+            fi
+        done && rc=1
+        ;;
+    *)
+        rc=0
+        ;;
+esac
+
+exit \$rc
+__EOF__
+chmod 555 /usr/local/etc/periodic/daily/999.jail-periodic-daily
 
 ################################################################################
 # Create Jail flavors based on network segment 
