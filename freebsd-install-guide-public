@@ -1219,8 +1219,8 @@ service php-fpm start
 cp /usr/local/www/wordpress/wp-config-sample.php /usr/local/www/wordpress/wp-config.php
 chmod 640 /usr/local/www/wordpress/wp-config.php
 perl -pwi -e 's^database_name_here^wordpress^g' /usr/local/www/wordpress/wp-config.php
-perl -pwi -e 's^username_here^${WORDPRESS_MYSQL_USERNAME}^g' /usr/local/www/wordpress/wp-config.php
-perl -pwi -e 's^password_here^${WORDPRESS_MYSQL_PASSWORD}^g' /usr/local/www/wordpress/wp-config.php
+perl -pwi -e "s^username_here^${WORDPRESS_MYSQL_USERNAME}^g" /usr/local/www/wordpress/wp-config.php
+perl -pwi -e "s^password_here^${WORDPRESS_MYSQL_PASSWORD}^g" /usr/local/www/wordpress/wp-config.php
 perl -pwi -e 's^localhost^192.168.102.15^g' /usr/local/www/wordpress/wp-config.php
 perl -pwi -e 's^put your unique phrase here^join "", map { ("a".."z","A".."Z",0..9,qw(! @ $ % & *) ) [rand(68)] } 1..64^eg' /usr/local/www/wordpress/wp-config.php
 
