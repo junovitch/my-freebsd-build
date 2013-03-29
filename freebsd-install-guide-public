@@ -1333,9 +1333,9 @@ cd /usr/packages
 pkg add *
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
-fetch https://bitbucket.org/zhb/iredmail/downloads/iRedMail-0.8.3.tar.bz2
-tar xjf iRedMail-0.8.3.tar.bz2
-cd iRedMail-0.8.3
+fetch https://bitbucket.org/zhb/iredmail/downloads/iRedMail-0.8.4.tar.bz2
+tar xjf iRedMail-0.8.4.tar.bz2
+cd iRedMail-0.8.4
 
 bash
 ################################################################################
