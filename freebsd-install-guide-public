@@ -11,8 +11,8 @@
 # - OpenSMTPD for external emailing of periodic emails (including IPMI checks)
 # - ZFS setup for AF 4K drives and snapshotting script
 # - Mostly jail friendly NFSv4 (with v2/v3 support commented)
-# - Qjail setup split to DMZ/LAN segments with syslog to host system
-# - Basic FTP/iRedMail/Wordpress/Owncloud/OpenVPN Certificate Authority jails
+# - Ezjail setup split to DMZ/LAN segments with syslog to host system
+# - Basic FTP/iRedMail/Wordpress/Owncloud/Puppet jails
 #
 # This version is slightly modified to remove any passwords, IPs, or domain
 # names that may be sensitive. For the most part, if you use a find/replace on
@@ -106,10 +106,46 @@ ipv6_static_routes=""
 # DMZ/External Interface Configuration
 ifconfig_em0="DHCP"
 ifconfig_em0_ipv6="inet6 accept_rtadv"
+ifconfig_em0_alias0="inet 192.168.102.11 netmask 0xffffffff"     # xts-ms1.mydomain.name
+ifconfig_em0_alias1="inet6 2001:123:4567:890::11 prefixlen 128"  # xts-ms1.mydomain.name
+ifconfig_em0_alias2="inet 192.168.102.12 netmask 0xffffffff"     # xts-ms2.mydomain.name
+ifconfig_em0_alias3="inet6 2001:123:4567:890::12 prefixlen 128"  # xts-ms2.mydomain.name
+ifconfig_em0_alias4="inet 192.168.102.13 netmask 0xffffffff"     # xts-www1.mydomain.name
+ifconfig_em0_alias5="inet6 2001:123:4567:890::13 prefixlen 128"  # xts-www1.mydomain.name
+ifconfig_em0_alias6="inet 192.168.102.14 netmask 0xffffffff"     # xts-www2.mydomain.name
+ifconfig_em0_alias7="inet6 2001:123:4567:890::14 prefixlen 128"  # xts-www2.mydomain.name
+ifconfig_em0_alias8="inet 192.168.102.15 netmask 0xffffffff"     # xts-www3.mydomain.name
+ifconfig_em0_alias9="inet6 2001:123:4567:890::15 prefixlen 128"  # xts-www3.mydomain.name
+ifconfig_em0_alias10="inet 192.168.102.16 netmask 0xffffffff"    # unused
+ifconfig_em0_alias11="inet6 2001:123:4567:890::16 prefixlen 128" # unused
+ifconfig_em0_alias12="inet 192.168.102.17 netmask 0xffffffff"    # unused
+ifconfig_em0_alias13="inet6 2001:123:4567:890::17 prefixlen 128" # unused
+ifconfig_em0_alias14="inet 192.168.102.18 netmask 0xffffffff"    # unused
+ifconfig_em0_alias15="inet6 2001:123:4567:890::18 prefixlen 128" # unused
+ifconfig_em0_alias16="inet 192.168.102.19 netmask 0xffffffff"    # unused
+ifconfig_em0_alias17="inet6 2001:123:4567:890::19 prefixlen 128" # unused
 
 # LAN/Internal Interface Configuration
 ifconfig_em1="inet 10.100.102.2 netmask 0xffffff00"
 ifconfig_em1_ipv6="inet6 2001:123:4:5678::2 prefixlen 64"
+ifconfig_em1_alias0="inet 10.100.102.11 netmask 0xffffffff"    # xts-puppet.mydomain.name
+ifconfig_em1_alias1="inet6 2001:123:4:5678::11 prefixlen 128"  # xts-puppet.mydomain.name
+ifconfig_em1_alias2="inet 10.100.102.12 netmask 0xffffffff"    # xts-ftp.mydomain.name
+ifconfig_em1_alias3="inet6 2001:123:4:5678::12 prefixlen 128"  # xts-ftp.mydomain.name
+ifconfig_em1_alias4="inet 10.100.102.13 netmask 0xffffffff"    # unused
+ifconfig_em1_alias5="inet6 2001:123:4:5678::13 prefixlen 128"  # unused
+ifconfig_em1_alias6="inet 10.100.102.14 netmask 0xffffffff"    # unused
+ifconfig_em1_alias7="inet6 2001:123:4:5678::14 prefixlen 128"  # unused
+ifconfig_em1_alias8="inet 10.100.102.15 netmask 0xffffffff"    # unused
+ifconfig_em1_alias9="inet6 2001:123:4:5678::15 prefixlen 128"  # unused
+ifconfig_em1_alias10="inet 10.100.102.16 netmask 0xffffffff"   # unused
+ifconfig_em1_alias11="inet6 2001:123:4:5678::16 prefixlen 128" # unused
+ifconfig_em1_alias12="inet 10.100.102.17 netmask 0xffffffff"   # unused
+ifconfig_em1_alias13="inet6 2001:123:4:5678::17 prefixlen 128" # unused
+ifconfig_em1_alias14="inet 10.100.102.18 netmask 0xffffffff"   # unused
+ifconfig_em1_alias15="inet6 2001:123:4:5678::18 prefixlen 128" # unused
+ifconfig_em1_alias16="inet 10.100.102.19 netmask 0xffffffff"   # unused
+ifconfig_em1_alias17="inet6 2001:123:4:5678::19 prefixlen 128" # unused
 
 # Syslog Configuration, bind (-b) to LAN Internal address
 syslogd_enable="YES"
@@ -155,6 +191,9 @@ passwd jason
 ################################################################################
 
 /usr/sbin/pkg
+echo 'WITH_PKGNG=yes' >> /etc/make.conf
+pkg2ng
+
 echo 'daily_backup_pkgdb_enable="NO"' >> /etc/periodic.conf
 echo 'daily_status_security_pkgaudit_enable="YES"' >> /etc/periodic.conf
 echo 'weekly_status_pkg_enable="YES"' >> /etc/periodic.conf
@@ -184,8 +223,6 @@ portsnap fetch extract
 ################################################################################
 
 cd /usr/ports/ports-mgmt/portmaster/ && make WITH_BASH="YES" WITH_PKGNGPATCH="YES" install clean
-echo 'WITH_PKGNG=yes' >> /etc/make.conf
-pkg2ng
 
 ################################################################################
 # Tmux - Separates the terminal from the current login. Useful if an SSH link
@@ -405,12 +442,12 @@ portmaster devel/checkbashisms
  
 portmaster sysutils/freeipmi
 
-cat > /usr/local/etc/periodic/daily/ipmi-daily.sh << __EOF__
+cat > /usr/local/etc/periodic/daily/990.ipmi-daily.sh << __EOF__
 #!/bin/sh
 echo "IPMI Sensor Check"
 /usr/local/sbin/ipmi-sensors | grep -E "FAN|System|Chassis|Voltage"  | cut -d "|" -f "2 4 5 6" | sed 's/|//g' | awk '{gsub(/^ +|  +\$/,"")}1'
 __EOF__
-chmod 555 /usr/local/etc/periodic/daily/ipmi-daily.sh
+chmod 555 /usr/local/etc/periodic/daily/990.ipmi-daily.sh
 
 ################################################################################
 # Nut (Network UPS Tools) - Monitor UPS status and auto-shutdown if necessary
@@ -448,13 +485,13 @@ echo 'daily_status_network_enable="NO"' >> /etc/periodic.conf
 echo 'daily_status_security_inline="YES"' >> /etc/periodic.conf
 echo 'daily_clean_tmps_enable="YES"' >> /etc/periodic.conf
 
-cat > /usr/local/etc/periodic/daily/netstat-short.sh << __EOF__
+cat > /usr/local/etc/periodic/daily/980.netstat-short.sh << __EOF__
 #\!/bin/sh
 echo
 echo "Network interface status:"
 netstat -ibdh | sed 's/bytes/bts/g' | awk '/xts|Address/ {print \$4, "\t", \$8, "\t", \$11, "\t", \$6, "\t", \$7, "\t", \$10;}'
 __EOF__
-chmod 555 /usr/local/etc/periodic/daily/netstat-short.sh
+chmod 555 /usr/local/etc/periodic/daily/980.netstat-short.sh
 
 ################################################################################
 # Move periodic to run 2 hours later and add a weekly `freebsd-update` check,
@@ -473,20 +510,6 @@ chmod 555 /usr/local/etc/periodic/daily/netstat-short.sh
 perl -pwi -e 's^1\t3\t\*\t\*\t\*\troot\tperiodic daily^1\t5\t*\t*\t*\troot\tperiodic daily^' /etc/crontab
 perl -pwi -e 's^15\t4\t\*\t\*\t6\troot\tperiodic weekly^5\t5\t*\t*\t6\troot\tportsnap -I cron update\n15\t6\t*\t*\t6\troot\tperiodic weekly\n30\t6\t*\t*\t6\troot\tfreebsd-update cron^' /etc/crontab
 perl -pwi -e 's^30\t5\t1\t\*\t\*\troot\tperiodic monthly^30\t7\t1\t*\t*\troot\tperiodic monthly^' /etc/crontab
-
-################################################################################
-# Put the portsnap cron into good use. Just run `portsup` with this script to
-# update ports with what has already been downloaded during the weekly cron.
-################################################################################
-
-cat > /usr/local/sbin/portsup << __EOF__
-#!/bin/sh
-# Just a short script to quickly put the portsnap cron right into use
-portsnap update
-[ -e "/usr/jails/basejail/usr/ports/.portsnap.INDEX" ] \
-    && portsnap -p "/usr/jails/basejail/usr/ports" update
-__EOF__
-chmod 555 /usr/local/sbin/portsup
 
 ################################################################################
 # Make default syslog sizes a bit bigger and keep more of them
@@ -688,7 +711,7 @@ echo 'daily_scrub_zfs_default_threshold="13"' >> /etc/periodic.conf
 # a permanent snapshot made on the first of every month. 
 ################################################################################
 
-cat > /usr/local/etc/periodic/daily/rollingsnap << __EOF__
+cat > /usr/local/etc/periodic/daily/900.rollingsnap << __EOF__
 #\!/bin/sh
 _30DAYSAGO=\$(/bin/date -v -30d "+%Y%m%d")
 _SNAPDATE=\$(/bin/date "+%Y%m%d")
@@ -696,14 +719,14 @@ _SNAPDATE=\$(/bin/date "+%Y%m%d")
 zfs destroy -r zfs/homedirs@\$_30DAYSAGO-autodaily > /dev/null 2>&1
 zfs snapshot -r zfs/homedirs@\$_SNAPDATE-autodaily
 __EOF__
-chmod 555 /usr/local/etc/periodic/daily/rollingsnap
+chmod 555 /usr/local/etc/periodic/daily/900.rollingsnap
 
-cat > /usr/local/etc/periodic/monthly/monthlysnap << __EOF__
+cat > /usr/local/etc/periodic/monthly/900.monthlysnap << __EOF__
 #\!/bin/sh
-SNAPDATE=\$(/bin/date "+%Y%m%d")
-zfs rename -r zfs/homedirs@today @\$SNAPDATE-automonthly > /dev/null 2>&1
+_SNAPDATE=\$(/bin/date "+%Y%m%d")
+zfs rename -r zfs/homedirs@\$_SNAPDATE-autodaily @\$_SNAPDATE-automonthly > /dev/null 2>&1
 __EOF__
-chmod 555 /usr/local/etc/periodic/monthly/monthlysnap
+chmod 555 /usr/local/etc/periodic/monthly/900.monthlysnap
 
 ################################################################################
 ##----------------------------------------------------------------------------##
@@ -795,15 +818,16 @@ service nfsd start
 ##                    Host System Initial Jail Configuration                  ##
 ##----------------------------------------------------------------------------##
 ################################################################################
-# Setup Qjail scripts
+# Setup Ezjail scripts
 #
 # Type this to allow pings from inside the jail for testing purposes
 # sysctl security.jail.allow_raw_sockets=1
 ################################################################################
 
-portmaster sysutils/qjail
-qjail install
-qjail update -p
+portmaster sysutils/ezjail
+ezjail-admin install
+ezjail-admin update -P
+chmod 700 /usr/jails
 
 ################################################################################
 # Port/Jail Audit tools - Check for vulnerabilities every day and email the
@@ -819,8 +843,8 @@ echo 'daily_status_security_jailaudit_enable="YES"' >> /etc/periodic.conf
 # Make SSH jail friendly by not allowing it to listen to all IP aliases
 ################################################################################
 
-perl -pwi -e 's^#ListenAddress\ 0\.0\.0\.0^ListenAddress 10.100.102.2\nListenAddress 192.168.102.2^g' /etc/ssh/sshd_config
-perl -pwi -e 's^#ListenAddress\ ::^ListenAddress 2001:123:4:5678::2\nListenAddress 2001:123:4567:890::2^g' /etc/ssh/sshd_config
+perl -pwi -e 's^#ListenAddress\ 0\.0\.0\.0^ListenAddress 10.100.102.2^g' /etc/ssh/sshd_config
+perl -pwi -e 's^#ListenAddress\ ::^ListenAddress 2001:123:4:5678::2^g' /etc/ssh/sshd_config
 service sshd restart
 
 ################################################################################
@@ -828,8 +852,8 @@ service sshd restart
 ################################################################################
 
 echo '' >> /etc/rc.conf
-echo '# Qjail Configuration' >> /etc/rc.conf
-echo 'qjail_enable="YES"' >> /etc/rc.conf
+echo '# Ezjail Configuration' >> /etc/rc.conf
+echo 'ezjail_enable="YES"' >> /etc/rc.conf
 
 echo 'accf_http_load="YES"' >> /boot/loader.conf
 kldload accf_http
@@ -853,27 +877,24 @@ pkg create vim-lite
 pkg create gettext
 pkg create libiconv
 
-cp -a /usr/jails/flavors/ssh-default /usr/jails/flavors/my-default
 cp /etc/skel/.vimrc /usr/jails/newjail/etc/skel/
 cp /etc/skel/.vimrc /usr/jails/newjail/root
-cp /etc/skel/.vimrc /usr/jails/flavors/my-default/usr/home/qjail
-cp -a /usr/home/jason/.ssh /usr/jails/flavors/my-default/usr/home/qjail/
 
-chown -R 1001:0 /usr/jails/flavors/my-default/usr/home/qjail
-perl -pwi -e 's^setenv\tEDITOR\tee^setenv\tEDITOR\tvim^g' /usr/jails/flavors/my-default/root/.cshrc
-perl -pwi -e 's^setenv\tEDITOR\tvi^setenv\tEDITOR\tvim^g' /usr/jails/flavors/my-default/usr/home/qjail/.cshrc
+cp -a /usr/home/jason/.ssh /usr/jails/newjail/root/
+chown -R root:wheel /usr/jails/newjail/root/.ssh
+perl -pwi -e 's^#PermitRootLogin no^PermitRootLogin yes^g' /usr/jails/newjail/etc/ssh/sshd_config
 
-
-perl -pwi -e 's^syslogd_flags="-ss"^syslogd_flags="-s -v -v"^g' /usr/jails/flavors/my-default/etc/rc.conf
+perl -pwi -e 's^# sshd_enable="YES"^sshd_enable="YES"^g' /usr/jails/flavours/example/etc/rc.conf
+perl -pwi -e 's^syslogd_flags="-ss"^syslogd_flags="-s -v -v"^g' /usr/jails/flavours/example/etc/rc.conf
 perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.100.102.2^g' /usr/jails/newjail/etc/syslog.conf
 
-echo 'daily_show_success="NO"' >> /usr/jails/flavors/my-default/etc/periodic.conf
-echo 'daily_status_security_inline="YES"' >> /usr/jails/flavors/my-default/etc/periodic.conf
-echo 'daily_status_disks_enable="NO"' >> /usr/jails/flavors/my-default/etc/periodic.conf
-echo 'daily_status_rwho_enable="NO"' >> /usr/jails/flavors/my-default/etc/periodic.conf
-echo 'daily_clean_tmps_enable="YES"' >> /usr/jails/flavors/my-default/etc/periodic.conf
+echo 'daily_show_success="NO"' >> /usr/jails/flavours/example/etc/periodic.conf
+echo 'daily_status_security_inline="YES"' >> /usr/jails/flavours/example/etc/periodic.conf
+echo 'daily_status_disks_enable="NO"' >> /usr/jails/flavours/example/etc/periodic.conf
+echo 'daily_status_rwho_enable="NO"' >> /usr/jails/flavours/example/etc/periodic.conf
+echo 'daily_clean_tmps_enable="YES"' >> /usr/jails/flavours/example/etc/periodic.conf
 
-cat >> /usr/jails/flavors/my-default/etc/rc.conf << __EOF__
+cat >> /usr/jails/flavours/example/etc/rc.conf << __EOF__
 
 # Kernel Secure Level
 kern_securelevel_enable="YES"
@@ -884,8 +905,6 @@ clear_tmp_enable="YES"
 
 # Local Jail Configuration Follows
 __EOF__
-
-mkdir /usr/jails/newjail/zfs
 
 ################################################################################
 # Quick script to display all periodic log files in all running jails.
@@ -940,24 +959,26 @@ echo 'weekly_jail_periodic_enable="YES"' >> /etc/periodic.conf
 echo 'monthly_jail_periodic_enable="YES"' >> /etc/periodic.conf
 
 ################################################################################
-# Create Jail flavors based on network segment 
+# Create Jail flavours based on network segment 
 ################################################################################
 
-cd /usr/jails/flavors/
-cp -Rp my-default dmz
-cp -Rp my-default lan
+cd /usr/jails/flavours/
+cp -Rp example dmz
+cp -Rp example lan
 
 ################################################################################
 # DMZ-specific segment config
 ################################################################################
 
+echo 'search mydomain.name' >> /usr/jails/flavours/dmz/etc/resolv.conf
+echo 'nameserver 192.168.102.1' >> /usr/jails/flavours/dmz/etc/resolv.conf
 
 ################################################################################
 # LAN-specific segment config 
 ################################################################################
 
-echo 'search mydomain.name' >> /usr/jails/flavors/lan/etc/resolv.conf
-echo 'nameserver 10.100.102.1' >> /usr/jails/flavors/lan/etc/resolv.conf
+echo 'search mydomain.name' >> /usr/jails/flavours/lan/etc/resolv.conf
+echo 'nameserver 10.100.102.1' >> /usr/jails/flavours/lan/etc/resolv.conf
 
 ################################################################################
 #  WWW jail prerequisite - self signed keys used for testing
@@ -994,13 +1015,14 @@ cd /root && ./make-quicksha256-key.sh www.mydomain.name
 # References:
 # http://docs.puppetlabs.com/guides/installation.html
 # https://help.ubuntu.com/11.04/serverguide/puppet.html
+#
+# All configuration files will be under /usr/local/etc/puppet
+# All state files are under /var/puppet
 ################################################################################
 
-qjail create -f lan -n em1 xts-puppet.mydomain.name 10.100.102.11,2001:123:4:5678::11
-qjail start xts-puppet.mydomain.name
-qjail console xts-puppet.mydomain.name
+ezjail-admin create -f lan xts-puppet.mydomain.name 10.100.102.11,2001:123:4:5678::11
+ezjail-admin console -f xts-puppet.mydomain.name
 passwd
-passwd qjail
 
 cd /usr/packages
 pkg add *
@@ -1023,11 +1045,9 @@ echo 'puppetmaster_enable="YES"' >> /etc/rc.conf
 # http://www5.us.freebsd.org/doc/handbook/network-ftp.html
 ################################################################################
 
-qjail create -f lan -n em1 xts-ftp.mydomain.name 10.100.102.12,2001:123:4:5678::12
-qjail start xts-ftp.mydomain.name
-qjail console xts-ftp.mydomain.name
+ezjail-admin create -f lan xts-ftp.mydomain.name 10.100.102.12,2001:123:4:5678::12
+ezjail-admin console -f xts-ftp.mydomain.name
 passwd
-passwd qjail
 
 cd /usr/packages
 pkg add *
@@ -1062,13 +1082,11 @@ service ftpd start
 # https://wiki.archlinux.org/index.php/Owncloud
 #############################################################################
 
-qjail create -f dmz -n em0 xts-www1.mydomain.name 192.168.102.13,2001:123:4567:890::13
+ezjail-admin create -f dmz xts-www1.mydomain.name 192.168.102.13,2001:123:4567:890::13
 mkdir /usr/jails/xts-www1.mydomain.name/usr/local/etc/apache22/
 cp /root/mycert/www.mydomain.name.* /usr/jails/xts-www1.mydomain.name/usr/local/etc/apache22/
-qjail start xts-www1.mydomain.name
-qjail console xts-www1.mydomain.name
+ezjail-admin console -f xts-www1.mydomain.name
 passwd
-passwd qjail
 
 cd /usr/packages
 pkg add *
@@ -1113,13 +1131,11 @@ apachectl start
 ##----------------------------------------------------------------------------##
 ################################################################################
 
-qjail create -f dmz -n em0 xts-www2.mydomain.name 192.168.102.14,2001:123:4567:890::14
+ezjail-admin create -f dmz xts-www2.mydomain.name 192.168.102.14,2001:123:4567:890::14
 mkdir /usr/jails/xts-www2.mydomain.name/usr/local/etc/apache22/
 cp /root/mycert/www.mydomain.name.* /usr/jails/xts-www2.mydomain.name/usr/local/etc/apache22/
-qjail start xts-www2.mydomain.name
-qjail console xts-www2.mydomain.name
+ezjail-admin console -f xts-www2.mydomain.name
 passwd
-passwd qjail
 
 cd /usr/packages
 pkg add *
@@ -1165,11 +1181,9 @@ apachectl start
 # http://forums.freebsd.org/showthread.php?t=30268
 ################################################################################ 
 
-qjail create -f dmz -n em0 xts-www3.mydomain.name 192.168.102.15,2001:123:4567:890::15
-qjail start xts-www3.mydomain.name
-qjail console xts-www3.mydomain.name
+ezjail-admin create -f dmz xts-www3.mydomain.name 192.168.102.15,2001:123:4567:890::15
+ezjail-admin console -f xts-www3.mydomain.name
 passwd
-passwd qjail
 
 cd /usr/packages
 pkg add *
@@ -1324,9 +1338,8 @@ service nginx start
 # http://iredmail.com/wiki/index.php?title=Install/iRedMail/FreeBSD.Jail
 ################################################################################
 
-qjail create -f dmz -n em0 xts-ms1.mydomain.name 192.168.102.11,2001:123:4567:890::11
-qjail start xts-ms1.mydomain.name
-qjail console xts-ms1.mydomain.name
+ezjail-admin create -f dmz xts-ms1.mydomain.name 192.168.102.11,2001:123:4567:890::11
+ezjail-admin console -f xts-ms1.mydomain.name
 passwd
 
 cd /usr/packages
@@ -1394,36 +1407,60 @@ service auditd start
 # Keep the ports tree in check! Every time you log in and are about to install
 # ports, be sure to update the ports tree on both the host and jailed system!
 ################################################################################
-# Quick version:  portsup
 
 portsnap fetch update
-qjail update -P
+ezjail-admin update -P
 
 ################################################################################
-# Binary Updates with a Qjail update immediately after.
+# OR - Shorter version...
+#
+# Put the portsnap cron into good use. Just run `portsup` with this script to
+# update ports with what has already been downloaded during the weekly cron.
+# It will unpack the most recent portsnap saved by `portsnap cron` in
+# /var/db/portsnap into both the host system and jail system ports trees.
+################################################################################
+
+cat > /usr/local/sbin/portsup << __EOF__
+#!/bin/sh
+# Just a short script to quickly put the portsnap cron right into use
+portsnap update
+[ -e "/usr/jails/basejail/usr/ports/.portsnap.INDEX" ] \
+    && portsnap -p "/usr/jails/basejail/usr/ports" update
+__EOF__
+chmod 555 /usr/local/sbin/portsup
+
+################################################################################
+# Binary Updates with an Ezjail update immediately after.
 # http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/updating-upgrading-freebsdupdate.html
 ################################################################################
 
 # Small Updates, I.E. 9.0-RELEASE to 9.0-RELEASE-p5
 freebsd-update fetch
 sed -i'' -e 's/kern_securelevel/#kern_securelevel/' /etc/rc.conf
+sed -i'' -e 's/ezjail_enable/#ezjail_enable/' /etc/rc.conf
 shutdown -r now
 freebsd-update install
-qjail stop
-qjail update -b
+ezjail-admin update -u
 sed -i'' -e 's/#kern_securelevel/kern_securelevel/' /etc/rc.conf
+sed -i'' -e 's/#ezjail_enable/ezjail_enable/' /etc/rc.conf
 shutdown -r now
 
 # Big Updates, I.E. 9.0-RELEASE to 9.1-RELEASE
+cp -Rp /etc /tmp/etc.old
 freebsd-update upgrade -r 9.1-RELEASE
 sed -i'' -e 's/kern_securelevel/#kern_securelevel/' /etc/rc.conf
+sed -i'' -e 's/ezjail_enable/#ezjail_enable/' /etc/rc.conf
 shutdown -r now
 freebsd-update install
 shutdown -r now
 freebsd-update install
-qjail stop
-qjail update -b
+ezjail-admin archive -A
+ezjail-admin update -U -s 9.0-RELEASE
+ezjail-admin update -U -s 9.0-RELEASE
+mergemaster -UF -D /usr/jails/newjail
+mergemaster -UF -D /usr/jails/jail1 # and continue on for each jail
 sed -i'' -e 's/#kern_securelevel/kern_securelevel/' /etc/rc.conf
+sed -i'' -e 's/#ezjail_enable/ezjail_enable/' /etc/rc.conf
 shutdown -r now
 
 ################################################################################
