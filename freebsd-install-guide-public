@@ -1104,7 +1104,7 @@ perl -pwi -e 's^SSLCertificateKeyFile "/usr/local/etc/apache22/server.key"^SSLCe
 chmod u+x /usr/local/www/owncloud/.htaccess
 
 # Finalize and activate
-echo 'apache22_enable="YES"' >> /etc/rc.conf.local
+echo 'apache22_enable="YES"' >> /etc/rc.conf
 apachectl start
 
 ################################################################################
@@ -1153,7 +1153,7 @@ cd /usr/local/etc/apache22/extra; cp httpd-dav.conf httpd-dav.conf.original
 mkdir /usr/local/uploads
 
 # Finalize and activate
-echo 'apache22_enable="YES"' >> /etc/rc.conf.local
+echo 'apache22_enable="YES"' >> /etc/rc.conf
 apachectl start
 
 ################################################################################
