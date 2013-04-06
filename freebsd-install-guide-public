@@ -1072,6 +1072,27 @@ echo 'ftpd_enable="YES"' >> /etc/rc.conf
 echo 'ftpd_flags="-ASll"' >> /etc/rc.conf
 service ftpd start
 
+
+################################################################################
+##                      Mediatomb Jail Configuration                          ##
+################################################################################
+# Helpful links:
+# http://virtuallyhyper.com/2012/10/installing-mediatomb-on-freebsd-9-and-connecting-to-it-with-xbmc-from-a-fedora-17-os/
+
+ezjail-admin create -f lan xts-dlna.mydomain.name 10.100.102.14,2001:123:4:5678::14
+mkdir -p /usr/jails/xts-dlna.mydomain.name/zfs/homedirs/common_media
+echo '/zfs/homedirs/common_media /usr/jails/xts-dlna.mydomain.name/zfs/homedirs/common_media nullfs rw 0 0' >> /etc/fstab.xts_dlna_mydomain.name
+ezjail-admin console -f xts-dlna.mydomain.name
+passwd
+
+cd /usr/packages
+pkg add *
+echo 'WITH_PKGNG=yes' >> /etc/make.conf
+
+portmaster net/mediatomb
+echo 'mediatomb_enable="YES"' /etc/rc.conf
+# Now bring up http://xts-dlna:49152/ in a web browser for configuration
+
 ################################################################################
 ##----------------------------------------------------------------------------##
 ##                       Owncloud Jail Configuration                          ##
