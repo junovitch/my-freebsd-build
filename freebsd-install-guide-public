@@ -134,8 +134,8 @@ ifconfig_em1_alias2="inet 10.100.102.12 netmask 0xffffffff"    # xts-ftp.mydomai
 ifconfig_em1_alias3="inet6 2001:123:4:5678::12 prefixlen 128"  # xts-ftp.mydomain.name
 ifconfig_em1_alias4="inet 10.100.102.13 netmask 0xffffffff"    # unused
 ifconfig_em1_alias5="inet6 2001:123:4:5678::13 prefixlen 128"  # unused
-ifconfig_em1_alias6="inet 10.100.102.14 netmask 0xffffffff"    # unused
-ifconfig_em1_alias7="inet6 2001:123:4:5678::14 prefixlen 128"  # unused
+ifconfig_em1_alias6="inet 10.100.102.14 netmask 0xffffffff"    # xts-dlna.mydomain.name
+ifconfig_em1_alias7="inet6 2001:123:4:5678::14 prefixlen 128"  # xts-dlna.mydomain.name
 ifconfig_em1_alias8="inet 10.100.102.15 netmask 0xffffffff"    # unused
 ifconfig_em1_alias9="inet6 2001:123:4:5678::15 prefixlen 128"  # unused
 ifconfig_em1_alias10="inet 10.100.102.16 netmask 0xffffffff"   # unused
@@ -444,6 +444,7 @@ portmaster sysutils/freeipmi
 
 cat > /usr/local/etc/periodic/daily/990.ipmi-daily.sh << __EOF__
 #!/bin/sh
+echo
 echo "IPMI Sensor Check"
 /usr/local/sbin/ipmi-sensors | grep -E "FAN|System|Chassis|Voltage"  | cut -d "|" -f "2 4 5 6" | sed 's/|//g' | awk '{gsub(/^ +|  +\$/,"")}1'
 __EOF__
@@ -704,7 +705,7 @@ zdb
 
 echo 'daily_status_zfs_enable="YES"' >> /etc/periodic.conf
 echo 'daily_scrub_zfs_enable="YES"' >> /etc/periodic.conf
-echo 'daily_scrub_zfs_default_threshold="13"' >> /etc/periodic.conf
+echo 'daily_scrub_zfs_default_threshold="14"' >> /etc/periodic.conf
 
 ################################################################################
 # Quick Rolling snapshot scripts for a month's worth of snapshot along with
@@ -882,7 +883,7 @@ cp /etc/skel/.vimrc /usr/jails/newjail/root
 
 cp -a /usr/home/jason/.ssh /usr/jails/newjail/root/
 chown -R root:wheel /usr/jails/newjail/root/.ssh
-perl -pwi -e 's^#PermitRootLogin no^PermitRootLogin yes^g' /usr/jails/newjail/etc/ssh/sshd_config
+perl -pwi -e 's^#PermitRootLogin no^PermitRootLogin without-password^g' /usr/jails/newjail/etc/ssh/sshd_config
 
 perl -pwi -e 's^# sshd_enable="YES"^sshd_enable="YES"^g' /usr/jails/flavours/example/etc/rc.conf
 perl -pwi -e 's^syslogd_flags="-ss"^syslogd_flags="-s -v -v"^g' /usr/jails/flavours/example/etc/rc.conf
