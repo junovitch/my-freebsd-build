@@ -563,6 +563,106 @@ cd /usr/ports/net/unison && make config WITHOUT_X11="YES"
 portmaster net/unison
 
 ################################################################################
+# Setup of Unison for use
+# Prerequisites:
+# 1. Generate an SSH key for root.
+#    ssh-keygen -t ecdsa -b 521 -C "`whoami`@`hostname`-`date +%Y%m%d`"
+# 2. Distribute this out to each host to be synced. In my case, I will put this
+#    in my Puppet directory to be automatically distributed.
+#    cp /root/.ssh/id_ecdsa.pub /usr/jails/xts-puppet.mydomain.name/usr/local/etc/puppet/mint13lts/common/root/.ssh/authorized_keys
+# 3. Ensure root login enable on all clients. Update sshd_config to show:
+#    PermitRootLogin without-password
+#
+# Warning:
+# This does give root on the FreeBSD host the ability to SSH into each box.
+# Protect this accordingly.
+################################################################################
+# First step is to generate a Unison preference file, this first one will sync
+# the /zfs/homedirs across the server and a computer named silverstone.
+################################################################################
+
+cat > /root/.unison/syncWAN.prf << 'EOF'
+# Unison preferences file for full sync of /zfs/homedirs
+root = /zfs/homedirs
+root = ssh://silverstone//zfs/homedirs
+
+prefer=newer
+owner=true
+group=true
+fastcheck=true
+confirmbigdel=true
+auto=true
+batch=true
+logfile=/var/log/unison-syncWAN.log
+'EOF'
+
+################################################################################
+# Since a logfile will be created, drop a properly formatted entry into
+# /etc/newsyslog.conf to rotate them every day by newsyslog.
+################################################################################
+
+printf "/var/log/unison-syncWAN.log\t\t600  9\t   *\t@T00  J\n" >> /etc/newsyslog.conf
+printf "/var/log/unison-syncLAN.log\t\t600  9\t   *\t@T00  J\n" >> /etc/newsyslog.conf
+
+################################################################################
+# Now echo some jobs into cron for this. The full WAN sync will be daily at 0715
+# while the local LAN sync will run every 10 minutes. Crontab entry will first
+# grep the process table for an active run and if that fails it will start out
+# Unison. All results will be sent to /dev/null.
+################################################################################
+
+echo '#' >> /etc/crontab
+echo '# Run regular Unison backups' >> /etc/crontab
+printf "15\t7\t*\t*\t*\troot\tpgrep -f 'unison syncWAN.prf' || /usr/local/bin/unison syncWAN.prf > /dev/null 2>&1\n" >> /etc/crontab
+printf "*/10\t*\t*\t*\t*\troot\tpgrep -f 'unison syncLAN.prf' || /usr/local/bin/unison syncLAN.prf > /dev/null 2>&1\n" >> /etc/crontab
+
+################################################################################
+# Finally, put a quick script into periodic that will grep for "Synchronization"
+# in the prior day's logs and for review during the daily periodic email.
+################################################################################
+
+cat > /usr/local/etc/periodic/daily/800.unison << 'EOF'
+#!/bin/sh
+#
+# /usr/local/etc/periodic/daily/800.unison 2013-04-16
+#
+# Check logs for yesterday's Unison runs
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_unison_checkup" in
+    [Yy][Ee][Ss])
+        echo ""
+        echo "Checking yesterday's Unison LAN syncs"
+        bzgrep "Synchronization" /var/log/unison-syncLAN.log.0.bz2
+
+        echo ""
+        echo "Checking yesterday's Unison WAN sync"
+        bzgrep "Synchronization" /var/log/unison-syncWAN.log.0.bz2
+
+        # Exit assuming info to be checked success or fail
+        rc=1
+        ;;
+    *)
+        rc=0
+        ;;
+
+esac
+
+exit $rc
+'EOF'
+chmod 555 /usr/local/etc/periodic/daily/800.unison
+
+echo 'daily_unison_checkup="YES"' >> /etc/periodic.conf
+
+################################################################################
 # ZFS-Stats
 ################################################################################
 
