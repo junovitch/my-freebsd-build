@@ -79,7 +79,7 @@ setenv UPS_MONITOR_PASSWORD 'UPSMonUserPassword'
 # this listing closely and do a find and replace to change IPs prefixes and 
 # the domain name now. This information will repeat several times as we go
 # through the guide. Once all the addresses are valid, copy-paste up until the
-#  __EOF__ marker.
+# 'EOF' marker.
 #
 # The rc.conf contains descriptive information about the local host name,
 # configuration details for any potential network interfaces and which services
@@ -90,7 +90,7 @@ setenv UPS_MONITOR_PASSWORD 'UPSMonUserPassword'
 # configured.
 ################################################################################
 
-cat > /etc/rc.conf << __EOF__
+cat > /etc/rc.conf << 'EOF'
 # General System Config
 # Set dumpdev to "AUTO" to enable crash dumps, "NO" to disable
 dumpdev="AUTO"
@@ -154,7 +154,7 @@ syslogd_flags="-v -v -b 10.100.102.2:syslog"
 # NTPDATE Support for initial time sync during boot
 ntpdate_enable="YES"
 ntpdate_hosts="192.168.102.1"
-__EOF__
+'EOF'
 
 ################################################################################
 # Once the above is in place and validated either type `reboot` or just restart
@@ -442,12 +442,12 @@ portmaster devel/checkbashisms
  
 portmaster sysutils/freeipmi
 
-cat > /usr/local/etc/periodic/daily/990.ipmi-daily.sh << __EOF__
+cat > /usr/local/etc/periodic/daily/990.ipmi-daily.sh << 'EOF'
 #!/bin/sh
 echo
 echo "IPMI Sensor Check"
-/usr/local/sbin/ipmi-sensors | grep -E "FAN|System|Chassis|Voltage"  | cut -d "|" -f "2 4 5 6" | sed 's/|//g' | awk '{gsub(/^ +|  +\$/,"")}1'
-__EOF__
+/usr/local/sbin/ipmi-sensors | grep -E "FAN|System|Chassis|Voltage"  | cut -d "|" -f "2 4 5 6" | sed 's/|//g' | awk '{gsub(/^ +|  +$/,"")}1'
+'EOF'
 chmod 555 /usr/local/etc/periodic/daily/990.ipmi-daily.sh
 
 ################################################################################
@@ -486,12 +486,12 @@ echo 'daily_status_network_enable="NO"' >> /etc/periodic.conf
 echo 'daily_status_security_inline="YES"' >> /etc/periodic.conf
 echo 'daily_clean_tmps_enable="YES"' >> /etc/periodic.conf
 
-cat > /usr/local/etc/periodic/daily/980.netstat-short.sh << __EOF__
-#\!/bin/sh
+cat > /usr/local/etc/periodic/daily/980.netstat-short.sh << 'EOF'
+#!/bin/sh
 echo
 echo "Network interface status:"
-netstat -ibdh | sed 's/bytes/bts/g' | awk '/xts|Address/ {print \$4, "\t", \$8, "\t", \$11, "\t", \$6, "\t", \$7, "\t", \$10;}'
-__EOF__
+netstat -ibdh | sed 's/bytes/bts/g' | awk '/xts|Address/ {print $4, "\t", $8, "\t", $11, "\t", $6, "\t", $7, "\t", $10;}'
+'EOF'
 chmod 555 /usr/local/etc/periodic/daily/980.netstat-short.sh
 
 ################################################################################
@@ -712,21 +712,21 @@ echo 'daily_scrub_zfs_default_threshold="14"' >> /etc/periodic.conf
 # a permanent snapshot made on the first of every month. 
 ################################################################################
 
-cat > /usr/local/etc/periodic/daily/900.rollingsnap << __EOF__
-#\!/bin/sh
-_30DAYSAGO=\$(/bin/date -v -30d "+%Y%m%d")
-_SNAPDATE=\$(/bin/date "+%Y%m%d")
+cat > /usr/local/etc/periodic/daily/900.rollingsnap << 'EOF'
+#!/bin/sh
+_30DAYSAGO=$(/bin/date -v -30d "+%Y%m%d")
+_SNAPDATE=$(/bin/date "+%Y%m%d")
 
-zfs destroy -r zfs/homedirs@\$_30DAYSAGO-autodaily > /dev/null 2>&1
-zfs snapshot -r zfs/homedirs@\$_SNAPDATE-autodaily
-__EOF__
+zfs destroy -r zfs/homedirs@$_30DAYSAGO-autodaily > /dev/null 2>&1
+zfs snapshot -r zfs/homedirs@$_SNAPDATE-autodaily
+'EOF'
 chmod 555 /usr/local/etc/periodic/daily/900.rollingsnap
 
-cat > /usr/local/etc/periodic/monthly/900.monthlysnap << __EOF__
-#\!/bin/sh
-_SNAPDATE=\$(/bin/date "+%Y%m%d")
-zfs rename -r zfs/homedirs@\$_SNAPDATE-autodaily @\$_SNAPDATE-automonthly > /dev/null 2>&1
-__EOF__
+cat > /usr/local/etc/periodic/monthly/900.monthlysnap << 'EOF'
+#!/bin/sh
+_SNAPDATE=$(/bin/date "+%Y%m%d")
+zfs rename -r zfs/homedirs@$_SNAPDATE-autodaily @$_SNAPDATE-automonthly > /dev/null 2>&1
+'EOF'
 chmod 555 /usr/local/etc/periodic/monthly/900.monthlysnap
 
 ################################################################################
@@ -895,7 +895,7 @@ echo 'daily_status_disks_enable="NO"' >> /usr/jails/flavours/example/etc/periodi
 echo 'daily_status_rwho_enable="NO"' >> /usr/jails/flavours/example/etc/periodic.conf
 echo 'daily_clean_tmps_enable="YES"' >> /usr/jails/flavours/example/etc/periodic.conf
 
-cat >> /usr/jails/flavours/example/etc/rc.conf << __EOF__
+cat >> /usr/jails/flavours/example/etc/rc.conf << 'EOF'
 
 # Kernel Secure Level
 kern_securelevel_enable="YES"
@@ -905,13 +905,13 @@ kern_securelevel="3"
 clear_tmp_enable="YES"
 
 # Local Jail Configuration Follows
-__EOF__
+'EOF'
 
 ################################################################################
 # Quick script to display all periodic log files in all running jails.
 ################################################################################
 
-cat > /usr/local/etc/periodic/daily/999.jail-periodic-daily << __EOF__
+cat > /usr/local/etc/periodic/daily/999.jail-periodic-daily << 'EOF'
 #!/bin/sh
 #
 # /usr/local/etc/periodic/daily/999.jail-periodic-daily 2013-03-08
@@ -926,17 +926,17 @@ then
 fi
 
 rc=0
-case "\$daily_jail_periodic_enable" in
+case "$daily_jail_periodic_enable" in
     [Yy][Ee][Ss])
         echo
         echo 'Checking daily periodic of all running jails'
 
-        paths=\`jls | awk '{ print \$4 }'\`
-        for path in \$paths; do
-            if [ -f \${path}/var/log/daily.log ]; then
+        paths=`jls | awk '{ print $4 }'`
+        for path in $paths; do
+            if [ -f ${path}/var/log/daily.log ]; then
                 echo ""
-                echo "daily periodic log in \$path"
-                grep -v newsyslog \${path}/var/log/daily.log
+                echo "daily periodic log in $path"
+                grep -v newsyslog ${path}/var/log/daily.log
             fi
         done && rc=1
         ;;
@@ -945,8 +945,8 @@ case "\$daily_jail_periodic_enable" in
         ;;
 esac
 
-exit \$rc
-__EOF__
+exit $rc
+'EOF'
 
 perl -p -e 's/daily/weekly/g' /usr/local/etc/periodic/daily/999.jail-periodic-daily > /usr/local/etc/periodic/weekly/999.jail-periodic-weekly
 perl -p -e 's/daily/monthly/g' /usr/local/etc/periodic/daily/999.jail-periodic-daily > /usr/local/etc/periodic/monthly/999.jail-periodic-monthly
@@ -985,8 +985,8 @@ echo 'nameserver 10.100.102.1' >> /usr/jails/flavours/lan/etc/resolv.conf
 #  WWW jail prerequisite - self signed keys used for testing
 ################################################################################
 
-cat > /root/make-quicksha256-key.sh << __EOF__
-#\!/bin/sh
+cat > /root/make-quicksha256-key.sh << 'EOF'
+#!/bin/sh
 mkdir -p /root/mycert
 cd /root/mycert
 
@@ -995,17 +995,17 @@ mkdir -p /usr/local/etc/apache22/ssl.crt
 chmod 0400 /usr/local/etc/apache22/ssl.key
 chmod 0400 /usr/local/etc/apache22/ssl.crt
 
-openssl genrsa -des3 -out \$1.key 1024
-openssl req -new -x509 -nodes -sha256 -days 365 -key \$1.key -out \$1.crt
+openssl genrsa -des3 -out $1.key 1024
+openssl req -new -x509 -nodes -sha256 -days 365 -key $1.key -out $1.crt
 
-cp \$1.key \$1.key.orig
-openssl rsa -in \$1.key.orig -out \$1.key
+cp $1.key $1.key.orig
+openssl rsa -in $1.key.orig -out $1.key
 
-cp \$1.key /usr/local/etc/apache22/
-cp \$1.crt /usr/local/etc/apache22/
-chmod 0400 /usr/local/etc/apache22/\$1.key
-chmod 0400 /usr/local/etc/apache22/\$1.crt
-__EOF__
+cp $1.key /usr/local/etc/apache22/
+cp $1.crt /usr/local/etc/apache22/
+chmod 0400 /usr/local/etc/apache22/$1.key
+chmod 0400 /usr/local/etc/apache22/$1.crt
+'EOF'
 chmod u+x /root/make-quicksha256-key.sh
 cd /root && ./make-quicksha256-key.sh www.mydomain.name
 ################################################################################
@@ -1264,7 +1264,7 @@ perl -pwi -e 's^put your unique phrase here^join "", map { ("a".."z","A".."Z",0.
 # Configure nginx - copy and paste whole patch up to next comment block
 ################################################################################ 
 ################################################################################
-cat > /root/nginx.conf.diff << __EOF__
+cat > /root/nginx.conf.diff << 'EOF'
 --- /usr/local/etc/nginx/nginx.conf.orig     2012-12-25 03:12:56.000000000 +0000
 +++ /usr/local/etc/nginx/nginx.conf  2012-12-25 03:42:22.000000000 +0000
 @@ -1,16 +1,17 @@
@@ -1311,7 +1311,7 @@ cat > /root/nginx.conf.diff << __EOF__
 -            root   /usr/local/www/nginx;
 -            index  index.html index.htm;
 +            # If request URI doesn't match any existing file, directory or symbolic link, rewrite the URL to the index.php
-+            if (!-e \$request_filename) {
++            if (!-e $request_filename) {
 +                rewrite ^ /index.php last;
 +            }
          }
@@ -1322,16 +1322,16 @@ cat > /root/nginx.conf.diff << __EOF__
          }
  
 +        # For all PHP requests, pass them on to PHP-FPM via FastCGI
-+        location ~ \.php\$ {
++        location ~ \.php$ {
 +           fastcgi_pass unix:/var/run/php-fpm.sock;
-+           fastcgi_param SCRIPT_FILENAME /usr/local/www/wordpress\$fastcgi_script_name;
-+           fastcgi_param PATH_INFO \$fastcgi_script_name;
++           fastcgi_param SCRIPT_FILENAME /usr/local/www/wordpress$fastcgi_script_name;
++           fastcgi_param PATH_INFO $fastcgi_script_name;
 +           include fastcgi_params; # include extra FCGI params
 +        }
 +
          # proxy the PHP scripts to Apache listening on 127.0.0.1:80
          #
-         #location ~ \.php\$ {
+         #location ~ \.php$ {
 @@ -97,7 +111,7 @@
      #
      #server {
@@ -1341,7 +1341,7 @@ cat > /root/nginx.conf.diff << __EOF__
  
      #    ssl                  on;
      #    ssl_certificate      cert.pem;
-__EOF__
+'EOF'
 
 cd /usr/local/etc/nginx
 patch < /root/nginx.conf.diff
@@ -1378,18 +1378,18 @@ bash
 # root password change without it (in a jail)
 ################################################################################
 cd functions
-cat > mysql.sh.diff << __EOF__
+cat > mysql.sh.diff << 'EOF'
 --- mysql.sh.orig       2012-12-31 04:44:23.000000000 +0000
 +++ mysql.sh    2012-12-31 04:44:51.000000000 +0000
 @@ -60,6 +60,7 @@
- GRANT ALL PRIVILEGES ON *.* TO '\${MYSQL_ROOT_USER}'@'\${SQL_HOSTNAME}' IDENTIFIED BY '\${MYSQL_ROOT_PASSWD}';
+ GRANT ALL PRIVILEGES ON *.* TO '${MYSQL_ROOT_USER}'@'${SQL_HOSTNAME}' IDENTIFIED BY '${MYSQL_ROOT_PASSWD}';
  -- Allow GRANT privilege
- UPDATE user SET Grant_priv='Y' WHERE User='\${MYSQL_ROOT_USER}' AND Host='\${SQL_HOSTNAME}';
+ UPDATE user SET Grant_priv='Y' WHERE User='${MYSQL_ROOT_USER}' AND Host='${SQL_HOSTNAME}';
 +FLUSH PRIVILEGES;
  EOF
      fi
- 
-__EOF__
+
+'EOF'
 patch < mysql.sh.diff
 cd ..
 ################################################################################
@@ -1442,13 +1442,13 @@ ezjail-admin update -P
 # /var/db/portsnap into both the host system and jail system ports trees.
 ################################################################################
 
-cat > /usr/local/sbin/portsup << __EOF__
+cat > /usr/local/sbin/portsup << 'EOF'
 #!/bin/sh
 # Just a short script to quickly put the portsnap cron right into use
 portsnap update
 [ -e "/usr/jails/basejail/usr/ports/.portsnap.INDEX" ] \
     && portsnap -p "/usr/jails/basejail/usr/ports" update
-__EOF__
+'EOF'
 chmod 555 /usr/local/sbin/portsup
 
 ################################################################################
