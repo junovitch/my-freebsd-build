@@ -3,6 +3,7 @@
 # $FreeBSD: release/9.1.0/etc/periodic/daily/450.status-security 221432 2011-05-04 12:48:02Z netchild $
 #
 # Fixed 2013-05-23 by jason.unovitch@gmail.com
+# See http://www.freebsd.org/cgi/query-pr.cgi?pr=178611
 
 # If there is a global system configuration file, suck it in.
 #
