@@ -1,0 +1,32 @@
+--- /root/450.status-security.20130508	2013-05-09 06:09:24.000000000 +0000
++++ /etc/periodic/daily/450.status-security	2013-05-12 05:09:34.000000000 +0000
+@@ -20,17 +20,18 @@
+ 	    [Yy][Ee][Ss])
+ 		export security_output="";;
+ 	    *)
+-		export security_output="${daily_status_security_output}"
+-		case "${daily_status_security_output}" in
+-		    "")
+-			rc=3;;
+-		    /*)
+-			echo "    (output logged separately)"
+-			rc=0;;
+-		    *)
+-			echo "    (output mailed separately)"
+-			rc=0;;
+-		esac;;
++		export security_output="${daily_status_security_output}";;
++	esac
++
++	case "$security_output" in
++	    "")
++		rc=3;;
++	    /*)
++		echo "    (output logged separately)"
++		rc=0;;
++	    *)
++		echo "    (output mailed separately)"
++		rc=0;;
+ 	esac
+ 
+ 	periodic security || rc=3;;
