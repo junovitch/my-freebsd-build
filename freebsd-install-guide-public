@@ -225,6 +225,13 @@ portsnap fetch extract
 cd /usr/ports/ports-mgmt/portmaster/ && make WITH_BASH="YES" WITH_PKGNGPATCH="YES" install clean
 
 ################################################################################
+# Portdowngrade - Useful if an upgrade port doesn't work as intended and needs
+# to be downgraded to an old version.
+################################################################################
+
+portmaster ports-mgmt/portdowngrade
+
+################################################################################
 # Tmux - Separates the terminal from the current login. Useful if an SSH link
 # gets broken during an install or you have to leave. Whatever is running
 # will keep running.
@@ -375,6 +382,13 @@ portmaster net-mgmt/iftop
 ################################################################################
 
 portmaster sysutils/cmdwatch 
+
+################################################################################
+# Tree - For displaying a more graphical listing of files
+# Use via `tree`
+################################################################################
+
+portmaster sysutils/tree
 
 ################################################################################
 # Uprecords - Track uptime trends/percentages.
