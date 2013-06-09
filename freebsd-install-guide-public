@@ -461,6 +461,7 @@ cat > /usr/local/etc/periodic/daily/990.ipmi-daily.sh << 'EOF'
 echo
 echo "IPMI Sensor Check"
 /usr/local/sbin/ipmi-sensors | grep -E "FAN|System|Chassis|Voltage"  | cut -d "|" -f "2 4 5 6" | sed 's/|//g' | awk '{gsub(/^ +|  +$/,"")}1'
+exit 1
 'EOF'
 chmod 555 /usr/local/etc/periodic/daily/990.ipmi-daily.sh
 
@@ -499,12 +500,14 @@ echo 'weekly_noid_enable="NO"' >> /etc/periodic.conf
 echo 'daily_status_network_enable="NO"' >> /etc/periodic.conf
 echo 'daily_status_security_inline="YES"' >> /etc/periodic.conf
 echo 'daily_clean_tmps_enable="YES"' >> /etc/periodic.conf
+echo 'daily_show_success="NO"' >> /etc/periodic.conf
 
 cat > /usr/local/etc/periodic/daily/980.netstat-short.sh << 'EOF'
 #!/bin/sh
 echo
 echo "Network interface status:"
 netstat -ibdh | sed 's/bytes/bts/g' | awk '/xts|Address/ {print $4, "\t", $8, "\t", $11, "\t", $6, "\t", $7, "\t", $10;}'
+exit 1
 'EOF'
 chmod 555 /usr/local/etc/periodic/daily/980.netstat-short.sh
 
@@ -1039,7 +1042,6 @@ then
     source_periodic_confs
 fi
 
-rc=0
 case "$daily_jail_periodic_enable" in
     [Yy][Ee][Ss])
         echo
@@ -1145,6 +1147,7 @@ echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
 # WITH_ETCSYMLINK=on for ca_root_nss
 portmaster sysutils/puppet
+portmaster sysutils/puppet-lint
 portmaster devel/git
 echo 'puppetmaster_enable="YES"' >> /etc/rc.conf
 
@@ -1206,6 +1209,7 @@ echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
 portmaster net/mediatomb
 echo 'mediatomb_enable="YES"' /etc/rc.conf
+service mediatomb start
 # Now bring up http://xts-dlna:49152/ in a web browser for configuration
 
 ################################################################################
