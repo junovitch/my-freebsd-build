@@ -512,22 +512,20 @@ exit 1
 chmod 555 /usr/local/etc/periodic/daily/980.netstat-short.sh
 
 ################################################################################
-# Move periodic to run 2 hours later and add a weekly `freebsd-update` check,
+# Add a bi-weekly `freebsd-update` check as well as a
 # `portsnap -I cron update` to keep the ports tree Index updated. This ensures
 # the weekly `pkg version -v` works as intended.
 #
 # The new /etc/crontab will look like this:
 #
-# 1	5	*	*	*	root	periodic daily
-# 5	5	*	*	6	root	portsnap -I cron update
-# 15	6	*	*	6	root	periodic weekly
-# 30	6	*	*	6	root	freebsd-update cron
-# 30	7	1	*	*	root	periodic monthly
+# 1	3	*	*	*	root	periodic daily
+# 5	3	*	*	6	root	portsnap -I cron update
+# 15	4	*	*	6	root	periodic weekly
+# 30	4	*	*	2,6	root	freebsd-update cron
+# 30	5	1	*	*	root	periodic monthly
 ################################################################################
 
-perl -pwi -e 's^1\t3\t\*\t\*\t\*\troot\tperiodic daily^1\t5\t*\t*\t*\troot\tperiodic daily^' /etc/crontab
-perl -pwi -e 's^15\t4\t\*\t\*\t6\troot\tperiodic weekly^5\t5\t*\t*\t6\troot\tportsnap -I cron update\n15\t6\t*\t*\t6\troot\tperiodic weekly\n30\t6\t*\t*\t6\troot\tfreebsd-update cron^' /etc/crontab
-perl -pwi -e 's^30\t5\t1\t\*\t\*\troot\tperiodic monthly^30\t7\t1\t*\t*\troot\tperiodic monthly^' /etc/crontab
+perl -pwi -e 's^15\t4\t\*\t\*\t6\troot\tperiodic weekly^5\t3\t*\t*\t6\troot\tportsnap -I cron update\n15\t4\t*\t*\t6\troot\tperiodic weekly\n30\t4\t*\t*\t2,6\troot\tfreebsd-update cron^' /etc/crontab
 
 ################################################################################
 # Make default syslog sizes a bit bigger and keep more of them
@@ -622,7 +620,7 @@ printf "/var/log/unison-syncWAN.log\t\t600  9\t   *\t@T00  J\n" >> /etc/newsyslo
 printf "/var/log/unison-syncLAN.log\t\t600  9\t   *\t@T00  J\n" >> /etc/newsyslog.conf
 
 ################################################################################
-# Now echo some jobs into cron for this. The full WAN sync will be daily at 0715
+# Now echo some jobs into cron for this. The full WAN sync will be daily at 0415
 # while the local LAN sync will run every 10 minutes. Crontab entry will first
 # grep the process table for an active run and if that fails it will start out
 # Unison. All results will be sent to /dev/null.
@@ -630,7 +628,7 @@ printf "/var/log/unison-syncLAN.log\t\t600  9\t   *\t@T00  J\n" >> /etc/newsyslo
 
 echo '#' >> /etc/crontab
 echo '# Run regular Unison backups' >> /etc/crontab
-printf "15\t7\t*\t*\t*\troot\tpgrep -f 'unison syncWAN.prf' || /usr/local/bin/unison syncWAN.prf > /dev/null 2>&1\n" >> /etc/crontab
+printf "15\t4\t*\t*\t*\troot\tpgrep -f 'unison syncWAN.prf' || /usr/local/bin/unison syncWAN.prf > /dev/null 2>&1\n" >> /etc/crontab
 printf "*/10\t*\t*\t*\t*\troot\tpgrep -f 'unison syncLAN.prf' || /usr/local/bin/unison syncLAN.prf > /dev/null 2>&1\n" >> /etc/crontab
 
 ################################################################################
