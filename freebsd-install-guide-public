@@ -992,6 +992,8 @@ pkg create bash
 pkg create vim-lite
 pkg create gettext
 pkg create libiconv
+pkg create tmux
+pkg create libevent
 
 cp /etc/skel/.vimrc /usr/jails/newjail/etc/skel/
 cp /etc/skel/.vimrc /usr/jails/newjail/root
