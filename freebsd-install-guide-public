@@ -502,15 +502,6 @@ echo 'daily_status_security_inline="YES"' >> /etc/periodic.conf
 echo 'daily_clean_tmps_enable="YES"' >> /etc/periodic.conf
 echo 'daily_show_success="NO"' >> /etc/periodic.conf
 
-cat > /usr/local/etc/periodic/daily/980.netstat-short.sh << 'EOF'
-#!/bin/sh
-echo
-echo "Network interface status:"
-netstat -ibdh | sed 's/bytes/bts/g' | awk '/xts|Address/ {print $4, "\t", $8, "\t", $11, "\t", $6, "\t", $7, "\t", $10;}'
-exit 1
-'EOF'
-chmod 555 /usr/local/etc/periodic/daily/980.netstat-short.sh
-
 ################################################################################
 # Add a bi-weekly `freebsd-update` check as well as a
 # `portsnap -I cron update` to keep the ports tree Index updated. This ensures
