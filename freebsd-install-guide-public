@@ -222,7 +222,7 @@ portsnap fetch extract
 #    `portmaster` while in a /usr/ports/ directory to install that port
 ################################################################################
 
-cd /usr/ports/ports-mgmt/portmaster/ && make WITH_BASH="YES" WITH_PKGNGPATCH="YES" install clean
+cd /usr/ports/ports-mgmt/portmaster/ && make WITH_BASH="YES" install clean
 
 ################################################################################
 # Portdowngrade - Useful if an upgrade port doesn't work as intended and needs
