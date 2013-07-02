@@ -97,7 +97,7 @@ dumpdev="AUTO"
 powerd_enable="YES"
 
 # General Network Configuration
-hostname="xts-bsd.mydomain.name"
+hostname="xts-bsd.pa-us.mydomain.name"
 sshd_enable="YES"
 static_routes="lan"
 route_lan="-net 10.100.0.0/16 10.100.102.1"
@@ -106,16 +106,16 @@ ipv6_static_routes=""
 # DMZ/External Interface Configuration
 ifconfig_em0="DHCP"
 ifconfig_em0_ipv6="inet6 accept_rtadv"
-ifconfig_em0_alias0="inet 192.168.102.11 netmask 0xffffffff"     # xts-ms1.mydomain.name
-ifconfig_em0_alias1="inet6 2001:123:4567:890::11 prefixlen 128"  # xts-ms1.mydomain.name
-ifconfig_em0_alias2="inet 192.168.102.12 netmask 0xffffffff"     # xts-ms2.mydomain.name
-ifconfig_em0_alias3="inet6 2001:123:4567:890::12 prefixlen 128"  # xts-ms2.mydomain.name
-ifconfig_em0_alias4="inet 192.168.102.13 netmask 0xffffffff"     # xts-www1.mydomain.name
-ifconfig_em0_alias5="inet6 2001:123:4567:890::13 prefixlen 128"  # xts-www1.mydomain.name
-ifconfig_em0_alias6="inet 192.168.102.14 netmask 0xffffffff"     # xts-www2.mydomain.name
-ifconfig_em0_alias7="inet6 2001:123:4567:890::14 prefixlen 128"  # xts-www2.mydomain.name
-ifconfig_em0_alias8="inet 192.168.102.15 netmask 0xffffffff"     # xts-www3.mydomain.name
-ifconfig_em0_alias9="inet6 2001:123:4567:890::15 prefixlen 128"  # xts-www3.mydomain.name
+ifconfig_em0_alias0="inet 192.168.102.11 netmask 0xffffffff"     # ms1.pa-us.mydomain.name
+ifconfig_em0_alias1="inet6 2001:123:4567:890::11 prefixlen 128"  # ms1.pa-us.mydomain.name
+ifconfig_em0_alias2="inet 192.168.102.12 netmask 0xffffffff"     # ms2.pa-us.mydomain.name
+ifconfig_em0_alias3="inet6 2001:123:4567:890::12 prefixlen 128"  # ms2.pa-us.mydomain.name
+ifconfig_em0_alias4="inet 192.168.102.13 netmask 0xffffffff"     # www1.pa-us.mydomain.name
+ifconfig_em0_alias5="inet6 2001:123:4567:890::13 prefixlen 128"  # www1.pa-us.mydomain.name
+ifconfig_em0_alias6="inet 192.168.102.14 netmask 0xffffffff"     # www2.pa-us.mydomain.name
+ifconfig_em0_alias7="inet6 2001:123:4567:890::14 prefixlen 128"  # www2.pa-us.mydomain.name
+ifconfig_em0_alias8="inet 192.168.102.15 netmask 0xffffffff"     # www3.pa-us.mydomain.name
+ifconfig_em0_alias9="inet6 2001:123:4567:890::15 prefixlen 128"  # www3.pa-us.mydomain.name
 ifconfig_em0_alias10="inet 192.168.102.16 netmask 0xffffffff"    # unused
 ifconfig_em0_alias11="inet6 2001:123:4567:890::16 prefixlen 128" # unused
 ifconfig_em0_alias12="inet 192.168.102.17 netmask 0xffffffff"    # unused
@@ -128,14 +128,14 @@ ifconfig_em0_alias17="inet6 2001:123:4567:890::19 prefixlen 128" # unused
 # LAN/Internal Interface Configuration
 ifconfig_em1="inet 10.100.102.2 netmask 0xffffff00"
 ifconfig_em1_ipv6="inet6 2001:123:4:5678::2 prefixlen 64"
-ifconfig_em1_alias0="inet 10.100.102.11 netmask 0xffffffff"    # xts-puppet.mydomain.name
-ifconfig_em1_alias1="inet6 2001:123:4:5678::11 prefixlen 128"  # xts-puppet.mydomain.name
-ifconfig_em1_alias2="inet 10.100.102.12 netmask 0xffffffff"    # xts-ftp.mydomain.name
-ifconfig_em1_alias3="inet6 2001:123:4:5678::12 prefixlen 128"  # xts-ftp.mydomain.name
+ifconfig_em1_alias0="inet 10.100.102.11 netmask 0xffffffff"    # puppet.pa-us.mydomain.name
+ifconfig_em1_alias1="inet6 2001:123:4:5678::11 prefixlen 128"  # puppet.pa-us.mydomain.name
+ifconfig_em1_alias2="inet 10.100.102.12 netmask 0xffffffff"    # ftp.pa-us.mydomain.name
+ifconfig_em1_alias3="inet6 2001:123:4:5678::12 prefixlen 128"  # ftp.pa-us.mydomain.name
 ifconfig_em1_alias4="inet 10.100.102.13 netmask 0xffffffff"    # unused
 ifconfig_em1_alias5="inet6 2001:123:4:5678::13 prefixlen 128"  # unused
-ifconfig_em1_alias6="inet 10.100.102.14 netmask 0xffffffff"    # xts-dlna.mydomain.name
-ifconfig_em1_alias7="inet6 2001:123:4:5678::14 prefixlen 128"  # xts-dlna.mydomain.name
+ifconfig_em1_alias6="inet 10.100.102.14 netmask 0xffffffff"    # dlna.pa-us.mydomain.name
+ifconfig_em1_alias7="inet6 2001:123:4:5678::14 prefixlen 128"  # dlna.pa-us.mydomain.name
 ifconfig_em1_alias8="inet 10.100.102.15 netmask 0xffffffff"    # unused
 ifconfig_em1_alias9="inet6 2001:123:4:5678::15 prefixlen 128"  # unused
 ifconfig_em1_alias10="inet 10.100.102.16 netmask 0xffffffff"   # unused
@@ -162,7 +162,7 @@ ntpdate_hosts="192.168.102.1"
 # routes be sure to change or remove that statement.
 ################################################################################
 
-hostname xts-bsd.mydomain.name
+hostname xts-bsd.pa-us.mydomain.name
 service powerd restart
 service netif restart
 service syslogd restart
@@ -344,9 +344,9 @@ bash
 . ./vars
 ./clean-all
 ./build-dh
-export KEY_CN=xts-bsd.mydomain.name && export KEY_NAME=xts-bsd.mydomain.name && ./build-ca
-export KEY_CN=xts-rtr.mydomain.name && export KEY_NAME=xts-rtr.mydomain.name && ./build-key-server xts-rtr.mydomain.name
-export KEY_CN=xju-rtr.mydomain.name && export KEY_NAME=xju-rtr.mydomain.name && ./build-key xju-rtr.mydomain.name
+export KEY_CN=xts-bsd.pa-us.mydomain.name && export KEY_NAME=xts-bsd.pa-us.mydomain.name && ./build-ca
+export KEY_CN=xts-rtr.pa-us.mydomain.name && export KEY_NAME=xts-rtr.pa-us.mydomain.name && ./build-key-server xts-rtr.pa-us.mydomain.name
+export KEY_CN=xju-rtr.pa-us.mydomain.name && export KEY_NAME=xju-rtr.pa-us.mydomain.name && ./build-key xju-rtr.pa-us.mydomain.name
 export KEY_CN=jason && export KEY_NAME=jason && ./build-key jason
 
 /usr/local/sbin/openvpn --genkey --secret keys/ta.key
@@ -575,7 +575,7 @@ portmaster net/unison
 #    ssh-keygen -t ecdsa -b 521 -C "`whoami`@`hostname`-`date +%Y%m%d`"
 # 2. Distribute this out to each host to be synced. In my case, I will put this
 #    in my Puppet directory to be automatically distributed.
-#    cp /root/.ssh/id_ecdsa.pub /usr/jails/xts-puppet.mydomain.name/usr/local/etc/puppet/mint13lts/common/root/.ssh/authorized_keys
+#    cp /root/.ssh/id_ecdsa.pub /usr/jails/puppet.pa-us.mydomain.name/usr/local/etc/puppet/mint13lts/common/root/.ssh/authorized_keys
 # 3. Ensure root login enable on all clients. Update sshd_config to show:
 #    PermitRootLogin without-password
 #
@@ -1078,14 +1078,14 @@ cp -Rp example lan
 # DMZ-specific segment config
 ################################################################################
 
-echo 'search mydomain.name' >> /usr/jails/flavours/dmz/etc/resolv.conf
+echo 'search pa-us.mydomain.name. nc-us.mydomain.name.' >> /usr/jails/flavours/dmz/etc/resolv.conf
 echo 'nameserver 192.168.102.1' >> /usr/jails/flavours/dmz/etc/resolv.conf
 
 ################################################################################
 # LAN-specific segment config 
 ################################################################################
 
-echo 'search mydomain.name' >> /usr/jails/flavours/lan/etc/resolv.conf
+echo 'search pa-us.mydomain.name. nc-us.mydomain.name.' >> /usr/jails/flavours/lan/etc/resolv.conf
 echo 'nameserver 10.100.102.1' >> /usr/jails/flavours/lan/etc/resolv.conf
 
 ################################################################################
@@ -1114,7 +1114,7 @@ chmod 0400 /usr/local/etc/apache22/$1.key
 chmod 0400 /usr/local/etc/apache22/$1.crt
 'EOF'
 chmod u+x /root/make-quicksha256-key.sh
-cd /root && ./make-quicksha256-key.sh www.mydomain.name
+cd /root && ./make-quicksha256-key.sh www.pa-us.mydomain.name
 ################################################################################
 ##----------------------------------------------------------------------------##
 ##                          Puppet Jail Configuration                         ##
@@ -1128,8 +1128,8 @@ cd /root && ./make-quicksha256-key.sh www.mydomain.name
 # All state files are under /var/puppet
 ################################################################################
 
-ezjail-admin create -f lan xts-puppet.mydomain.name 10.100.102.11,2001:123:4:5678::11
-ezjail-admin console -f xts-puppet.mydomain.name
+ezjail-admin create -f lan puppet.pa-us.mydomain.name 10.100.102.11,2001:123:4:5678::11
+ezjail-admin console -f puppet.pa-us.mydomain.name
 passwd
 
 cd /usr/packages
@@ -1154,8 +1154,8 @@ echo 'puppetmaster_enable="YES"' >> /etc/rc.conf
 # http://www5.us.freebsd.org/doc/handbook/network-ftp.html
 ################################################################################
 
-ezjail-admin create -f lan xts-ftp.mydomain.name 10.100.102.12,2001:123:4:5678::12
-ezjail-admin console -f xts-ftp.mydomain.name
+ezjail-admin create -f lan ftp.pa-us.mydomain.name 10.100.102.12,2001:123:4:5678::12
+ezjail-admin console -f ftp.pa-us.mydomain.name
 passwd
 
 cd /usr/packages
@@ -1188,10 +1188,10 @@ service ftpd start
 # Helpful links:
 # http://virtuallyhyper.com/2012/10/installing-mediatomb-on-freebsd-9-and-connecting-to-it-with-xbmc-from-a-fedora-17-os/
 
-ezjail-admin create -f lan xts-dlna.mydomain.name 10.100.102.14,2001:123:4:5678::14
-mkdir -p /usr/jails/xts-dlna.mydomain.name/zfs/homedirs/common_media
-echo '/zfs/homedirs/common_media /usr/jails/xts-dlna.mydomain.name/zfs/homedirs/common_media nullfs rw 0 0' >> /etc/fstab.xts_dlna_mydomain.name
-ezjail-admin console -f xts-dlna.mydomain.name
+ezjail-admin create -f lan dlna.pa-us.mydomain.name 10.100.102.14,2001:123:4:5678::14
+mkdir -p /usr/jails/dlna.pa-us.mydomain.name/zfs/homedirs/common_media
+echo '/zfs/homedirs/common_media /usr/jails/dlna.pa-us.mydomain.name/zfs/homedirs/common_media nullfs rw 0 0' >> /etc/fstab.dlna_pa_us_mydomain.name
+ezjail-admin console -f dlna.pa-us.mydomain.name
 passwd
 
 cd /usr/packages
@@ -1201,7 +1201,7 @@ echo 'WITH_PKGNG=yes' >> /etc/make.conf
 portmaster net/mediatomb
 echo 'mediatomb_enable="YES"' /etc/rc.conf
 service mediatomb start
-# Now bring up http://xts-dlna:49152/ in a web browser for configuration
+# Now bring up http://dlna:49152/ in a web browser for configuration
 
 ################################################################################
 ##----------------------------------------------------------------------------##
@@ -1213,10 +1213,10 @@ service mediatomb start
 # https://wiki.archlinux.org/index.php/Owncloud
 #############################################################################
 
-ezjail-admin create -f dmz xts-www1.mydomain.name 192.168.102.13,2001:123:4567:890::13
-mkdir /usr/jails/xts-www1.mydomain.name/usr/local/etc/apache22/
-cp /root/mycert/www.mydomain.name.* /usr/jails/xts-www1.mydomain.name/usr/local/etc/apache22/
-ezjail-admin console -f xts-www1.mydomain.name
+ezjail-admin create -f dmz www1.pa-us.mydomain.name 192.168.102.13,2001:123:4567:890::13
+mkdir /usr/jails/www1.pa-us.mydomain.name/usr/local/etc/apache22/
+cp /root/mycert/www.pa-us.mydomain.name.* /usr/jails/www1.pa-us.mydomain.name/usr/local/etc/apache22/
+ezjail-admin console -f www1.pa-us.mydomain.name
 passwd
 
 cd /usr/packages
@@ -1230,7 +1230,7 @@ portmaster www/apache22 lang/php5 www/owncloud
 # Setup httpd.conf file
 cd /usr/local/etc/apache22; cp httpd.conf httpd.conf.original
 perl -pwi -e 's^ServerAdmin you\@example\.com^ServerAdmin jason.unovitch\@gmail.com^g' httpd.conf
-perl -pwi -e 's^#ServerName www.example.com:80^ServerName www.mydomain.name:80^g' httpd.conf
+perl -pwi -e 's^#ServerName www.example.com:80^ServerName www.pa-us.mydomain.name:80^g' httpd.conf
 perl -pwi -e 's^DocumentRoot "/usr/local/www/apache22/data"^DocumentRoot "/usr/local/www/owncloud"^g' httpd.conf
 perl -pwi -e 's^<Directory "/usr/local/www/apache22/data">^<Directory /usr/local/www/owncloud>^g' httpd.conf
 perl -pwi -e 's^DirectoryIndex index.html^DirectoryIndex index.html index.php^g' httpd.conf
@@ -1245,10 +1245,10 @@ perl -pwi -e 's^ServerSignature On^ServerSignature Off^g' httpd-default.conf
 # Setup httpd-ssl.conf file
 cd /usr/local/etc/apache22/extra; cp httpd-ssl.conf httpd-ssl.conf.original
 perl -pwi -e 's^ServerAdmin you\@example\.com^ServerAdmin jason.unovitch\@gmail.com^g' httpd-ssl.conf
-perl -pwi -e 's^ServerName www.example.com:443^ServerName www.mydomain.name:443^g' httpd-ssl.conf
+perl -pwi -e 's^ServerName www.example.com:443^ServerName www.pa-us.mydomain.name:443^g' httpd-ssl.conf
 perl -pwi -e 's^DocumentRoot "/usr/local/www/apache22/data"^DocumentRoot "/usr/local/www/owncloud"^g' httpd-ssl.conf
-perl -pwi -e 's^SSLCertificateFile "/usr/local/etc/apache22/server.crt"^SSLCertificateFile "/usr/local/etc/apache22/www.mydomain.name.crt"^g' httpd-ssl.conf
-perl -pwi -e 's^SSLCertificateKeyFile "/usr/local/etc/apache22/server.key"^SSLCertificateKeyFile "/usr/local/etc/apache22/www.mydomain.name.key"^g' httpd-ssl.conf
+perl -pwi -e 's^SSLCertificateFile "/usr/local/etc/apache22/server.crt"^SSLCertificateFile "/usr/local/etc/apache22/www.pa-us.mydomain.name.crt"^g' httpd-ssl.conf
+perl -pwi -e 's^SSLCertificateKeyFile "/usr/local/etc/apache22/server.key"^SSLCertificateKeyFile "/usr/local/etc/apache22/www.pa-us.mydomain.name.key"^g' httpd-ssl.conf
 
 chmod u+x /usr/local/www/owncloud/.htaccess
 
@@ -1262,10 +1262,10 @@ apachectl start
 ##----------------------------------------------------------------------------##
 ################################################################################
 
-ezjail-admin create -f dmz xts-www2.mydomain.name 192.168.102.14,2001:123:4567:890::14
-mkdir /usr/jails/xts-www2.mydomain.name/usr/local/etc/apache22/
-cp /root/mycert/www.mydomain.name.* /usr/jails/xts-www2.mydomain.name/usr/local/etc/apache22/
-ezjail-admin console -f xts-www2.mydomain.name
+ezjail-admin create -f dmz www2.pa-us.mydomain.name 192.168.102.14,2001:123:4567:890::14
+mkdir /usr/jails/www2.pa-us.mydomain.name/usr/local/etc/apache22/
+cp /root/mycert/www.pa-us.mydomain.name.* /usr/jails/www2.pa-us.mydomain.name/usr/local/etc/apache22/
+ezjail-admin console -f www2.pa-us.mydomain.name
 passwd
 
 cd /usr/packages
@@ -1290,9 +1290,9 @@ perl -pwi -e 's^ServerSignature On^ServerSignature Off^g' httpd-default.conf
 # Setup httpd-ssl.conf file
 cd /usr/local/etc/apache22/extra; cp httpd-ssl.conf httpd-ssl.conf.original
 perl -pwi -e 's^ServerAdmin you\@example\.com^ServerAdmin jason.unovitch\@gmail.com^g' httpd-ssl.conf
-perl -pwi -e 's^ServerName www.example.com:443^ServerName www.mydomain.name:443^g' httpd-ssl.conf
-perl -pwi -e 's^SSLCertificateFile "/usr/local/etc/apache22/server.crt"^SSLCertificateFile "/usr/local/etc/apache22/www.mydomain.name.crt"^g' httpd-ssl.conf
-perl -pwi -e 's^SSLCertificateKeyFile "/usr/local/etc/apache22/server.key"^SSLCertificateKeyFile "/usr/local/etc/apache22/www.mydomain.name.key"^g' httpd-ssl.conf
+perl -pwi -e 's^ServerName www.example.com:443^ServerName www.pa-us.mydomain.name:443^g' httpd-ssl.conf
+perl -pwi -e 's^SSLCertificateFile "/usr/local/etc/apache22/server.crt"^SSLCertificateFile "/usr/local/etc/apache22/www.pa-us.mydomain.name.crt"^g' httpd-ssl.conf
+perl -pwi -e 's^SSLCertificateKeyFile "/usr/local/etc/apache22/server.key"^SSLCertificateKeyFile "/usr/local/etc/apache22/www.pa-us.mydomain.name.key"^g' httpd-ssl.conf
 
 # Secure WebDAV
 htdigest -c "/usr/local/user.passwd" DAV-upload admin
@@ -1312,8 +1312,8 @@ apachectl start
 # http://forums.freebsd.org/showthread.php?t=30268
 ################################################################################ 
 
-ezjail-admin create -f dmz xts-www3.mydomain.name 192.168.102.15,2001:123:4567:890::15
-ezjail-admin console -f xts-www3.mydomain.name
+ezjail-admin create -f dmz www3.pa-us.mydomain.name 192.168.102.15,2001:123:4567:890::15
+ezjail-admin console -f www3.pa-us.mydomain.name
 passwd
 
 cd /usr/packages
@@ -1339,13 +1339,13 @@ service mysql-server start
 mysql -u root << __EOF__
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'::1' IDENTIFIED BY '${WORDPRESS_MYSQL_ROOT_PASSWORD}' WITH GRANT OPTION;
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY '${WORDPRESS_MYSQL_ROOT_PASSWORD}' WITH GRANT OPTION;
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'xts-www3.mydomain.name' IDENTIFIED BY '${WORDPRESS_MYSQL_ROOT_PASSWORD}' WITH GRANT OPTION;
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'www3.pa-us.mydomain.name' IDENTIFIED BY '${WORDPRESS_MYSQL_ROOT_PASSWORD}' WITH GRANT OPTION;
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' IDENTIFIED BY '${WORDPRESS_MYSQL_ROOT_PASSWORD}' WITH GRANT OPTION;
 DROP USER ''@'localhost';
-DROP USER ''@'xts-www3.mydomain.name';
+DROP USER ''@'www3.pa-us.mydomain.name';
 CREATE DATABASE wordpress;
 GRANT ALL ON wordpress.* to '${WORDPRESS_MYSQL_USERNAME}'@'localhost' IDENTIFIED BY '${WORDPRESS_MYSQL_PASSWORD}';
-GRANT ALL ON wordpress.* to '${WORDPRESS_MYSQL_USERNAME}'@'xts-www3.mydomain.name' IDENTIFIED BY '${WORDPRESS_MYSQL_PASSWORD}';
+GRANT ALL ON wordpress.* to '${WORDPRESS_MYSQL_USERNAME}'@'www3.pa-us.mydomain.name' IDENTIFIED BY '${WORDPRESS_MYSQL_PASSWORD}';
 GRANT ALL ON wordpress.* to '${WORDPRESS_MYSQL_USERNAME}'@'192.168.102.15' IDENTIFIED BY '${WORDPRESS_MYSQL_PASSWORD}';
 FLUSH PRIVILEGES;
 QUIT;
@@ -1407,7 +1407,7 @@ cat > /root/nginx.conf.diff << 'EOF'
      server {
          listen       80;
 -        server_name  localhost;
-+        server_name  xts-www3.mydomain.name;
++        server_name  www3.pa-us.mydomain.name;
 +
 +        root /usr/local/www/wordpress;
 +        index  index.php;
@@ -1446,7 +1446,7 @@ cat > /root/nginx.conf.diff << 'EOF'
      #server {
      #    listen       443;
 -    #    server_name  localhost;
-+    #    server_name  xts-www3.mydomain.name;
++    #    server_name  www3.pa-us.mydomain.name;
  
      #    ssl                  on;
      #    ssl_certificate      cert.pem;
@@ -1469,8 +1469,8 @@ service nginx start
 # http://iredmail.com/wiki/index.php?title=Install/iRedMail/FreeBSD.Jail
 ################################################################################
 
-ezjail-admin create -f dmz xts-ms1.mydomain.name 192.168.102.11,2001:123:4567:890::11
-ezjail-admin console -f xts-ms1.mydomain.name
+ezjail-admin create -f dmz ms1.pa-us.mydomain.name 192.168.102.11,2001:123:4567:890::11
+ezjail-admin console -f ms1.pa-us.mydomain.name
 passwd
 
 cd /usr/packages
