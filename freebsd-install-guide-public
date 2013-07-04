@@ -1183,25 +1183,66 @@ service ftpd start
 
 
 ################################################################################
-##                      Mediatomb Jail Configuration                          ##
+##                       Serviio Jail Configuration                           ##
 ################################################################################
 # Helpful links:
-# http://virtuallyhyper.com/2012/10/installing-mediatomb-on-freebsd-9-and-connecting-to-it-with-xbmc-from-a-fedora-17-os/
+# http://forums.nas4free.org/viewtopic.php?f=79&t=1796
+# http://luffare.blogspot.com/2011/04/dlna-server-on-freebsd-82-using-serviio.html
+# http://wiki.serviio.org/doku.php?id=build_ffmpeg_linux
 
-ezjail-admin create -f lan dlna.pa-us.mydomain.name 10.100.102.14,2001:123:4:5678::14
-mkdir -p /usr/jails/dlna.pa-us.mydomain.name/zfs/homedirs/common_media
-echo '/zfs/homedirs/common_media /usr/jails/dlna.pa-us.mydomain.name/zfs/homedirs/common_media nullfs rw 0 0' >> /etc/fstab.dlna_pa_us_mydomain.name
-ezjail-admin console -f dlna.pa-us.mydomain.name
+ezjail-admin create -f lan serviio.pa-us.mydomain.name 10.100.102.14,2001:123:4:5678::14
+mkdir -p /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_media
+mkdir -p /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_photo_albums
+echo '/zfs/homedirs/common_media /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_media nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain.name
+echo '/zfs/homedirs/common_photo_albums /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_photo_albums nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain.name
+ezjail-admin console -f serviio.pa-us.mydomain.name
 passwd
 
 cd /usr/packages
 pkg add *
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
-portmaster net/mediatomb
-echo 'mediatomb_enable="YES"' /etc/rc.conf
-service mediatomb start
-# Now bring up http://dlna:49152/ in a web browser for configuration
+# Setup FFMPEG options per guidance in the helpful links then start Serviio build.
+cd /usr/ports/multimedia/ffmpeg1 && make config WITH_RTMP=YES WITH_X11GRAB=YES WITH_FAAC=YES WITH_LAME=YES WITH_AMR_NB=YES WITH_AMR_WB=YES
+portmaster net/serviio
+
+# Fix home directory for Serviio then enable and start it.
+pw usermod dlna -m -d /var/dlna
+echo 'serviio_enable="YES"' >> /etc/rc.conf
+echo 'serviio_args=-Dserviio.remoteHost="10.100.102.14"' >> /etc/rc.conf
+service serviio start
+
+# Setup Apache 2.4
+portmaster www/apache24
+
+# Setup PHP5 configuration then start port build with WebUI dependencies
+cd /usr/ports/lang/php5 && make config WITH_APACHE=YES
+portmaster lang/php5 ftp/php5-curl textproc/php5-xml converters/php5-mbstring devel/php5-json textproc/php5-simplexml textproc/php5-dom
+
+# Fetch the current WebUI. Update if a new version is available on the Serviio wiki.
+# http://wiki.serviio.org/doku.php?id=phpwebui
+cd /tmp && fetch https://dl.dropboxusercontent.com/u/42061/WebUI%20v1.4beta.zip
+unzip -d /usr/local/www/apache24/data/ WebUI%20v1.4beta.zip
+
+# Setup httpd.conf file
+cd /usr/local/etc/apache24; cp httpd.conf httpd.conf.original
+perl -pwi -e 's^ServerAdmin you\@example\.com^ServerAdmin jason.unovitch\@gmail.com^g' httpd.conf
+perl -pwi -e 's^#ServerName www.example.com:80^ServerName serviio.pa-us.mydomain.name:80^g' httpd.conf
+perl -pwi -e 's^DocumentRoot "/usr/local/www/apache24/data"^DocumentRoot "/usr/local/www/apache24/data/serviioweb-1.4beta"^g' httpd.conf
+perl -pwi -e 's^<Directory "/usr/local/www/apache24/data">^<Directory /usr/local/www/apache24/data/serviioweb-1.4beta>^g' httpd.conf
+perl -pwi -e 's^DirectoryIndex index.html^DirectoryIndex index.html index.php^g' httpd.conf
+perl -pwi -e 's^AddType application/x-gzip .gz .tgz^AddType application/x-gzip .gz .tgz\n    AddType application/x-httpd-php .php\n    AddType application/x-httpd-php-source .phps^g' httpd.conf
+
+# Secure the httpd-default.conf file
+cd /usr/local/etc/apache24/extra; cp httpd-default.conf httpd-default.conf.original
+perl -pwi -e 's^ServerTokens Full^ServerTokens Prod^g' httpd-default.conf
+perl -pwi -e 's^ServerSignature On^ServerSignature Off^g' httpd-default.conf
+
+# Finalize and activate
+echo 'apache24_enable="YES"' >> /etc/rc.conf
+apachectl start
+
+# Now bring up http://serviio/ in a web browser for configuration
 
 ################################################################################
 ##----------------------------------------------------------------------------##
