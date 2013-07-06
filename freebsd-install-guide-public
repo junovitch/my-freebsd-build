@@ -1209,7 +1209,7 @@ portmaster net/serviio
 # Fix home directory for Serviio then enable and start it.
 pw usermod dlna -m -d /var/dlna
 echo 'serviio_enable="YES"' >> /etc/rc.conf
-echo 'serviio_args=-Dserviio.remoteHost="10.100.102.14"' >> /etc/rc.conf
+echo serviio_args=\'-Dserviio.advertisementDuration=\"15\" -Dserviio.remoteHost=\"10.100.102.14\"\' >> /etc/rc.conf
 service serviio start
 
 # Setup Apache 2.4
