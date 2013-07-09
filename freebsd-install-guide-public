@@ -998,6 +998,7 @@ perl -pwi -e 's^syslogd_flags="-ss"^syslogd_flags="-s -v -v"^g' /usr/jails/flavo
 perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.100.102.2^g' /usr/jails/newjail/etc/syslog.conf
 
 echo 'daily_show_success="NO"' >> /usr/jails/flavours/example/etc/periodic.conf
+echo 'security_show_success="NO"' >> /usr/jails/flavours/example/etc/periodic.conf
 echo 'daily_status_security_inline="YES"' >> /usr/jails/flavours/example/etc/periodic.conf
 echo 'daily_status_disks_enable="NO"' >> /usr/jails/flavours/example/etc/periodic.conf
 echo 'daily_status_rwho_enable="NO"' >> /usr/jails/flavours/example/etc/periodic.conf
