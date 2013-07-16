@@ -134,8 +134,8 @@ ifconfig_em1_alias2="inet 10.100.102.12 netmask 0xffffffff"    # ftp.pa-us.mydom
 ifconfig_em1_alias3="inet6 2001:123:4:5678::12 prefixlen 128"  # ftp.pa-us.mydomain.name
 ifconfig_em1_alias4="inet 10.100.102.13 netmask 0xffffffff"    # unused
 ifconfig_em1_alias5="inet6 2001:123:4:5678::13 prefixlen 128"  # unused
-ifconfig_em1_alias6="inet 10.100.102.14 netmask 0xffffffff"    # dlna.pa-us.mydomain.name
-ifconfig_em1_alias7="inet6 2001:123:4:5678::14 prefixlen 128"  # dlna.pa-us.mydomain.name
+ifconfig_em1_alias6="inet 10.100.102.14 netmask 0xffffffff"    # serviio.pa-us.mydomain.name
+ifconfig_em1_alias7="inet6 2001:123:4:5678::14 prefixlen 128"  # serviio.pa-us.mydomain.name
 ifconfig_em1_alias8="inet 10.100.102.15 netmask 0xffffffff"    # unused
 ifconfig_em1_alias9="inet6 2001:123:4:5678::15 prefixlen 128"  # unused
 ifconfig_em1_alias10="inet 10.100.102.16 netmask 0xffffffff"   # unused
@@ -473,6 +473,43 @@ chmod 555 /usr/local/etc/periodic/daily/990.ipmi-daily.sh
 portmaster sysutils/nut
 
 # Still testing as of 31 December, almost there...
+# Haven't had the time to actually validate this works properly
+
+echo '' >> /etc/rc.conf
+echo '## UPS Monitoring Tools' >> /etc/rc.conf
+echo 'nut_enable="YES"' >> /etc/rc.conf
+echo 'nut_upslog_enable="YES"' >> /etc/rc.conf
+echo 'nut_upsmon_enable="YES"' >> /etc/rc.conf
+
+cd /usr/local/etc/nut
+cp ups.conf.sample ups.conf
+printf "[UPS]\n" >> ups.conf
+printf "\tdriver = snmp-ups\n" >> ups.conf
+printf "\tport = xts-ups\n" >> ups.conf
+printf "\tcommunity = Uno4snmp\n" >> ups.conf
+printf "\tpollfreq = 15\n" >> ups.conf
+
+cp upsd.conf.sample upsd.conf
+
+cp upsd.users.sample upsd.users
+printf "# Supervision user\n" >> upsd.users
+printf "[admin]\n" >> upsd.users
+printf "\tpassword = adminpassword\n" >> upsd.users
+printf "\tactions = SET\n" >> upsd.users
+printf "\tactions = FSD\n" >> upsd.users
+printf "\tinstcmds = ALL\n\n" >> upsd.users
+printf "# Protection user\n" >> upsd.users
+printf "[monuser]\n" >> upsd.users
+printf "\tpassword  = userpassword\n" >> upsd.users
+printf "\tupsmon master\n" >> upsd.users
+
+cp upsmon.conf.sample upsmon.conf
+echo "MONITOR UPS@localhost 1 monuser userpassword master" >> upsmon.conf
+
+chown uucp /usr/local/etc/nut/*.conf /usr/local/etc/nut/upsd.users
+chmod 440 /usr/local/etc/nut/*.conf /usr/local/etc/nut/upsd.users
+
+service nut start
 
 ################################################################################
 # Logcheck - Reviews log files.
