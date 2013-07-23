@@ -12,7 +12,7 @@
 # - ZFS setup for AF 4K drives and snapshotting script
 # - Mostly jail friendly NFSv4 (with v2/v3 support commented)
 # - Ezjail setup split to DMZ/LAN segments with syslog to host system
-# - Basic FTP/iRedMail/Wordpress/Owncloud/Puppet jails
+# - Basic FTP/iRedMail/Serviio/Owncloud/Puppet jails
 #
 # This version is slightly modified to remove any passwords, IPs, or domain
 # names that may be sensitive. For the most part, if you use a find/replace on
@@ -510,6 +510,8 @@ chown uucp /usr/local/etc/nut/*.conf /usr/local/etc/nut/upsd.users
 chmod 440 /usr/local/etc/nut/*.conf /usr/local/etc/nut/upsd.users
 
 service nut start
+service nut_upslog start
+service nut_upsmon start
 
 ################################################################################
 # Logcheck - Reviews log files.
@@ -1382,162 +1384,6 @@ mkdir /usr/local/uploads
 echo 'apache22_enable="YES"' >> /etc/rc.conf
 apachectl start
 
-################################################################################
-##----------------------------------------------------------------------------##
-##                       Wordpress Jail Configuration                         ##
-##----------------------------------------------------------------------------##
-################################################################################
-# Adapted from:
-# http://forums.freebsd.org/showthread.php?t=30268
-################################################################################ 
-
-ezjail-admin create -f dmz www3.pa-us.mydomain.name 192.168.102.15,2001:123:4567:890::15
-ezjail-admin console -f www3.pa-us.mydomain.name
-passwd
-
-cd /usr/packages
-pkg add *
-echo 'WITH_PKGNG=yes' >> /etc/make.conf
-
-# Select options and then install
-cd /usr/ports/lang/perl5.14 && make config WITH_THREADS="YES"
-cd /usr/ports/lang/php5 && make config WITH_FPM="YES"
-portmaster www/nginx lang/perl5.14 lang/php5 databases/mysql55-server www/wordpress
-
-# Set Passwords
-setenv WORDPRESS_MYSQL_USERNAME 'wp_db_user'
-setenv WORDPRESS_MYSQL_PASSWORD 'wordpress_db_password'
-setenv WORDPRESS_MYSQL_ROOT_PASSWORD 'MySQL_root_password'
-
-# Enable MySQL
-cp /usr/local/share/mysql/my-large.cnf /var/db/mysql/my.cnf
-echo 'mysql_enable="YES"' >> /etc/rc.conf
-service mysql-server start
-
-# Configure MySQL
-mysql -u root << __EOF__
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'::1' IDENTIFIED BY '${WORDPRESS_MYSQL_ROOT_PASSWORD}' WITH GRANT OPTION;
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY '${WORDPRESS_MYSQL_ROOT_PASSWORD}' WITH GRANT OPTION;
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'www3.pa-us.mydomain.name' IDENTIFIED BY '${WORDPRESS_MYSQL_ROOT_PASSWORD}' WITH GRANT OPTION;
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' IDENTIFIED BY '${WORDPRESS_MYSQL_ROOT_PASSWORD}' WITH GRANT OPTION;
-DROP USER ''@'localhost';
-DROP USER ''@'www3.pa-us.mydomain.name';
-CREATE DATABASE wordpress;
-GRANT ALL ON wordpress.* to '${WORDPRESS_MYSQL_USERNAME}'@'localhost' IDENTIFIED BY '${WORDPRESS_MYSQL_PASSWORD}';
-GRANT ALL ON wordpress.* to '${WORDPRESS_MYSQL_USERNAME}'@'www3.pa-us.mydomain.name' IDENTIFIED BY '${WORDPRESS_MYSQL_PASSWORD}';
-GRANT ALL ON wordpress.* to '${WORDPRESS_MYSQL_USERNAME}'@'192.168.102.15' IDENTIFIED BY '${WORDPRESS_MYSQL_PASSWORD}';
-FLUSH PRIVILEGES;
-QUIT;
-__EOF__
-
-# Configure PHP-FPM
-perl -pwi -e 's^; events.mechanism = epoll^events.mechanism = kqueue^g' /usr/local/etc/php-fpm.conf
-perl -pwi -e 's^listen = 127.0.0.1:9000^listen = /var/run/php-fpm.sock^g' /usr/local/etc/php-fpm.conf
-perl -pwi -e 's^;listen.owner = www^listen.owner = www^g' /usr/local/etc/php-fpm.conf
-perl -pwi -e 's^;listen.group = www^listen.group = www^g' /usr/local/etc/php-fpm.conf
-perl -pwi -e 's^;listen.mode = 0666^listen.mode = 0666^g' /usr/local/etc/php-fpm.conf
-echo 'php_fpm_enable="YES"' >> /etc/rc.conf
-service php-fpm start
-
-# Configure Wordpress
-cp /usr/local/www/wordpress/wp-config-sample.php /usr/local/www/wordpress/wp-config.php
-chmod 640 /usr/local/www/wordpress/wp-config.php
-perl -pwi -e 's^database_name_here^wordpress^g' /usr/local/www/wordpress/wp-config.php
-perl -pwi -e "s^username_here^${WORDPRESS_MYSQL_USERNAME}^g" /usr/local/www/wordpress/wp-config.php
-perl -pwi -e "s^password_here^${WORDPRESS_MYSQL_PASSWORD}^g" /usr/local/www/wordpress/wp-config.php
-perl -pwi -e 's^localhost^192.168.102.15^g' /usr/local/www/wordpress/wp-config.php
-perl -pwi -e 's^put your unique phrase here^join "", map { ("a".."z","A".."Z",0..9,qw(! @ $ % & *) ) [rand(68)] } 1..64^eg' /usr/local/www/wordpress/wp-config.php
-
-################################################################################ 
-# Configure nginx - copy and paste whole patch up to next comment block
-################################################################################ 
-################################################################################
-cat > /root/nginx.conf.diff << 'EOF'
---- /usr/local/etc/nginx/nginx.conf.orig     2012-12-25 03:12:56.000000000 +0000
-+++ /usr/local/etc/nginx/nginx.conf  2012-12-25 03:42:22.000000000 +0000
-@@ -1,16 +1,17 @@
- 
--#user  nobody;
--worker_processes  1;
-+user  www www;
-+worker_processes  4;
- 
- #error_log  logs/error.log;
- #error_log  logs/error.log  notice;
- #error_log  logs/error.log  info;
- 
--#pid        logs/nginx.pid;
-+pid        /var/run/nginx.pid;
- 
- 
- events {
-     worker_connections  1024;
-+    use kqueue;
- }
- 
- 
-@@ -30,19 +31,24 @@
-     #keepalive_timeout  0;
-     keepalive_timeout  65;
- 
--    #gzip  on;
-+    gzip  on;
- 
-     server {
-         listen       80;
--        server_name  localhost;
-+        server_name  www3.pa-us.mydomain.name;
-+
-+        root /usr/local/www/wordpress;
-+        index  index.php;
- 
-         #charset koi8-r;
- 
-         #access_log  logs/host.access.log  main;
- 
-         location / {
--            root   /usr/local/www/nginx;
--            index  index.html index.htm;
-+            # If request URI doesn't match any existing file, directory or symbolic link, rewrite the URL to the index.php
-+            if (!-e $request_filename) {
-+                rewrite ^ /index.php last;
-+            }
-         }
- 
-         #error_page  404              /404.html;
-@@ -54,6 +60,14 @@
-             root   /usr/local/www/nginx-dist;
-         }
- 
-+        # For all PHP requests, pass them on to PHP-FPM via FastCGI
-+        location ~ \.php$ {
-+           fastcgi_pass unix:/var/run/php-fpm.sock;
-+           fastcgi_param SCRIPT_FILENAME /usr/local/www/wordpress$fastcgi_script_name;
-+           fastcgi_param PATH_INFO $fastcgi_script_name;
-+           include fastcgi_params; # include extra FCGI params
-+        }
-+
-         # proxy the PHP scripts to Apache listening on 127.0.0.1:80
-         #
-         #location ~ \.php$ {
-@@ -97,7 +111,7 @@
-     #
-     #server {
-     #    listen       443;
--    #    server_name  localhost;
-+    #    server_name  www3.pa-us.mydomain.name;
- 
-     #    ssl                  on;
-     #    ssl_certificate      cert.pem;
-'EOF'
-
-cd /usr/local/etc/nginx
-patch < /root/nginx.conf.diff
-################################################################################
-
-# Finally activate nginx
-echo 'nginx_enable="YES"' >> /etc/rc.conf
-service nginx start
 ################################################################################
 ##----------------------------------------------------------------------------##
 ##                       iRedMail Jail Configuration                          ##
