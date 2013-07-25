@@ -19,7 +19,7 @@
 # the find and replace section and the initial configuration section you can
 # probably copy and paste most of what you see here straight into a terminal. 
 #
-# Written in 2012 by Jason Unovitch
+# Written in 2012-2013 by Jason Unovitch
 #   jason.unovitch@gmail.com
 #   https://github.com/junovitch
 #
@@ -961,6 +961,104 @@ service nfsd start
 
 ################################################################################
 ##----------------------------------------------------------------------------##
+##                      Poudriere PKG Build Configuration                     ##
+##----------------------------------------------------------------------------##
+################################################################################
+# Set Up Poudriere PKG build system now that ZFS is fully setup.  All jails will
+# be mapped to a local folder as their repository and the FTP jail will also 
+# share this package repo to the internal network. Once testing for a jail is
+# done, the idea is to migrate the packages and configuration into Poudriere and
+# do pkg upgrade in the future rather than compiling software in each jail.
+#
+# Helpful Links:
+# http://forums.freebsd.org/showthread.php?t=38859
+# http://blog.etoilebsd.net/post/Home_made_pkgng_repo
+# https://fossil.etoilebsd.net/poudriere/doc/trunk/doc/pkgng_repos.wiki
+################################################################################
+
+# Install Poudriere
+portmaster ports-mgmt/poudriere
+
+# Backup and change default configuration variables
+cd /usr/local/etc && cp poudriere.conf.sample poudriere.conf
+perl -pwi -e 's^#ZPOOL=tank^ZPOOL=zfs^g' poudriere.conf
+perl -pwi -e 's^_PROTO_://_CHANGE_THIS_^ftp://ftp.freebsd.org^g' poudriere.conf
+perl -pwi -e 's^BASEFS=/usr/local/poudriere^BASEFS=/zfs/poudriere^g' poudriere.conf
+
+# Setup Poudriere to use the current host /usr/ports as the default
+poudriere ports -c -F -f none -M /usr/ports -p default
+
+# Setup 9.1-RELEASE build environment and update to the current patch level
+poudriere jails -c -j 91amd64 -v 9.1-RELEASE -a amd64
+poudriere jail -u -j 91amd64
+
+# Setup make.conf variables for build jail
+cat > /usr/local/etc/poudriere.d/91amd64-make.conf << 'EOF'
+WITH_PKGNG=yes
+PERL_VERSION=5.14.4
+portmaster_SET+=BASH
+unison_UNSET+=X11
+php5_SET+=APACHE
+ffmpeg1_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB
+APACHE_PORT=www/apache24
+ca_root_nss_SET+=ETCSYMLINK
+'EOF'
+
+# Setup a package list of all ports used on host and in jails
+cat > /zfs/poudriere/pkg_list << 'EOF'
+########## Host and Jail programs ##########
+ports-mgmt/portmaster
+ports-mgmt/portdowngrade
+sysutils/tmux
+shells/bash
+lang/perl5.14
+net/openntpd
+mail/opensmtpd
+security/openvpn
+sysutils/pstree
+net-mgmt/iftop
+sysutils/cmdwatch
+sysutils/tree
+sysutils/uptimed
+sysutils/bsdstats
+ports-mgmt/fbsdmon
+security/clamav
+editors/vim-lite
+devel/checkbashisms
+sysutils/freeipmi
+sysutils/nut
+security/logcheck
+sysutils/smartmontools
+net/rsync
+net/unison
+sysutils/zfs-stats
+sysutils/ezjail
+ports-mgmt/jailaudit
+########## Apache24 ##########
+www/apache24
+########## Serviio Jail ##########
+net/serviio
+########## PHP5 and dependencies listed by-name for Serviio ##########
+lang/php5
+ftp/php5-curl
+textproc/php5-xml
+converters/php5-mbstring
+devel/php5-json
+textproc/php5-simplexml
+textproc/php5-dom
+########## Owncloud Jail##########
+www/owncloud
+########## Puppet Jail ##########
+sysutils/puppet
+sysutils/puppet-lint
+devel/git
+'EOF'
+
+# Start a bulk build of all ports in that list
+poudriere bulk -f /zfs/poudriere/pkg_list -j 91amd64
+
+################################################################################
+##----------------------------------------------------------------------------##
 ##                    Host System Initial Jail Configuration                  ##
 ##----------------------------------------------------------------------------##
 ################################################################################
@@ -1009,21 +1107,14 @@ echo '# Uncomment to allow pings within a jail on upon reboot' >> /etc/sysctl.co
 echo '#security.jail.allow_raw_sockets=1' >> /etc/sysctl.conf
 
 ################################################################################
-# First, build default packages used by all jails.
+# First, copy package repo to basejail and map default pkg.conf to use it
 # Second, copy vim dot files into jail, enable sshd, and enable syslogd with
 # the host system as the destination
 # Third, set up remaining for all jail's rc.conf
 ################################################################################
 
-mkdir -p /usr/jails/newjail/usr/packages
-cd /usr/jails/newjail/usr/packages
-pkg create portmaster
-pkg create bash
-pkg create vim-lite
-pkg create gettext
-pkg create libiconv
-pkg create tmux
-pkg create libevent
+mkdir -p /usr/jails/newjail/pkgrepo
+echo "packagesite: file:///pkgrepo/91amd64-default" > /usr/jails/flavours/example/usr/local/etc/pkg.conf
 
 cp /etc/skel/.vimrc /usr/jails/newjail/etc/skel/
 cp /etc/skel/.vimrc /usr/jails/newjail/root
@@ -1137,10 +1228,10 @@ cat > /root/make-quicksha256-key.sh << 'EOF'
 mkdir -p /root/mycert
 cd /root/mycert
 
-mkdir -p /usr/local/etc/apache22/ssl.key
-mkdir -p /usr/local/etc/apache22/ssl.crt
-chmod 0400 /usr/local/etc/apache22/ssl.key
-chmod 0400 /usr/local/etc/apache22/ssl.crt
+mkdir -p /usr/local/etc/apache24/ssl.key
+mkdir -p /usr/local/etc/apache24/ssl.crt
+chmod 0400 /usr/local/etc/apache24/ssl.key
+chmod 0400 /usr/local/etc/apache24/ssl.crt
 
 openssl genrsa -des3 -out $1.key 1024
 openssl req -new -x509 -nodes -sha256 -days 365 -key $1.key -out $1.crt
@@ -1148,13 +1239,14 @@ openssl req -new -x509 -nodes -sha256 -days 365 -key $1.key -out $1.crt
 cp $1.key $1.key.orig
 openssl rsa -in $1.key.orig -out $1.key
 
-cp $1.key /usr/local/etc/apache22/
-cp $1.crt /usr/local/etc/apache22/
-chmod 0400 /usr/local/etc/apache22/$1.key
-chmod 0400 /usr/local/etc/apache22/$1.crt
+cp $1.key /usr/local/etc/apache24/
+cp $1.crt /usr/local/etc/apache24/
+chmod 0400 /usr/local/etc/apache24/$1.key
+chmod 0400 /usr/local/etc/apache24/$1.crt
 'EOF'
 chmod u+x /root/make-quicksha256-key.sh
-cd /root && ./make-quicksha256-key.sh www.pa-us.mydomain.name
+cd /root && ./make-quicksha256-key.sh www.mydomain.name
+
 ################################################################################
 ##----------------------------------------------------------------------------##
 ##                          Puppet Jail Configuration                         ##
@@ -1169,17 +1261,18 @@ cd /root && ./make-quicksha256-key.sh www.pa-us.mydomain.name
 ################################################################################
 
 ezjail-admin create -f lan puppet.pa-us.mydomain.name 10.100.102.11,2001:123:4:5678::11
+echo '/zfs/poudriere/data/packages /usr/jails/puppet.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.puppet_pa_us_mydomain.name
 ezjail-admin console -f puppet.pa-us.mydomain.name
 passwd
 
-cd /usr/packages
-pkg add *
+pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
+# Install Puppet
+# portmaster sysutils/puppet sysutils/puppet-lint devel/git
 # WITH_ETCSYMLINK=on for ca_root_nss
-portmaster sysutils/puppet
-portmaster sysutils/puppet-lint
-portmaster devel/git
+
+pkg install puppet puppet-lint git
 echo 'puppetmaster_enable="YES"' >> /etc/rc.conf
 
 ################################################################################
@@ -1195,11 +1288,13 @@ echo 'puppetmaster_enable="YES"' >> /etc/rc.conf
 ################################################################################
 
 ezjail-admin create -f lan ftp.pa-us.mydomain.name 10.100.102.12,2001:123:4:5678::12
+mkdir -p /usr/jails/ftp.pa-us.mydomain.name/var/ftp/pkgrepo
+echo '/zfs/poudriere/data/packages /usr/jails/ftp.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.ftp_pa_us_mydomain.name
+echo '/zfs/poudriere/data/packages /usr/jails/ftp.pa-us.mydomain.name/var/ftp/pkgrepo nullfs ro 0 0' >> /etc/fstab.ftp_pa_us_mydomain.name
 ezjail-admin console -f ftp.pa-us.mydomain.name
 passwd
 
-cd /usr/packages
-pkg add *
+pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
 # Add anonymous user
@@ -1221,7 +1316,6 @@ echo 'ftpd_enable="YES"' >> /etc/rc.conf
 echo 'ftpd_flags="-ASll"' >> /etc/rc.conf
 service ftpd start
 
-
 ################################################################################
 ##                       Serviio Jail Configuration                           ##
 ################################################################################
@@ -1229,22 +1323,31 @@ service ftpd start
 # http://forums.nas4free.org/viewtopic.php?f=79&t=1796
 # http://luffare.blogspot.com/2011/04/dlna-server-on-freebsd-82-using-serviio.html
 # http://wiki.serviio.org/doku.php?id=build_ffmpeg_linux
+################################################################################
 
 ezjail-admin create -f lan serviio.pa-us.mydomain.name 10.100.102.14,2001:123:4:5678::14
 mkdir -p /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_media
 mkdir -p /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_photo_albums
 echo '/zfs/homedirs/common_media /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_media nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain.name
 echo '/zfs/homedirs/common_photo_albums /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_photo_albums nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain.name
+echo '/zfs/poudriere/data/packages /usr/jails/serviio.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain.name
 ezjail-admin console -f serviio.pa-us.mydomain.name
 passwd
 
-cd /usr/packages
-pkg add *
+pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
 # Setup FFMPEG options per guidance in the helpful links then start Serviio build.
-cd /usr/ports/multimedia/ffmpeg1 && make config WITH_RTMP=YES WITH_X11GRAB=YES WITH_FAAC=YES WITH_LAME=YES WITH_AMR_NB=YES WITH_AMR_WB=YES
-portmaster net/serviio
+# cd /usr/ports/multimedia/ffmpeg1 && make config WITH_RTMP=YES WITH_X11GRAB=YES WITH_FAAC=YES WITH_LAME=YES WITH_AMR_NB=YES WITH_AMR_WB=YES
+# portmaster net/serviio
+pkg install serviio
+
+# Ensure default dist files are in place as the active configs
+cd /usr/local/etc/serviio
+cp profiles.dist.xml profiles.xml
+cp log4j.dist.xml log4j.xml
+cp console-log4j.dist.properties console-log4j.properties                      
+cp application-profiles.dist.xml application-profiles.xml
 
 # Fix home directory for Serviio then enable and start it.
 pw usermod dlna -m -d /var/dlna
@@ -1253,11 +1356,13 @@ echo serviio_args=\'-Dserviio.advertisementDuration=\"15\" -Dserviio.remoteHost=
 service serviio start
 
 # Setup Apache 2.4
-portmaster www/apache24
+# portmaster www/apache24
+pkg install apache24
 
 # Setup PHP5 configuration then start port build with WebUI dependencies
-cd /usr/ports/lang/php5 && make config WITH_APACHE=YES
-portmaster lang/php5 ftp/php5-curl textproc/php5-xml converters/php5-mbstring devel/php5-json textproc/php5-simplexml textproc/php5-dom
+# cd /usr/ports/lang/php5 && make config WITH_APACHE=YES
+# portmaster lang/php5 ftp/php5-curl textproc/php5-xml converters/php5-mbstring devel/php5-json textproc/php5-simplexml textproc/php5-dom
+pkg install php5 php5-curl php5-xml php5-mbstring php5-json php5-simplexml php5-dom
 
 # Fetch the current WebUI. Update if a new version is available on the Serviio wiki.
 # http://wiki.serviio.org/doku.php?id=phpwebui
@@ -1266,17 +1371,38 @@ unzip -d /usr/local/www/apache24/data/ WebUI%20v1.4beta.zip
 
 # Setup httpd.conf file
 cd /usr/local/etc/apache24; cp httpd.conf httpd.conf.original
-perl -pwi -e 's^ServerAdmin you\@example\.com^ServerAdmin jason.unovitch\@gmail.com^g' httpd.conf
-perl -pwi -e 's^#ServerName www.example.com:80^ServerName serviio.pa-us.mydomain.name:80^g' httpd.conf
-perl -pwi -e 's^DocumentRoot "/usr/local/www/apache24/data"^DocumentRoot "/usr/local/www/apache24/data/serviioweb-1.4beta"^g' httpd.conf
-perl -pwi -e 's^<Directory "/usr/local/www/apache24/data">^<Directory /usr/local/www/apache24/data/serviioweb-1.4beta>^g' httpd.conf
-perl -pwi -e 's^DirectoryIndex index.html^DirectoryIndex index.html index.php^g' httpd.conf
-perl -pwi -e 's^AddType application/x-gzip .gz .tgz^AddType application/x-gzip .gz .tgz\n    AddType application/x-httpd-php .php\n    AddType application/x-httpd-php-source .phps^g' httpd.conf
+patch httpd.conf << 'EOF'
+185c185
+< ServerAdmin you@example.com
+---
+> ServerAdmin jason.unovitch@gmail.com
+194c194
+< #ServerName www.example.com:80
+---
+> ServerName serviio.pa-us.mydomain.name:80
+218,219c218,219
+< DocumentRoot "/usr/local/www/apache24/data"
+< <Directory "/usr/local/www/apache24/data">
+---
+> DocumentRoot "/usr/local/www/apache24/data/serviioweb-1.4beta"
+> <Directory /usr/local/www/apache24/data/serviioweb-1.4beta>
+252c252
+<     DirectoryIndex index.html
+---
+>     DirectoryIndex index.html index.php
+380a381,382
+>     AddType application/x-httpd-php .php
+>     AddType application/x-httpd-php-source .phps
+'EOF'
 
 # Secure the httpd-default.conf file
 cd /usr/local/etc/apache24/extra; cp httpd-default.conf httpd-default.conf.original
-perl -pwi -e 's^ServerTokens Full^ServerTokens Prod^g' httpd-default.conf
-perl -pwi -e 's^ServerSignature On^ServerSignature Off^g' httpd-default.conf
+patch httpd-default.conf << 'EOF'
+55c55
+< ServerTokens Full
+---
+> ServerTokens Prod
+'EOF'
 
 # Finalize and activate
 echo 'apache24_enable="YES"' >> /etc/rc.conf
@@ -1295,46 +1421,87 @@ apachectl start
 #############################################################################
 
 ezjail-admin create -f dmz www1.pa-us.mydomain.name 192.168.102.13,2001:123:4567:890::13
-mkdir /usr/jails/www1.pa-us.mydomain.name/usr/local/etc/apache22/
-cp /root/mycert/www.pa-us.mydomain.name.* /usr/jails/www1.pa-us.mydomain.name/usr/local/etc/apache22/
+echo '/zfs/poudriere/data/packages /usr/jails/www1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.www1_pa_us_mydomain.name
+mkdir /usr/jails/www1.pa-us.mydomain.name/usr/local/etc/apache24/
+cp /root/mycert/www.mydomain.name.* /usr/jails/www1.pa-us.mydomain.name/usr/local/etc/apache24/
 ezjail-admin console -f www1.pa-us.mydomain.name
 passwd
 
-cd /usr/packages
-pkg add *
+pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
 # Assign Apache module build to the PHP5 config then start the full build.
-cd /usr/ports/lang/php5 && make config WITH_APACHE=YES
-portmaster www/apache22 lang/php5 www/owncloud
+# cd /usr/ports/lang/php5 && make config WITH_APACHE=YES
+# portmaster www/apache22 lang/php5 www/owncloud
+pkg install apache24 php5 owncloud
 
 # Setup httpd.conf file
-cd /usr/local/etc/apache22; cp httpd.conf httpd.conf.original
-perl -pwi -e 's^ServerAdmin you\@example\.com^ServerAdmin jason.unovitch\@gmail.com^g' httpd.conf
-perl -pwi -e 's^#ServerName www.example.com:80^ServerName www.pa-us.mydomain.name:80^g' httpd.conf
-perl -pwi -e 's^DocumentRoot "/usr/local/www/apache22/data"^DocumentRoot "/usr/local/www/owncloud"^g' httpd.conf
-perl -pwi -e 's^<Directory "/usr/local/www/apache22/data">^<Directory /usr/local/www/owncloud>^g' httpd.conf
-perl -pwi -e 's^DirectoryIndex index.html^DirectoryIndex index.html index.php^g' httpd.conf
-perl -pwi -e 's^AddType application/x-gzip .gz .tgz^AddType application/x-gzip .gz .tgz\n    AddType application/x-httpd-php .php\n    AddType application/x-httpd-php-source .phps^g' httpd.conf
-perl -pwi -e 's^#Include etc/apache22/extra/httpd-ssl.conf^Include etc/apache22/extra/httpd-ssl.conf^g' httpd.conf
+cd /usr/local/etc/apache24; cp httpd.conf httpd.conf.original
+patch httpd.conf << 'EOF'
+151c151
+< #LoadModule rewrite_module libexec/apache24/mod_rewrite.so
+---
+> LoadModule rewrite_module libexec/apache24/mod_rewrite.so
+185c185
+< ServerAdmin you@example.com
+---
+> ServerAdmin jason.unovitch@gmail.com
+194c194
+< #ServerName www.example.com:80
+---
+> ServerName www.mydomain.name:80
+218,219c218,219
+< DocumentRoot "/usr/local/www/apache24/data"
+< <Directory "/usr/local/www/apache24/data">
+---
+> DocumentRoot "/usr/local/www/owncloud"
+> <Directory /usr/local/www/owncloud>
+239c239
+<     AllowOverride None
+---
+>     AllowOverride All
+252c252
+<     DirectoryIndex index.html
+---
+>     DirectoryIndex index.html index.php
+380a381,382
+>     AddType application/x-httpd-php .php
+>     AddType application/x-httpd-php-source .phps
+'EOF'
 
 # Secure the httpd-default.conf file
-cd /usr/local/etc/apache22/extra; cp httpd-default.conf httpd-default.conf.original
-perl -pwi -e 's^ServerTokens Full^ServerTokens Prod^g' httpd-default.conf
-perl -pwi -e 's^ServerSignature On^ServerSignature Off^g' httpd-default.conf
+cd /usr/local/etc/apache24/extra; cp httpd-default.conf httpd-default.conf.original
+patch httpd-default.conf << 'EOF'
+55c55
+< ServerTokens Full
+---
+> ServerTokens Prod
+'EOF'
 
 # Setup httpd-ssl.conf file
-cd /usr/local/etc/apache22/extra; cp httpd-ssl.conf httpd-ssl.conf.original
-perl -pwi -e 's^ServerAdmin you\@example\.com^ServerAdmin jason.unovitch\@gmail.com^g' httpd-ssl.conf
-perl -pwi -e 's^ServerName www.example.com:443^ServerName www.pa-us.mydomain.name:443^g' httpd-ssl.conf
-perl -pwi -e 's^DocumentRoot "/usr/local/www/apache22/data"^DocumentRoot "/usr/local/www/owncloud"^g' httpd-ssl.conf
-perl -pwi -e 's^SSLCertificateFile "/usr/local/etc/apache22/server.crt"^SSLCertificateFile "/usr/local/etc/apache22/www.pa-us.mydomain.name.crt"^g' httpd-ssl.conf
-perl -pwi -e 's^SSLCertificateKeyFile "/usr/local/etc/apache22/server.key"^SSLCertificateKeyFile "/usr/local/etc/apache22/www.pa-us.mydomain.name.key"^g' httpd-ssl.conf
-
-chmod u+x /usr/local/www/owncloud/.htaccess
+cd /usr/local/etc/apache24/extra; cp httpd-ssl.conf httpd-ssl.conf.original
+patch httpd-ssl.conf << 'EOF'
+86,88c86,88
+< DocumentRoot "/usr/local/www/apache24/data"
+< ServerName www.example.com:443
+< ServerAdmin you@example.com
+---
+> DocumentRoot "/usr/local/www/owncloud"
+> ServerName www.mydomain.name:443
+> ServerAdmin jason.unovitch@gmail.com
+106c106
+< SSLCertificateFile "/usr/local/etc/apache24/server.crt"
+---
+> SSLCertificateFile "/usr/local/etc/apache24/www.mydomain.name.crt"
+116c116
+< SSLCertificateKeyFile "/usr/local/etc/apache24/server.key"
+---
+> SSLCertificateKeyFile "/usr/local/etc/apache24/www.mydomain.name.key"
+'EOF'
 
 # Finalize and activate
-echo 'apache22_enable="YES"' >> /etc/rc.conf
+chmod u+w /usr/local/www/owncloud/.htaccess
+echo 'apache24_enable="YES"' >> /etc/rc.conf
 apachectl start
 
 ################################################################################
@@ -1348,42 +1515,22 @@ apachectl start
 ################################################################################
 
 ezjail-admin create -f dmz ms1.pa-us.mydomain.name 192.168.102.11,2001:123:4567:890::11
+echo '/zfs/poudriere/data/packages /usr/jails/ms1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.ms1_pa_us_mydomain.name
 ezjail-admin console -f ms1.pa-us.mydomain.name
 passwd
 
-cd /usr/packages
-pkg add *
+pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
-fetch https://bitbucket.org/zhb/iredmail/downloads/iRedMail-0.8.4.tar.bz2
-tar xjf iRedMail-0.8.4.tar.bz2
-cd iRedMail-0.8.4
+fetch https://bitbucket.org/zhb/iredmail/downloads/iRedMail-0.8.5.tar.bz2
+tar xjf iRedMail-0.8.5.tar.bz2
+cd iRedMail-0.8.5
 
-bash
-################################################################################
-# Apply extra flush privileges patch since MySQL doesn't seem to accept the
-# root password change without it (in a jail)
-################################################################################
-cd functions
-cat > mysql.sh.diff << 'EOF'
---- mysql.sh.orig       2012-12-31 04:44:23.000000000 +0000
-+++ mysql.sh    2012-12-31 04:44:51.000000000 +0000
-@@ -60,6 +60,7 @@
- GRANT ALL PRIVILEGES ON *.* TO '${MYSQL_ROOT_USER}'@'${SQL_HOSTNAME}' IDENTIFIED BY '${MYSQL_ROOT_PASSWD}';
- -- Allow GRANT privilege
- UPDATE user SET Grant_priv='Y' WHERE User='${MYSQL_ROOT_USER}' AND Host='${SQL_HOSTNAME}';
-+FLUSH PRIVILEGES;
- EOF
-     fi
-
-'EOF'
-patch < mysql.sh.diff
-cd ..
-################################################################################
 cd pkgs && bash get_all.sh
 cd .. && LOCAL_ADDRESS='192.168.102.11' bash iRedMail.sh
 
-# If and when the OpenLDAP install crashes...
+# If any port builds get hung up, rebuild manually and mark as completed
+# Example with OpenLDAP is shown below.
 cd /basejail/usr/ports/net/openldap24-server && make clean && make install
 cd -
 echo "export status_install_port_net_openldap24server='DONE' # Manually installed" >> ".status"
