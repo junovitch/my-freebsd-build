@@ -1339,53 +1339,6 @@ apachectl start
 
 ################################################################################
 ##----------------------------------------------------------------------------##
-##                     Apache WebDAV-only Jail Configuration                  ##
-##----------------------------------------------------------------------------##
-################################################################################
-
-ezjail-admin create -f dmz www2.pa-us.mydomain.name 192.168.102.14,2001:123:4567:890::14
-mkdir /usr/jails/www2.pa-us.mydomain.name/usr/local/etc/apache22/
-cp /root/mycert/www.pa-us.mydomain.name.* /usr/jails/www2.pa-us.mydomain.name/usr/local/etc/apache22/
-ezjail-admin console -f www2.pa-us.mydomain.name
-passwd
-
-cd /usr/packages
-pkg add *
-echo 'WITH_PKGNG=yes' >> /etc/make.conf
-
-# Install apache
-portmaster www/apache22
-
-# Setup httpd.conf file
-cd /usr/local/etc/apache22; cp httpd.conf httpd.conf.original
-perl -pwi -e 's^ServerAdmin you\@example\.com^ServerAdmin jason.unovitch\@gmail.com^g' httpd.conf
-perl -pwi -e 's^#Include etc/apache22/extra/httpd-dav.conf^Include etc/apache22/extra/httpd-dav.conf^g' httpd.conf
-perl -pwi -e 's^#Include etc/apache22/extra/httpd-default.conf^Include etc/apache22/extra/httpd-default.conf^g' httpd.conf
-perl -pwi -e 's^#Include etc/apache22/extra/httpd-ssl.conf^Include etc/apache22/extra/httpd-ssl.conf^g' httpd.conf
-
-# Secure the httpd-default.conf file
-cd /usr/local/etc/apache22/extra; cp httpd-default.conf httpd-default.conf.original
-perl -pwi -e 's^ServerTokens Full^ServerTokens Prod^g' httpd-default.conf
-perl -pwi -e 's^ServerSignature On^ServerSignature Off^g' httpd-default.conf
-
-# Setup httpd-ssl.conf file
-cd /usr/local/etc/apache22/extra; cp httpd-ssl.conf httpd-ssl.conf.original
-perl -pwi -e 's^ServerAdmin you\@example\.com^ServerAdmin jason.unovitch\@gmail.com^g' httpd-ssl.conf
-perl -pwi -e 's^ServerName www.example.com:443^ServerName www.pa-us.mydomain.name:443^g' httpd-ssl.conf
-perl -pwi -e 's^SSLCertificateFile "/usr/local/etc/apache22/server.crt"^SSLCertificateFile "/usr/local/etc/apache22/www.pa-us.mydomain.name.crt"^g' httpd-ssl.conf
-perl -pwi -e 's^SSLCertificateKeyFile "/usr/local/etc/apache22/server.key"^SSLCertificateKeyFile "/usr/local/etc/apache22/www.pa-us.mydomain.name.key"^g' httpd-ssl.conf
-
-# Secure WebDAV
-htdigest -c "/usr/local/user.passwd" DAV-upload admin
-cd /usr/local/etc/apache22/extra; cp httpd-dav.conf httpd-dav.conf.original
-mkdir /usr/local/uploads
-
-# Finalize and activate
-echo 'apache22_enable="YES"' >> /etc/rc.conf
-apachectl start
-
-################################################################################
-##----------------------------------------------------------------------------##
 ##                       iRedMail Jail Configuration                          ##
 ##----------------------------------------------------------------------------##
 ################################################################################
