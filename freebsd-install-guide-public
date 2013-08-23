@@ -345,22 +345,22 @@ bash
 ./clean-all
 ./build-dh
 export KEY_CN=xts-bsd.pa-us.mydomain.name && export KEY_NAME=xts-bsd.pa-us.mydomain.name && ./build-ca
+export KEY_CN=vpn.pa-us.mydomain.name && export KEY_NAME=vpn.pa-us.mydomain.name && ./build-key-server vpn.pa-us.mydomain.name
 export KEY_CN=xts-rtr.pa-us.mydomain.name && export KEY_NAME=xts-rtr.pa-us.mydomain.name && ./build-key-server xts-rtr.pa-us.mydomain.name
-export KEY_CN=xju-rtr.pa-us.mydomain.name && export KEY_NAME=xju-rtr.pa-us.mydomain.name && ./build-key xju-rtr.pa-us.mydomain.name
-export KEY_CN=jason && export KEY_NAME=jason && ./build-key jason
+export KEY_CN=xju-rtr.nc-us.mydomain.name && export KEY_NAME=xju-rtr.nc-us.mydomain.name && ./build-key xju-rtr.nc-us.mydomain.name
 
 /usr/local/sbin/openvpn --genkey --secret keys/ta.key
 
-scp keys/dh2048.pem root@xts-rtr:/etc/openvpn/keys
+scp keys/dh2048.pem root@xts-rtr:/usr/local/etc/openvpn/keys
 
-scp keys/ca.crt root@xts-rtr:/etc/openvpn/keys
-scp keys/ca.crt root@xju-rtr:/etc/openvpn/keys
+scp keys/ca.crt root@xts-rtr:/usr/local/etc/openvpn/keys
+scp keys/ca.crt root@xju-rtr:/usr/local/etc/openvpn/keys
 
-scp keys/ta.key root@xts-rtr:/etc/openvpn/keys
-scp keys/ta.key root@xju-rtr:/etc/openvpn/keys
+scp keys/ta.key root@xts-rtr:/usr/local/etc/openvpn/keys
+scp keys/ta.key root@xju-rtr:/usr/local/etc/openvpn/keys
 
-scp keys/xts-rtr.* root@xts-rtr:/etc/openvpn/keys
-scp keys/xju-rtr.* root@xju-rtr:/etc/openvpn/keys
+scp keys/xts-rtr.* root@xts-rtr:/usr/local/etc/openvpn/keys
+scp keys/xju-rtr.* root@xju-rtr:/usr/local/etc/openvpn/keys
 
 ################################################################################
 # Pstree - Better eye on process associations.
@@ -1266,7 +1266,7 @@ cd /root && ./make-quicksha256-key.sh www.mydomain.name
 ################################################################################
 
 ezjail-admin create -f lan puppet.pa-us.mydomain.name 10.100.102.11,2001:123:4:5678::11
-echo '/zfs/poudriere/data/packages /usr/jails/puppet.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.puppet_pa_us_mydomain.name
+echo '/zfs/poudriere/data/packages /usr/jails/puppet.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.puppet_pa_us_mydomain_name
 ezjail-admin console -f puppet.pa-us.mydomain.name
 passwd
 
@@ -1294,8 +1294,8 @@ echo 'puppetmaster_enable="YES"' >> /etc/rc.conf
 
 ezjail-admin create -f lan ftp.pa-us.mydomain.name 10.100.102.12,2001:123:4:5678::12
 mkdir -p /usr/jails/ftp.pa-us.mydomain.name/var/ftp/pkgrepo
-echo '/zfs/poudriere/data/packages /usr/jails/ftp.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.ftp_pa_us_mydomain.name
-echo '/zfs/poudriere/data/packages /usr/jails/ftp.pa-us.mydomain.name/var/ftp/pkgrepo nullfs ro 0 0' >> /etc/fstab.ftp_pa_us_mydomain.name
+echo '/zfs/poudriere/data/packages /usr/jails/ftp.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.ftp_pa_us_mydomain_name
+echo '/zfs/poudriere/data/packages /usr/jails/ftp.pa-us.mydomain.name/var/ftp/pkgrepo nullfs ro 0 0' >> /etc/fstab.ftp_pa_us_mydomain_name
 ezjail-admin console -f ftp.pa-us.mydomain.name
 passwd
 
@@ -1333,9 +1333,9 @@ service ftpd start
 ezjail-admin create -f lan serviio.pa-us.mydomain.name 10.100.102.14,2001:123:4:5678::14
 mkdir -p /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_media
 mkdir -p /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_photo_albums
-echo '/zfs/homedirs/common_media /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_media nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain.name
-echo '/zfs/homedirs/common_photo_albums /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_photo_albums nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain.name
-echo '/zfs/poudriere/data/packages /usr/jails/serviio.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain.name
+echo '/zfs/homedirs/common_media /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_media nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
+echo '/zfs/homedirs/common_photo_albums /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_photo_albums nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
+echo '/zfs/poudriere/data/packages /usr/jails/serviio.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
 ezjail-admin console -f serviio.pa-us.mydomain.name
 passwd
 
@@ -1417,6 +1417,108 @@ apachectl start
 
 ################################################################################
 ##----------------------------------------------------------------------------##
+##                        OpenVPN Jail Configuration                          ##
+##----------------------------------------------------------------------------##
+################################################################################
+# References:
+# http://forums.freebsd.org/showthread.php?t=22143
+################################################################################
+
+# Prep work on host
+# Create tunnel and enable routing
+ifconfig tun create
+sysctl net.inet.ip.forwarding=1
+
+# Make tunnel and routing persistent
+echo '' >> /etc/rc.conf
+echo '# OpenVPN server' >> /etc/rc.conf
+echo 'cloned_interfaces="tun"' >> /etc/rc.conf
+echo 'gateway_enable="YES"' >> /etc/rc.conf
+
+# Enable devfs ruleset similar to ezjail default but allowing access to tun0
+cat >> /etc/defaults/devfs.rules << 'EOF'
+
+# Rules for VPN jail
+#
+[devfsrules_jail_with_vpn=5]
+add include $devfsrules_hide_all
+add include $devfsrules_unhide_basic
+add include $devfsrules_unhide_login
+add path tun0 unhide
+add path zfs unhide
+'EOF'
+
+# Finally, create vpn jail
+ezjail-admin create -f dmz vpn.pa-us.mydomain.name 192.168.102.19,10.100.102.19,2001:123:4567:890::19,2001:123:4:5678::19
+
+# Provide access to nullfs mounted pkg repo
+echo '/zfs/poudriere/data/packages /usr/jails/vpn.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.vpn_pa_us_mydomain_name
+
+# Set to use devfs rules and assign interface IP on jail start
+perl -pwi -e 's/"devfsrules_jail"/"devfsrules_jail_with_vpn"/g' /usr/local/etc/ezjail/vpn_pa_us_mydomain_name
+echo 'export jail_vpn_pa_us_mydomain_name_ip_multi0="tun0|10.100.103.1 10.100.103.2 netmask 255.255.255.255"' >> /usr/local/etc/ezjail/vpn_pa_us_mydomain_name
+echo 'export jail_vpn_pa_us_mydomain_name_exec_prestart0="/sbin/route add -net 10.100.103.0/24 10.100.103.2"' >> /usr/local/etc/ezjail/vpn_pa_us_mydomain_name
+
+# Place keys from host's CA into jail
+mkdir -p /usr/jails/vpn.pa-us.mydomain.name/usr/local/etc/openvpn/keys/
+cp /usr/local/etc/openvpn-ca/keys/vpn.* /usr/jails/vpn.pa-us.mydomain.name/usr/local/etc/openvpn/keys/
+cp /usr/local/etc/openvpn-ca/keys/ta.key /usr/jails/vpn.pa-us.mydomain.name/usr/local/etc/openvpn/keys/
+cp /usr/local/etc/openvpn-ca/keys/ca.crt /usr/jails/vpn.pa-us.mydomain.name/usr/local/etc/openvpn/keys/
+cp /usr/local/etc/openvpn-ca/keys/dh2048.pem /usr/jails/vpn.pa-us.mydomain.name/usr/local/etc/openvpn/keys/
+
+# Start vpn jail and handle initial configuration
+ezjail-admin console -f vpn.pa-us.mydomain.name
+passwd
+
+pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
+echo 'WITH_PKGNG=yes' >> /etc/make.conf
+
+# OpenVPN installation and configuration 
+pkg install openvpn
+
+pw groupadd -n _openvpn -g 1194
+pw useradd -n _openvpn -c "OpenVPN daemon,,," -d "/var/empty" -u 1194 -g _openvpn -s /usr/sbin/nologin
+
+cat > /usr/local/etc/openvpn/unovpnsvr.conf << 'EOF'
+port 1194
+proto udp
+dev tun0
+ifconfig-noexec
+route-noexec
+
+server 10.100.103.0 255.255.255.0
+push "route 192.168.102.0 255.255.255.0"
+push "route 10.100.102.0 255.255.255.0"
+push "route 10.100.82.0 255.255.255.0"
+push "dhcp-option DNS 192.168.102.1"
+push "dhcp-option DOMAIN pa-us.mydomain.name"
+push "dhcp-option DOMAIN nc-us.mydomain.name"
+#push "redirect-gateway def1"
+
+ca /usr/local/etc/openvpn/keys/ca.crt
+cert /usr/local/etc/openvpn/keys/vpn.pa-us.mydomain.name.crt
+key /usr/local/etc/openvpn/keys/vpn.pa-us.mydomain.name.key
+dh /usr/local/etc/openvpn/keys/dh2048.pem
+tls-auth /usr/local/etc/openvpn/keys/ta.key 0
+ifconfig-pool-persist /var/tmp/openvpn-pool.txt
+
+user _openvpn
+group _openvpn
+comp-lzo
+persist-key
+persist-tun
+keepalive 20 60
+cipher AES-256-CBC
+verb 3
+mute 20
+'EOF'
+
+echo 'openvpn_enable="YES"' >> /etc/rc.conf
+echo 'openvpn_configfile="/usr/local/etc/openvpn/unovpnsvr.conf"' >> /etc/rc.conf
+service openvpn start
+
+################################################################################
+##----------------------------------------------------------------------------##
 ##                       Owncloud Jail Configuration                          ##
 ##----------------------------------------------------------------------------##
 ################################################################################
@@ -1426,7 +1528,7 @@ apachectl start
 #############################################################################
 
 ezjail-admin create -f dmz www1.pa-us.mydomain.name 192.168.102.13,2001:123:4567:890::13
-echo '/zfs/poudriere/data/packages /usr/jails/www1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.www1_pa_us_mydomain.name
+echo '/zfs/poudriere/data/packages /usr/jails/www1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.www1_pa_us_mydomain_name
 mkdir /usr/jails/www1.pa-us.mydomain.name/usr/local/etc/apache24/
 cp /root/mycert/www.mydomain.name.* /usr/jails/www1.pa-us.mydomain.name/usr/local/etc/apache24/
 ezjail-admin console -f www1.pa-us.mydomain.name
@@ -1520,7 +1622,7 @@ apachectl start
 ################################################################################
 
 ezjail-admin create -f dmz ms1.pa-us.mydomain.name 192.168.102.11,2001:123:4567:890::11
-echo '/zfs/poudriere/data/packages /usr/jails/ms1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.ms1_pa_us_mydomain.name
+echo '/zfs/poudriere/data/packages /usr/jails/ms1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.ms1_pa_us_mydomain_name
 ezjail-admin console -f ms1.pa-us.mydomain.name
 passwd
 
