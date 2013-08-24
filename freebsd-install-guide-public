@@ -1436,7 +1436,7 @@ echo 'cloned_interfaces="tun"' >> /etc/rc.conf
 echo 'gateway_enable="YES"' >> /etc/rc.conf
 
 # Enable devfs ruleset similar to ezjail default but allowing access to tun0
-cat >> /etc/defaults/devfs.rules << 'EOF'
+cat >> /etc/devfs.rules << 'EOF'
 
 # Rules for VPN jail
 #
