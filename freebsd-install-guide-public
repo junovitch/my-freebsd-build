@@ -122,8 +122,8 @@ ifconfig_em0_alias12="inet 192.168.102.17 netmask 0xffffffff"    # unused
 ifconfig_em0_alias13="inet6 2001:123:4567:890::17 prefixlen 128" # unused
 ifconfig_em0_alias14="inet 192.168.102.18 netmask 0xffffffff"    # unused
 ifconfig_em0_alias15="inet6 2001:123:4567:890::18 prefixlen 128" # unused
-ifconfig_em0_alias16="inet 192.168.102.19 netmask 0xffffffff"    # unused
-ifconfig_em0_alias17="inet6 2001:123:4567:890::19 prefixlen 128" # unused
+ifconfig_em0_alias16="inet 192.168.102.19 netmask 0xffffffff"    # vpn.pa-us.mydomain.name
+ifconfig_em0_alias17="inet6 2001:123:4567:890::19 prefixlen 128" # vpn.pa-us.mydomain.name
 
 # LAN/Internal Interface Configuration
 ifconfig_em1="inet 10.100.102.2 netmask 0xffffff00"
@@ -142,10 +142,10 @@ ifconfig_em1_alias10="inet 10.100.102.16 netmask 0xffffffff"   # unused
 ifconfig_em1_alias11="inet6 2001:123:4:5678::16 prefixlen 128" # unused
 ifconfig_em1_alias12="inet 10.100.102.17 netmask 0xffffffff"   # unused
 ifconfig_em1_alias13="inet6 2001:123:4:5678::17 prefixlen 128" # unused
-ifconfig_em1_alias14="inet 10.100.102.18 netmask 0xffffffff"   # unused
-ifconfig_em1_alias15="inet6 2001:123:4:5678::18 prefixlen 128" # unused
-ifconfig_em1_alias16="inet 10.100.102.19 netmask 0xffffffff"   # unused
-ifconfig_em1_alias17="inet6 2001:123:4:5678::19 prefixlen 128" # unused
+ifconfig_em1_alias14="inet 10.100.102.18 netmask 0xffffffff"   # mdbi.pa-us.mydomain.name
+ifconfig_em1_alias15="inet6 2001:123:4:5678::18 prefixlen 128" # mdbi.pa-us.mydomain.name
+ifconfig_em1_alias16="inet 10.100.102.19 netmask 0xffffffff"   # vpn.pa-us.mydomain.name
+ifconfig_em1_alias17="inet6 2001:123:4:5678::19 prefixlen 128" # vpn.pa-us.mydomain.name
 
 # Syslog Configuration, bind (-b) to LAN Internal address
 syslogd_enable="YES"
@@ -1007,6 +1007,10 @@ php5_SET+=APACHE
 ffmpeg1_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB
 APACHE_PORT=www/apache24
 ca_root_nss_SET+=ETCSYMLINK
+DEFAULT_VERSIONS= ruby=1.8
+rubygem-passenger_UNSET+=APACHE22
+rubygem-passenger_SET+=NGINX
+nginx_SET+=PASSENGER HTTP_SSL
 'EOF'
 
 # Setup a package list of all ports used on host and in jails
@@ -1053,10 +1057,18 @@ textproc/php5-simplexml
 textproc/php5-dom
 ########## Owncloud Jail##########
 www/owncloud
-########## Puppet Jail ##########
+########## Puppet/Puppet Dashboard Jail ##########
 sysutils/puppet
 sysutils/puppet-lint
 devel/git
+devel/ruby-gems
+databases/rubygem-mysql
+devel/rubygem-rake
+converters/ruby-iconv
+www/rubygem-passenger
+www/nginx
+########## MariaDB Jail ##########
+databases/mariadb-server
 'EOF'
 
 # Start a bulk build of all ports in that list
@@ -1254,7 +1266,56 @@ cd /root && ./make-quicksha256-key.sh www.mydomain.name
 
 ################################################################################
 ##----------------------------------------------------------------------------##
-##                          Puppet Jail Configuration                         ##
+##                       MariaDB Jail Configuration                           ##
+##----------------------------------------------------------------------------##
+################################################################################
+
+ezjail-admin create -f lan mdbi.pa-us.mydomain.name 10.100.102.18,2001:123:4:5678::18
+echo '/zfs/poudriere/data/packages /usr/jails/mdbi.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.mdbi_pa_us_mydomain_name
+ezjail-admin console -f mdbi.pa-us.mydomain.name
+passwd
+
+pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
+echo 'WITH_PKGNG=yes' >> /etc/make.conf
+
+# Install MariaDB with default options
+pkg install mariadb-server
+
+# Creating and Configurating a MariaDB Database for Puppet Dashboard
+# Tuning:
+# Copy one of the default config files and change the max packet size to allow
+# for the 17 MB data rows that Dashboard can occasionally send.
+
+cp /usr/local/share/mysql/my-huge.cnf /var/db/mysql/my.cnf
+patch /var/db/mysql/my.cnf << 'EOF'
+32c32,33
+< max_allowed_packet = 1M
+---
+> # Allow 32MB packet Size for ~17MB size rows Puppet dashboard sends
+> max_allowed_packet = 32M
+'EOF'
+
+# Enable and start MariaDB
+echo 'mysql_enable="YES"' >> /etc/rc.conf
+service mysql-server start
+
+# Prepare Database for use by running the secure installation.
+# Choose a root password and answer yes to all questions.
+mysql_secure_installation
+
+# Login to MariaDB and create appropriate tables for Dashboard
+mysql -u root -p
+CREATE DATABASE dashboard_production CHARACTER SET utf8;
+CREATE DATABASE dashboard_development CHARACTER SET utf8;
+CREATE USER 'dashboard'@'10.100.102.11' IDENTIFIED BY 'dashboard_password';
+GRANT ALL PRIVILEGES ON dashboard_production.* TO 'dashboard'@'10.100.102.11';
+GRANT ALL PRIVILEGES ON dashboard_development.* TO 'dashboard'@'10.100.102.11';
+flush privileges;
+quit;
+
+################################################################################
+##----------------------------------------------------------------------------##
+##     Puppet with Puppet Dashboard on Nginx/Passenger Jail Configuration     ##
 ##----------------------------------------------------------------------------##
 ################################################################################
 # References:
@@ -1273,12 +1334,334 @@ passwd
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
 
-# Install Puppet
-# portmaster sysutils/puppet sysutils/puppet-lint devel/git
-# WITH_ETCSYMLINK=on for ca_root_nss
+# Installing Dependencies:  Install Puppet, Git, Nginx, and Ruby Components
 
-pkg install puppet puppet-lint git
-echo 'puppetmaster_enable="YES"' >> /etc/rc.conf
+pkg install puppet puppet-lint git nginx rubygem-mysql rubygem-rake ruby18-iconv rubygem-passenger
+
+# At this point, Puppet needs to be started so that all its SSL keys can be 
+# generated. This gives the chance to test that Puppet does work before anything
+# else gets stacked on as well as ensures the SSL keys referenced by Nginx's
+# config file are in place before that step.
+
+service puppetmaster onestart
+
+
+# With initial setup of the Puppetmaster done, a RACK file that Nginx will use
+# to start the Ruby application will be needed. Copy/paste the example.
+
+mkdir -p /usr/local/etc/puppet/rack/public
+cat > /usr/local/etc/puppet/rack/config.ru << 'EOF'
+# Trimmed back FreeBSD Version of https://github.com/puppetlabs/puppet/blob/master/ext/rack/files/config.ru
+$0 = "master"
+ARGV << "--rack"
+ARGV << "--confdir" << "/usr/local/etc/puppet"
+ARGV << "--vardir" << "/var/puppet"
+require 'puppet/util/command_line'
+run Puppet::Util::CommandLine.new.execute
+'EOF'
+chown -R puppet:puppet /usr/local/etc/puppet/rack
+
+# Installing Puppet Dashboard
+# Procedures follow Puppet Lab's documentation at:  http://docs.puppetlabs.com/dashboard/manual/1.2
+# Follow along with their documentation for a more detailed description of what is being done.
+
+# Installing from Git
+cd /usr/local/share
+git clone git://github.com/puppetlabs/puppet-dashboard.git
+
+# Manually create the 'puppet-dashboard' user and provide required permissions.
+pw groupadd -n puppet-dashboard -g 800
+pw useradd -n puppet-dashboard -c "Puppet Dashboard,,," -u 800 -g puppet-dashboard -s /usr/sbin/nologin
+chown -R puppet-dashboard:puppet-dashboard /usr/local/share/puppet-dashboard
+
+# Configuring Dashboard
+# database.yml:  Copy the example database YAML file. Update with database information.
+cd /usr/local/share/puppet-dashboard/config
+cp database.yml.example database.yml
+patch database.yml << 'EOF'
+49c49
+<   password:
+---
+>   password: dashboard_password
+51a52
+>   host: 10.100.102.18
+56c57
+<   password:
+---
+>   password: dashboard_password
+58a60
+>   host: 10.100.102.18
+'EOF'
+chown puppet-dashboard:puppet-dashboard database.yml
+chmod 660 database.yml
+
+# settings.yml:  Copy the example settings YAML file. No changes needed.
+cd /usr/local/share/puppet-dashboard/config
+cp settings.yml.example settings.yml
+chown puppet-dashboard:puppet-dashboard settings.yml
+chmod 660 settings.yml
+
+# Creating and Configuring a MariaDB Database - Preparing Schema
+# At this point the database was already installed in another jail with some blank tables.
+# We need to run rake to finish the process with the database structure needed.
+cd /usr/local/share/puppet-dashboard
+rake RAILS_ENV=production db:migrate
+
+# Testing That Dashboard is Working
+# Run Dashboard using Ruby's built-in WEBrick server to validate functionality.
+# It will be available at http://dashboard:3000
+cd /usr/local/share/puppet-dashboard
+su -m puppet-dashboard -c './script/server -e production'
+
+# Configuring Puppet
+# All agent nodes have to be configured to submit reports to the master.
+# The master has to be configured to send reports to Dashboard.
+
+# Example:
+#   puppet.conf (on each agent)
+#     [agent]
+#       report = true
+#
+#   puppet.conf (on puppet master)
+#     [master]
+#       reports = store, http
+#       reporturl = http://dashboard.example.com:3000/reports/upload
+#
+
+# Testing Puppet's Connection to Dashboard
+# From a Puppet agent, run `puppet agent --test`.  A new background task should show in the 
+# Dashboard UI at http://dashboard:3000
+
+# Starting and Managing Delayed Job Workers
+#
+# Using the monitor script
+# Dashboard ships a worker process maanager under script/delayed_job.  It can manually start
+# delayed jobs via the following command
+# su -m puppet-dashboard -c 'env RAILS_ENV=production /usr/local/share/puppet-dashboard/script/delayed_job -p dashboard -n 4 -m start'
+
+# Rather than manually triggering background workers, this rc script will accomplish the same
+# thing and ensure the background jobs get started on the next reboot.
+
+cat > /usr/local/etc/rc.d/dashboard_workers << 'EOF'
+#!/bin/sh
+
+# PROVIDE: dashboard_workers
+# REQUIRE: nginx
+# KEYWORD: shutdown
+
+# By default dashboard_workers uses flags '-n 1' for 1 worker.  This should be 
+# adjusted to the number of CPU cores.
+dashboard_workers_enable=${dashboard_workers_enable:-"NO"}
+dashboard_workers_flags=${dashboard_workers_flags:-"-n 1"}
+# The default rails environment is set to production and RUBYOPT=W0 is passed
+# to prevent multiple warnings about depreciated functionality.
+dashboard_workers_env=${dashboard_workers_env:-"/usr/bin/env PATH=${PATH}:/usr/local/bin RAILS_ENV=production RUBYOPT=W0"}
+# The default user is set to puppet-dashboard and install location is set to
+# /usr/local/share/puppet-dashboard.
+dashboard_workers_user=${dashboard_workers_user:-"puppet-dashboard"}
+dashboard_workers_chdir=${dashboard_workers_chdir:-"/usr/local/share/puppet-dashboard"}
+
+. /etc/rc.subr
+
+name="dashboard_workers"
+rcvar=dashboard_workers_enable
+load_rc_config $name
+command="${dashboard_workers_chdir}/script/delayed_job"
+
+start_precmd=workers_start_precmd
+restart_precmd=workers_restart_precmd
+status_cmd=workers_status
+stop_cmd=workers_stop
+
+workers_start_precmd() {
+        command="${dashboard_workers_env} ${command}"
+        command_args="${rc_flags} -p dashboard -m start"
+        return 0
+}
+workers_restart_precmd() {
+        command="${dashboard_workers_env} ${command}"
+        command_args="${rc_flags} -p dashboard  -m restart"
+        return 0
+}
+workers_status() {
+        ${dashboard_workers_env} ${command} ${rc_flags} -p dashboard -m status
+}
+workers_stop() {
+        ${dashboard_workers_env} ${command} ${rc_flags} -p dashboard -m stop
+        sleep 1
+        pkill -f delayed_job
+}
+
+run_rc_command "$1"
+'EOF'
+chmod 555 /usr/local/etc/rc.d/dashboard_workers
+
+# With that in place, we need to override the defaults and enable the script along with
+# setting '-n 4' workers to match the number of processor cores and ensure it's ready
+# for a production workload. 
+
+echo 'dashboard_workers_enable="YES"' >> /etc/rc.conf
+echo 'dashboard_workers_flags="-n 4"' >> /etc/rc.conf
+service dashboard_workers start
+
+# This refresh  will prevent a Ruby warning that can occur when the workers get start.
+rake gems:refresh_specs
+
+# Running Dashboard in a Production-Quality Server
+
+# Configuring Nginx and Passenger
+# Nginx/Passenger Instructions and Configuration was derived from these two examples 
+# that refer to how to set it up on CentOS
+#
+# http://z0mbix.github.io/blog/2012/03/01/use-nginx-and-passenger-to-power-your-puppet-master/
+# http://www.watters.ws/mediawiki/index.php/Configure_puppet_master_using_nginx_and_mod_passenger
+
+cat > /usr/local/etc/nginx/nginx.conf << 'EOF'
+user  www www;
+worker_processes  4;
+error_log  /var/log/nginx/error.log notice;
+pid        /var/run/nginx.pid;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    passenger_root /usr/local/lib/ruby/gems/1.8/gems/passenger-4.0.17;
+    passenger_ruby /usr/local/bin/ruby;
+    passenger_max_pool_size 15;
+    passenger_pool_idle_time 300;
+
+    include       mime.types;
+    default_type  application/octet-stream;
+    sendfile      on;
+    tcp_nopush    on;
+    keepalive_timeout  65;
+    tcp_nodelay        on;
+
+    server {
+        listen       80;
+        server_name  dashboard.pa-us.mydomain.name;
+
+        passenger_enabled on;
+        passenger_user             puppet-dashboard;
+        passenger_group            puppet-dashboard;
+
+        access_log /var/log/nginx/dashboard_access.log;
+        error_log  /var/log/nginx/dashboard_error.log;
+
+        root /usr/local/share/puppet-dashboard/public;
+    }
+    server {
+        listen       8140 ssl;
+        server_name  puppet.pa-us.mydomain.name;
+
+        passenger_enabled          on;
+        passenger_set_cgi_param    HTTP_X_CLIENT_DN $ssl_client_s_dn;
+        passenger_set_cgi_param    HTTP_X_CLIENT_VERIFY $ssl_client_verify;
+        passenger_user             puppet;
+        passenger_group            puppet;
+
+        access_log                 /var/log/nginx/puppet_access.log;
+        error_log                  /var/log/nginx/puppet_error.log;
+
+        root                       /usr/local/etc/puppet/rack/public;
+        ssl_certificate            /var/puppet/ssl/certs/puppet.pa-us.mydomain.name.pem;
+        ssl_certificate_key        /var/puppet/ssl/private_keys/puppet.pa-us.mydomain.name.pem;
+        ssl_crl                    /var/puppet/ssl/ca/ca_crl.pem;
+        ssl_client_certificate     /var/puppet/ssl/certs/ca.pem;
+        ssl_ciphers                SSLv2:-LOW:-EXPORT:RC4+RSA;
+        ssl_prefer_server_ciphers  on;
+        ssl_verify_client          optional;
+        ssl_verify_depth           1;
+        ssl_session_cache          shared:SSL:128m;
+        ssl_session_timeout        5m;
+    }
+}
+'EOF'
+
+# Create the log directory to prevent issues on startup.
+mkdir /var/log/nginx
+
+# Enable a daily log file rotation via newsyslog.conf
+printf "/var/log/nginx/*\t\t\t644  7\t   *    @T00  JG    /var/run/nginx.pid  30\n" >> /etc/newsyslog.conf
+
+
+# If the puppetmaster service is still running from earlier testing, stop it now
+service puppetmaster onestop
+
+# Enable nginx service and start it. At this point basic functionality is online.
+echo 'nginx_enable="YES"' >> /etc/rc.conf
+service nginx start
+
+# Configuring Dashboard
+# Advanced Features
+
+# Generating Certs and Connecting to the Puppet Master
+# With separate Puppet/Dashboard systems the `puppet cert sign dashboard` will
+# be on the Puppetmaster.
+
+cd /usr/local/share/puppet-dashboard
+su -m puppet-dashboard -c 'rake cert:create_key_pair'
+su -m puppet-dashboard -c 'rake cert:request'
+puppet cert sign dashboard
+su -m puppet-dashboard -c 'rake cert:retrieve'
+
+# Enabling Inventory Support
+# EXAMPLE:
+#   auth.conf (on puppet master)
+#   path /facts
+#   auth yes
+#   method find, search
+#   allow dashboard
+
+# Enabling the Filebucket Viewer
+# EXAMPLE
+#   site.pp (on puppet master)
+# filebucket { "main":
+#   server => "{your puppet master}",
+#   path => false,
+# }
+#
+# File { backup => "main" }
+
+# Go back and add the line for Inventory Support.
+# While I'm here, also increase reporting cutoff to deal with laptop/powered off systems getting
+# flagged unresponsive.
+cd /usr/local/share/puppet-dashboard/config
+patch settings.yml << 'EOF'
+35c35
+< enable_inventory_service: false
+---
+> enable_inventory_service: true
+45c45
+< use_file_bucket_diffs: false
+---
+> use_file_bucket_diffs: true
+54c54
+< no_longer_reporting_cutoff: 3600
+---
+> no_longer_reporting_cutoff: 259200
+'EOF'
+
+# With all the updates made, restart so that it takes effect.
+service nginx restart
+
+# For future maintenance, monthly periodic job to prune old reports and run DB optimization.
+mkdir -p /usr/local/etc/periodic/monthly
+cat > /usr/local/etc/periodic/monthly/clean_dashboard_database.sh << 'EOF'
+#!/bin/sh
+echo "Pruning Old Reports from Puppetmaster"
+echo -n "  Reports Removed:"
+find /var/puppet/reports -mtime 90 | xargs rm -v | wc -l
+
+cd /usr/local/share/puppet-dashboard && \
+    echo "Pruning Old Reports from Puppet Dashboard Database" && \
+    /usr/bin/su -m puppet-dashboard -c '/usr/local/bin/rake RAILS_ENV=production reports:prune upto=3 unit=mon' 2> /dev/null && \
+    echo "Optimizing Database" && \
+    /usr/bin/su -m puppet-dashboard -c '/usr/local/bin/rake RAILS_ENV=production db:raw:optimize' 2> /dev/null
+'EOF'
+chmod 755 /usr/local/etc/periodic/monthly/clean_dashboard_database.sh
 
 ################################################################################
 ##----------------------------------------------------------------------------##
