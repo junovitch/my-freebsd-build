@@ -1401,6 +1401,9 @@ cp settings.yml.example settings.yml
 chown puppet-dashboard:puppet-dashboard settings.yml
 chmod 660 settings.yml
 
+# Fix shebang line for ENC script
+sed -i'' -e 's/#! \/usr\/bin\/ruby/#!\/usr\/local\/bin\/ruby/' /usr/local/share/puppet-dashboard/bin/external_node
+
 # Creating and Configuring a MariaDB Database - Preparing Schema
 # At this point the database was already installed in another jail with some blank tables.
 # We need to run rake to finish the process with the database structure needed.
@@ -1426,6 +1429,8 @@ su -m puppet-dashboard -c './script/server -e production'
 #     [master]
 #       reports = store, http
 #       reporturl = http://dashboard.example.com:3000/reports/upload
+#       node_terminus = exec
+#       external_nodes = /usr/bin/env PUPPET_DASHBOARD_URL=http://dashboard.pa-us.mydomain.name:80 /usr/local/etc/puppet-dashboard/bin/external_node
 #
 
 # Testing Puppet's Connection to Dashboard
@@ -1531,6 +1536,7 @@ http {
     passenger_ruby /usr/local/bin/ruby;
     passenger_max_pool_size 15;
     passenger_pool_idle_time 300;
+    passenger_spawn_method direct;
 
     include       mime.types;
     default_type  application/octet-stream;
