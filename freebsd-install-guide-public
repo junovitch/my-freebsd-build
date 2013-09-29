@@ -998,6 +998,7 @@ poudriere jail -u -j 91amd64
 
 # Setup make.conf variables for build jail
 cat > /usr/local/etc/poudriere.d/91amd64-make.conf << 'EOF'
+WITH_SSP_PORTS=yes
 WITH_PKGNG=yes
 portmaster_SET+=BASH
 unison_UNSET+=X11
@@ -1275,6 +1276,7 @@ passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Install MariaDB with default options
 pkg install mariadb-server
@@ -1331,6 +1333,7 @@ passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Installing Dependencies:  Install Puppet, Git, Nginx, and Ruby Components
 
@@ -1688,6 +1691,7 @@ passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Add anonymous user
 pw useradd -m -n ftp -c "Anonymous FTP User,,," -s /sbin/nologin -d "/var/ftp"
@@ -1728,6 +1732,7 @@ passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Setup FFMPEG options per guidance in the helpful links then start Serviio build.
 # cd /usr/ports/multimedia/ffmpeg1 && make config WITH_RTMP=YES WITH_X11GRAB=YES WITH_FAAC=YES WITH_LAME=YES WITH_AMR_NB=YES WITH_AMR_WB=YES
@@ -1859,6 +1864,7 @@ passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # OpenVPN installation and configuration 
 pkg install openvpn
@@ -1923,6 +1929,7 @@ passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Assign Apache module build to the PHP5 config then start the full build.
 # cd /usr/ports/lang/php5 && make config WITH_APACHE=YES
@@ -2015,6 +2022,7 @@ passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 fetch https://bitbucket.org/zhb/iredmail/downloads/iRedMail-0.8.5.tar.bz2
 tar xjf iRedMail-0.8.5.tar.bz2
