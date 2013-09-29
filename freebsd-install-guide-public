@@ -1589,7 +1589,7 @@ http {
 mkdir /var/log/nginx
 
 # Enable a daily log file rotation via newsyslog.conf
-printf "/var/log/nginx/*\t\t\t644  7\t   *    @T00  JG    /var/run/nginx.pid  30\n" >> /etc/newsyslog.conf
+printf "/var/log/nginx/*.log\t\t\t644  7\t   *    @T00  JG    /var/run/nginx.pid  30\n" >> /etc/newsyslog.conf
 
 
 # If the puppetmaster service is still running from earlier testing, stop it now
