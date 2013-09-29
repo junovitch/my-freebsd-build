@@ -930,7 +930,6 @@ echo 'V4: / -sec=sys -network 10.100.0.0 -mask 255.255.0.0' >> /etc/exports
 ################################################################################
 
 zfs set sharenfs='-network 10.100.0.0 -mask 255.255.0.0 -maproot=root' zfs/homedirs
-echo '/usr/home/ -maproot=root -network 10.100.0.0 -mask 255.255.0.0' >> /etc/exports
 
 ################################################################################
 # Lock to NFSv4 only (optional)
