@@ -2092,34 +2092,66 @@ chmod 555 /usr/local/sbin/portsup
 # http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/updating-upgrading-freebsdupdate.html
 ################################################################################
 
-# Small Updates, I.E. 9.0-RELEASE to 9.0-RELEASE-p5
+# Small Updates, I.E. 9.1-RELEASE to 9.1-RELEASE-p6
 freebsd-update fetch
 sed -i'' -e 's/kern_securelevel/#kern_securelevel/' /etc/rc.conf
 sed -i'' -e 's/ezjail_enable/#ezjail_enable/' /etc/rc.conf
 shutdown -r now
 freebsd-update install
 ezjail-admin update -u
+poudriere jail -u -j 91amd64
 sed -i'' -e 's/#kern_securelevel/kern_securelevel/' /etc/rc.conf
 sed -i'' -e 's/#ezjail_enable/ezjail_enable/' /etc/rc.conf
-shutdown -r now
+service ezjail start
+sysctl kern.securelevel=1
 
-# Big Updates, I.E. 9.0-RELEASE to 9.1-RELEASE
-cp -Rp /etc /tmp/etc.old
-freebsd-update upgrade -r 9.1-RELEASE
+# Big Updates, I.E. 9.1-RELEASE to 9.2-RELEASE
+## Backup Old /etc
+cp -Rp /etc /root/etc.old
+## Run freebsd-update to get the latest patches
+freebsd-update upgrade -r 9.2-RELEASE
+## If using a heightened securelevel, lower it and reboot
 sed -i'' -e 's/kern_securelevel/#kern_securelevel/' /etc/rc.conf
+shutdown -r now
+## Disable Jails now to speed up reboots during the upgrade process
 sed -i'' -e 's/ezjail_enable/#ezjail_enable/' /etc/rc.conf
-shutdown -r now
+## First `freebsd-update install` and reboot for new kernel
 freebsd-update install
 shutdown -r now
+## Second `freebsd-update install` for new userland
 freebsd-update install
+## Archive original jail set
 ezjail-admin archive -A
-ezjail-admin update -U -s 9.0-RELEASE
-ezjail-admin update -U -s 9.0-RELEASE
+## Update basejail to the new release it see already via `uname` and give it the source release
+ezjail-admin update -U -s 9.1-RELEASE-p6
+## For upgrading to 9.2, open vipw and immediatly save so mergemaster recognizes
+## the new auditdistd user
+vipw
+## Run mergemaster on each jail
+mergemaster -p /usr/jails/newjail
 mergemaster -UF -D /usr/jails/newjail
+mergemaster -p /usr/jails/jail1
 mergemaster -UF -D /usr/jails/jail1 # and continue on for each jail
-sed -i'' -e 's/#kern_securelevel/kern_securelevel/' /etc/rc.conf
-sed -i'' -e 's/#ezjail_enable/ezjail_enable/' /etc/rc.conf
+## Reboot to put new userland into effect
 shutdown -r now
+## Third `freebsd-update install` to cleanup old libs (major version upgrades only)
+freebsd-update install
+## Enable, archive just upgrade jails, and start ezjail
+sed -i'' -e 's/#ezjail_enable/ezjail_enable/' /etc/rc.conf
+ezjail-admin archive -A
+service ezjail start
+## Enable and raise securelevel if in use
+sed -i'' -e 's/#kern_securelevel/kern_securelevel/' /etc/rc.conf
+sysctl kern.securelevel=1
+## Fetch new Poudriere build jail for new release
+poudriere jails -c -j 92amd64 -v 9.2-RELEASE -a amd64
+## Move currently built packages and make.conf over if upgrading within same major release
+mv /usr/local/etc/poudriere.d/91amd64-make.conf /usr/local/etc/poudriere.d/92amd64-make.conf
+mv /zfs/poudriere/data/packages/91amd64-default /zfs/poudriere/data/packages/92amd64-default
+## Update jails accordingly
+find /usr/jails -name pkg.conf -exec sed -i'' -e 's/91amd64/92amd64/' {} \;
+## Delete old build jail
+poudriere jail -d -j 91amd64
 
 ################################################################################
 # CONSOLE USE ONLY
