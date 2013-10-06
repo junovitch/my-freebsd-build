@@ -192,6 +192,7 @@ passwd jason
 
 /usr/sbin/pkg
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 pkg2ng
 
 echo 'daily_backup_pkgdb_enable="NO"' >> /etc/periodic.conf
@@ -1017,6 +1018,8 @@ cat > /zfs/poudriere/pkg_list << 'EOF'
 ########## Host and Jail programs ##########
 ports-mgmt/portmaster
 ports-mgmt/portdowngrade
+ports-mgmt/poudriere
+ports-mgmt/dialog4ports
 sysutils/tmux
 shells/bash
 lang/perl5.14
@@ -1072,6 +1075,9 @@ databases/mariadb-server
 
 # Start a bulk build of all ports in that list
 poudriere bulk -f /zfs/poudriere/pkg_list -j 91amd64
+
+# Allow host to install from Poudriere Repo
+echo 'packagesite: file:///zfs/poudriere/data/packages/92amd64-default' > /usr/local/etc/pkg.conf
 
 ################################################################################
 ##----------------------------------------------------------------------------##
@@ -2148,8 +2154,8 @@ poudriere jails -c -j 92amd64 -v 9.2-RELEASE -a amd64
 ## Move currently built packages and make.conf over if upgrading within same major release
 mv /usr/local/etc/poudriere.d/91amd64-make.conf /usr/local/etc/poudriere.d/92amd64-make.conf
 mv /zfs/poudriere/data/packages/91amd64-default /zfs/poudriere/data/packages/92amd64-default
-## Update jails accordingly
-find /usr/jails -name pkg.conf -exec sed -i'' -e 's/91amd64/92amd64/' {} \;
+## Update jail and host system pkg.conf accordingly
+find / -name pkg.conf -exec sed -i'' -e 's/91amd64/92amd64/' {} \;
 ## Delete old build jail
 poudriere jail -d -j 91amd64
 
