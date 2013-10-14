@@ -90,6 +90,10 @@ setenv UPS_MONITOR_PASSWORD 'UPSMonUserPassword'
 # configured.
 ################################################################################
 
+# First enable multiple routing tables (FIBs) 
+echo 'net.fibs=4' >> /boot/loader.conf
+echo 'net.add_addr_allfibs=0' >> /boot/loader.conf
+
 cat > /etc/rc.conf << 'EOF'
 # General System Config
 # Set dumpdev to "AUTO" to enable crash dumps, "NO" to disable
@@ -99,53 +103,62 @@ powerd_enable="YES"
 # General Network Configuration
 hostname="xts-bsd.pa-us.mydomain.name"
 sshd_enable="YES"
-static_routes="lan"
-route_lan="-net 10.100.0.0/16 10.100.102.1"
-ipv6_static_routes=""
+static_routes="dmzfibnetwork dmzfibdefault internal lanfibnetwork lanfibdefault"
+ipv6_static_routes="dmzfibnetwork dmzfibdefault internal lanfibnetwork lanfibdefault"
 
 # DMZ/External Interface Configuration
 ifconfig_em0="DHCP"
 ifconfig_em0_ipv6="inet6 accept_rtadv"
-ifconfig_em0_alias0="inet 192.168.102.11 netmask 0xffffffff"     # ms1.pa-us.mydomain.name
-ifconfig_em0_alias1="inet6 2001:123:4567:890::11 prefixlen 128"  # ms1.pa-us.mydomain.name
-ifconfig_em0_alias2="inet 192.168.102.12 netmask 0xffffffff"     # ms2.pa-us.mydomain.name
-ifconfig_em0_alias3="inet6 2001:123:4567:890::12 prefixlen 128"  # ms2.pa-us.mydomain.name
-ifconfig_em0_alias4="inet 192.168.102.13 netmask 0xffffffff"     # www1.pa-us.mydomain.name
-ifconfig_em0_alias5="inet6 2001:123:4567:890::13 prefixlen 128"  # www1.pa-us.mydomain.name
-ifconfig_em0_alias6="inet 192.168.102.14 netmask 0xffffffff"     # www2.pa-us.mydomain.name
-ifconfig_em0_alias7="inet6 2001:123:4567:890::14 prefixlen 128"  # www2.pa-us.mydomain.name
-ifconfig_em0_alias8="inet 192.168.102.15 netmask 0xffffffff"     # www3.pa-us.mydomain.name
-ifconfig_em0_alias9="inet6 2001:123:4567:890::15 prefixlen 128"  # www3.pa-us.mydomain.name
-ifconfig_em0_alias10="inet 192.168.102.16 netmask 0xffffffff"    # unused
-ifconfig_em0_alias11="inet6 2001:123:4567:890::16 prefixlen 128" # unused
-ifconfig_em0_alias12="inet 192.168.102.17 netmask 0xffffffff"    # unused
-ifconfig_em0_alias13="inet6 2001:123:4567:890::17 prefixlen 128" # unused
-ifconfig_em0_alias14="inet 192.168.102.18 netmask 0xffffffff"    # unused
-ifconfig_em0_alias15="inet6 2001:123:4567:890::18 prefixlen 128" # unused
-ifconfig_em0_alias16="inet 192.168.102.19 netmask 0xffffffff"    # vpn.pa-us.mydomain.name
-ifconfig_em0_alias17="inet6 2001:123:4567:890::19 prefixlen 128" # vpn.pa-us.mydomain.name
+ifconfig_em0_alias0="inet 192.168.102.11/32 fib 2"		# ms1.pa-us.mydomain.name
+ifconfig_em0_alias1="inet6 2001:123:4567:890::11/128 fib 2"	# ms1.pa-us.mydomain.name
+ifconfig_em0_alias2="inet 192.168.102.12/32 fib 2"		# ms2.pa-us.mydomain.name
+ifconfig_em0_alias3="inet6 2001:123:4567:890::12/128 fib 2"	# ms2.pa-us.mydomain.name
+ifconfig_em0_alias4="inet 192.168.102.13/32 fib 2"		# www1.pa-us.mydomain.name
+ifconfig_em0_alias5="inet6 2001:123:4567:890::13/128 fib 2"	# www1.pa-us.mydomain.name
+ifconfig_em0_alias6="inet 192.168.102.14/32 fib 2"		# www2.pa-us.mydomain.name
+ifconfig_em0_alias7="inet6 2001:123:4567:890::14/128 fib 2"	# www2.pa-us.mydomain.name
+ifconfig_em0_alias8="inet 192.168.102.15/32 fib 2"		# unused
+ifconfig_em0_alias9="inet6 2001:123:4567:890::15/128 fib 2"	# unused
+ifconfig_em0_alias10="inet 192.168.102.16/32 fib 2"		# unused
+ifconfig_em0_alias11="inet6 2001:123:4567:890::16/128 fib 2"	# unused
+ifconfig_em0_alias12="inet 192.168.102.17/32 fib 2"		# unused
+ifconfig_em0_alias13="inet6 2001:123:4567:890::17/128 fib 2"	# unused
+ifconfig_em0_alias14="inet 192.168.102.18/32 fib 2"		# unused
+ifconfig_em0_alias15="inet6 2001:123:4567:890::18/128 fib 2"	# unused
+ifconfig_em0_alias16="inet 192.168.102.19/32"			# vpn.pa-us.mydomain.name
+ifconfig_em0_alias17="inet6 2001:123:4567:890::19/128"		# vpn.pa-us.mydomain.name
+route_dmzfibnetwork="-net 192.168.102.0/24 -interface em0 -fib 2"
+route_dmzfibdefault="default 192.168.102.1 -fib 2"
+ipv6_route_dmzfibnetwork="-net 2001:123:4567:890::/64 -interface em0 -fib 2"
+ipv6_route_dmzfibdefault="default 2001:123:4567:890::1 -fib 2"
 
 # LAN/Internal Interface Configuration
-ifconfig_em1="inet 10.100.102.2 netmask 0xffffff00"
-ifconfig_em1_ipv6="inet6 2001:123:4:5678::2 prefixlen 64"
-ifconfig_em1_alias0="inet 10.100.102.11 netmask 0xffffffff"    # puppet.pa-us.mydomain.name
-ifconfig_em1_alias1="inet6 2001:123:4:5678::11 prefixlen 128"  # puppet.pa-us.mydomain.name
-ifconfig_em1_alias2="inet 10.100.102.12 netmask 0xffffffff"    # unused
-ifconfig_em1_alias3="inet6 2001:123:4:5678::12 prefixlen 128"  # unused
-ifconfig_em1_alias4="inet 10.100.102.13 netmask 0xffffffff"    # ftp.pa-us.mydomain.name
-ifconfig_em1_alias5="inet6 2001:123:4:5678::13 prefixlen 128"  # ftp.pa-us.mydomain.name
-ifconfig_em1_alias6="inet 10.100.102.14 netmask 0xffffffff"    # serviio.pa-us.mydomain.name
-ifconfig_em1_alias7="inet6 2001:123:4:5678::14 prefixlen 128"  # serviio.pa-us.mydomain.name
-ifconfig_em1_alias8="inet 10.100.102.15 netmask 0xffffffff"    # unused
-ifconfig_em1_alias9="inet6 2001:123:4:5678::15 prefixlen 128"  # unused
-ifconfig_em1_alias10="inet 10.100.102.16 netmask 0xffffffff"   # unused
-ifconfig_em1_alias11="inet6 2001:123:4:5678::16 prefixlen 128" # unused
-ifconfig_em1_alias12="inet 10.100.102.17 netmask 0xffffffff"   # unused
-ifconfig_em1_alias13="inet6 2001:123:4:5678::17 prefixlen 128" # unused
-ifconfig_em1_alias14="inet 10.100.102.18 netmask 0xffffffff"   # mdbi.pa-us.mydomain.name
-ifconfig_em1_alias15="inet6 2001:123:4:5678::18 prefixlen 128" # mdbi.pa-us.mydomain.name
-ifconfig_em1_alias16="inet 10.100.102.19 netmask 0xffffffff"   # vpn.pa-us.mydomain.name
-ifconfig_em1_alias17="inet6 2001:123:4:5678::19 prefixlen 128" # vpn.pa-us.mydomain.name
+ifconfig_em1="inet 10.100.102.2/24"
+ifconfig_em1_ipv6="inet6 2001:123:4:5678::2/64"
+ifconfig_em1_alias0="inet 10.100.102.11/32 fib 1"		# puppet.pa-us.mydomain.name
+ifconfig_em1_alias1="inet6 2001:123:4:5678::11/128 fib 1"	# puppet.pa-us.mydomain.name
+ifconfig_em1_alias2="inet 10.100.102.12/32 fib 1"		# unused
+ifconfig_em1_alias3="inet6 2001:123:4:5678::12/128 fib 1"	# unused
+ifconfig_em1_alias4="inet 10.100.102.13/32 fib 1"		# ftp.pa-us.mydomain.name
+ifconfig_em1_alias5="inet6 2001:123:4:5678::13/128 fib 1"	# ftp.pa-us.mydomain.name
+ifconfig_em1_alias6="inet 10.100.102.14/32 fib 1"		# serviio.pa-us.mydomain.name
+ifconfig_em1_alias7="inet6 2001:123:4:5678::14/128 fib 1"	# serviio.pa-us.mydomain.name
+ifconfig_em1_alias8="inet 10.100.102.15/32 fib 1"		# unused
+ifconfig_em1_alias9="inet6 2001:123:4:5678::15/128 fib 1"	# unused
+ifconfig_em1_alias10="inet 10.100.102.16/32 fib 1"		# unused
+ifconfig_em1_alias11="inet6 2001:123:4:5678::16/128 fib 1"	# unused
+ifconfig_em1_alias12="inet 10.100.102.17/32 fib 1"		# unused
+ifconfig_em1_alias13="inet6 2001:123:4:5678::17/128 fib 1"	# unused
+ifconfig_em1_alias14="inet 10.100.102.18/32 fib 1"		# mdbi.pa-us.mydomain.name
+ifconfig_em1_alias15="inet6 2001:123:4:5678::18/128 fib 1"	# mdbi.pa-us.mydomain.name
+ifconfig_em1_alias16="inet 10.100.102.19/32"			# vpn.pa-us.mydomain.name
+ifconfig_em1_alias17="inet6 2001:123:4:5678::19/128"		# vpn.pa-us.mydomain.name
+route_internal="-net 10.100.0.0/16 10.100.102.1"
+route_lanfibnetwork="-net 10.100.102.0/24 -interface em1 -fib 1"
+route_lanfibdefault="default 10.100.102.1 -fib 1"
+ipv6_route_internal="-net 2001:987:6:543::/64 2001:123:4:5678::1"
+ipv6_route_lanfibnetwork="-net 2001:123:4:5678::/64 -interface em1 -fib 1"
+ipv6_route_lanfibdefault="default 2001:123:4:5678::1 -fib 1"
 
 # Syslog Configuration, bind (-b) to LAN Internal address
 syslogd_enable="YES"
@@ -157,16 +170,16 @@ ntpdate_hosts="192.168.102.1"
 'EOF'
 
 ################################################################################
-# Once the above is in place and validated either type `reboot` or just restart
-# the services impacted by copy/pasting in the following. If you use different
-# routes be sure to change or remove that statement.
+# Without the changes to using multiple routing fibs, the following would be
+# enough. However, a reboot will be required at this point.
+#
+# hostname xts-bsd.pa-us.mydomain.name
+# service powerd restart
+# service netif restart
+# service syslogd restart
 ################################################################################
 
-hostname xts-bsd.pa-us.mydomain.name
-service powerd restart
-service netif restart
-service syslogd restart
-route add -net 10.100.0.0 10.100.102.1 255.255.0.0
+shutdown -r now
 
 ################################################################################
 # User Add examples
@@ -1276,6 +1289,7 @@ cd /root && ./make-quicksha256-key.sh www.mydomain.name
 ################################################################################
 
 ezjail-admin create -f lan mdbi.pa-us.mydomain.name 10.100.102.18,2001:123:4:5678::18
+ezjail-admin config -f 1 mdbi.pa-us.mydomain.name
 echo '/zfs/poudriere/data/packages /usr/jails/mdbi.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.mdbi_pa_us_mydomain_name
 ezjail-admin console -f mdbi.pa-us.mydomain.name
 passwd
@@ -1333,6 +1347,7 @@ quit;
 ################################################################################
 
 ezjail-admin create -f lan puppet.pa-us.mydomain.name 10.100.102.11,2001:123:4:5678::11
+ezjail-admin config -f 1 puppet.pa-us.mydomain.name
 echo '/zfs/poudriere/data/packages /usr/jails/puppet.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.puppet_pa_us_mydomain_name
 ezjail-admin console -f puppet.pa-us.mydomain.name
 passwd
@@ -1689,6 +1704,7 @@ chmod 755 /usr/local/etc/periodic/monthly/clean_dashboard_database.sh
 ################################################################################
 
 ezjail-admin create -f lan ftp.pa-us.mydomain.name 10.100.102.13,2001:123:4:5678::13
+ezjail-admin config -f 1 ftp.pa-us.mydomain.name
 mkdir -p /usr/jails/ftp.pa-us.mydomain.name/var/ftp/pkgrepo
 echo '/zfs/poudriere/data/packages /usr/jails/ftp.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.ftp_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/ftp.pa-us.mydomain.name/var/ftp/pkgrepo nullfs ro 0 0' >> /etc/fstab.ftp_pa_us_mydomain_name
@@ -1728,6 +1744,7 @@ service ftpd start
 ################################################################################
 
 ezjail-admin create -f lan serviio.pa-us.mydomain.name 10.100.102.14,2001:123:4:5678::14
+ezjail-admin config -f 1 serviio.pa-us.mydomain.name
 mkdir -p /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_media
 mkdir -p /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_photo_albums
 echo '/zfs/homedirs/common_media /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_media nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
@@ -1927,6 +1944,7 @@ service openvpn start
 #############################################################################
 
 ezjail-admin create -f dmz www1.pa-us.mydomain.name 192.168.102.13,2001:123:4567:890::13
+ezjail-admin config -f 2 www1.pa-us.mydomain.name
 echo '/zfs/poudriere/data/packages /usr/jails/www1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.www1_pa_us_mydomain_name
 mkdir /usr/jails/www1.pa-us.mydomain.name/usr/local/etc/apache24/
 cp /root/mycert/www.mydomain.name.* /usr/jails/www1.pa-us.mydomain.name/usr/local/etc/apache24/
@@ -2022,6 +2040,7 @@ apachectl start
 ################################################################################
 
 ezjail-admin create -f dmz ms1.pa-us.mydomain.name 192.168.102.11,2001:123:4567:890::11
+ezjail-admin config -f 2 ms1.pa-us.mydomain.name
 echo '/zfs/poudriere/data/packages /usr/jails/ms1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.ms1_pa_us_mydomain_name
 ezjail-admin console -f ms1.pa-us.mydomain.name
 passwd
