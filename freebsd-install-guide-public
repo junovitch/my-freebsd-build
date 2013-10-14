@@ -130,10 +130,10 @@ ifconfig_em1="inet 10.100.102.2 netmask 0xffffff00"
 ifconfig_em1_ipv6="inet6 2001:123:4:5678::2 prefixlen 64"
 ifconfig_em1_alias0="inet 10.100.102.11 netmask 0xffffffff"    # puppet.pa-us.mydomain.name
 ifconfig_em1_alias1="inet6 2001:123:4:5678::11 prefixlen 128"  # puppet.pa-us.mydomain.name
-ifconfig_em1_alias2="inet 10.100.102.12 netmask 0xffffffff"    # ftp.pa-us.mydomain.name
-ifconfig_em1_alias3="inet6 2001:123:4:5678::12 prefixlen 128"  # ftp.pa-us.mydomain.name
-ifconfig_em1_alias4="inet 10.100.102.13 netmask 0xffffffff"    # unused
-ifconfig_em1_alias5="inet6 2001:123:4:5678::13 prefixlen 128"  # unused
+ifconfig_em1_alias2="inet 10.100.102.12 netmask 0xffffffff"    # unused
+ifconfig_em1_alias3="inet6 2001:123:4:5678::12 prefixlen 128"  # unused
+ifconfig_em1_alias4="inet 10.100.102.13 netmask 0xffffffff"    # ftp.pa-us.mydomain.name
+ifconfig_em1_alias5="inet6 2001:123:4:5678::13 prefixlen 128"  # ftp.pa-us.mydomain.name
 ifconfig_em1_alias6="inet 10.100.102.14 netmask 0xffffffff"    # serviio.pa-us.mydomain.name
 ifconfig_em1_alias7="inet6 2001:123:4:5678::14 prefixlen 128"  # serviio.pa-us.mydomain.name
 ifconfig_em1_alias8="inet 10.100.102.15 netmask 0xffffffff"    # unused
@@ -1688,7 +1688,7 @@ chmod 755 /usr/local/etc/periodic/monthly/clean_dashboard_database.sh
 # http://www5.us.freebsd.org/doc/handbook/network-ftp.html
 ################################################################################
 
-ezjail-admin create -f lan ftp.pa-us.mydomain.name 10.100.102.12,2001:123:4:5678::12
+ezjail-admin create -f lan ftp.pa-us.mydomain.name 10.100.102.13,2001:123:4:5678::13
 mkdir -p /usr/jails/ftp.pa-us.mydomain.name/var/ftp/pkgrepo
 echo '/zfs/poudriere/data/packages /usr/jails/ftp.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.ftp_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/ftp.pa-us.mydomain.name/var/ftp/pkgrepo nullfs ro 0 0' >> /etc/fstab.ftp_pa_us_mydomain_name
