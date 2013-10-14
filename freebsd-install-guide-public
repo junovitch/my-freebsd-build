@@ -1409,7 +1409,7 @@ chown puppet-dashboard:puppet-dashboard settings.yml
 chmod 660 settings.yml
 
 # Fix shebang line for ENC script
-sed -i'' -e 's/#! \/usr\/bin\/ruby/#!\/usr\/local\/bin\/ruby/' /usr/local/share/puppet-dashboard/bin/external_node
+sed -i '' -e 's/#! \/usr\/bin\/ruby/#!\/usr\/local\/bin\/ruby/' /usr/local/share/puppet-dashboard/bin/external_node
 
 # Creating and Configuring a MariaDB Database - Preparing Schema
 # At this point the database was already installed in another jail with some blank tables.
@@ -2155,7 +2155,7 @@ poudriere jails -c -j 92amd64 -v 9.2-RELEASE -a amd64
 mv /usr/local/etc/poudriere.d/91amd64-make.conf /usr/local/etc/poudriere.d/92amd64-make.conf
 mv /zfs/poudriere/data/packages/91amd64-default /zfs/poudriere/data/packages/92amd64-default
 ## Update jail and host system pkg.conf accordingly
-find / -name pkg.conf -exec sed -i'' -e 's/91amd64/92amd64/' {} \;
+find / -name pkg.conf -exec sed -i '' -e 's/91amd64/92amd64/' {} \;
 ## Delete old build jail
 poudriere jail -d -j 91amd64
 
