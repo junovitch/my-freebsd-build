@@ -1188,7 +1188,7 @@ clear_tmp_enable="YES"
 cat > /usr/local/etc/periodic/daily/999.jail-periodic-daily << 'EOF'
 #!/bin/sh
 #
-# /usr/local/etc/periodic/daily/999.jail-periodic-daily 2013-03-08
+# /usr/local/etc/periodic/daily/999.jail-periodic-daily 2013-10-14
 #
 
 # If there is a global system configuration file, suck it in.
@@ -1204,7 +1204,7 @@ case "$daily_jail_periodic_enable" in
         echo
         echo 'Checking daily periodic of all running jails'
 
-        paths=`jls | awk '{ print $4 }'`
+        paths=`jls | awk '{ print $4 }' | sort`
         for path in $paths; do
             if [ -f ${path}/var/log/daily.log ]; then
                 echo ""
