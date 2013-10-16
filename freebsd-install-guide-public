@@ -135,10 +135,10 @@ ipv6_route_dmzfibdefault="default 2001:123:4567:890::1 -fib 2"
 # LAN/Internal Interface Configuration
 ifconfig_em1="inet 10.100.102.2/24"
 ifconfig_em1_ipv6="inet6 2001:123:4:5678::2/64"
-ifconfig_em1_alias0="inet 10.100.102.11/32 fib 1"		# puppet.pa-us.mydomain.name
-ifconfig_em1_alias1="inet6 2001:123:4:5678::11/128 fib 1"	# puppet.pa-us.mydomain.name
-ifconfig_em1_alias2="inet 10.100.102.12/32 fib 1"		# unused
-ifconfig_em1_alias3="inet6 2001:123:4:5678::12/128 fib 1"	# unused
+ifconfig_em1_alias0="inet 10.100.102.11/32 fib 1"		# apps1.pa-us.mydomain.name
+ifconfig_em1_alias1="inet6 2001:123:4:5678::11/128 fib 1"	# apps1.pa-us.mydomain.name
+ifconfig_em1_alias2="inet 10.100.102.12/32 fib 1"		# apps2.pa-us.mydomain.name
+ifconfig_em1_alias3="inet6 2001:123:4:5678::12/128 fib 1"	# apps2.pa-us.mydomain.name
 ifconfig_em1_alias4="inet 10.100.102.13/32 fib 1"		# ftp.pa-us.mydomain.name
 ifconfig_em1_alias5="inet6 2001:123:4:5678::13/128 fib 1"	# ftp.pa-us.mydomain.name
 ifconfig_em1_alias6="inet 10.100.102.14/32 fib 1"		# serviio.pa-us.mydomain.name
@@ -1020,7 +1020,7 @@ php5_SET+=APACHE
 ffmpeg1_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB
 APACHE_PORT=www/apache24
 ca_root_nss_SET+=ETCSYMLINK
-DEFAULT_VERSIONS= ruby=1.8 perl5=5.14
+DEFAULT_VERSIONS= ruby=1.9 perl5=5.14
 rubygem-passenger_UNSET+=APACHE22
 rubygem-passenger_SET+=NGINX
 nginx_SET+=PASSENGER HTTP_SSL
@@ -1077,13 +1077,16 @@ sysutils/puppet
 sysutils/puppet-lint
 devel/git
 devel/ruby-gems
-databases/rubygem-mysql
 devel/rubygem-rake
 converters/ruby-iconv
 www/rubygem-passenger
 www/nginx
+sysutils/rubygem-bundler
+textproc/libxslt
+www/node
+databases/sqlite3
 ########## MariaDB Jail ##########
-databases/mariadb-server
+databases/mariadb55-server
 'EOF'
 
 # Start a bulk build of all ports in that list
@@ -1327,9 +1330,15 @@ mysql_secure_installation
 mysql -u root -p
 CREATE DATABASE dashboard_production CHARACTER SET utf8;
 CREATE DATABASE dashboard_development CHARACTER SET utf8;
+CREATE DATABASE dashboard_test CHARACTER SET utf8;
 CREATE USER 'dashboard'@'10.100.102.11' IDENTIFIED BY 'dashboard_password';
 GRANT ALL PRIVILEGES ON dashboard_production.* TO 'dashboard'@'10.100.102.11';
 GRANT ALL PRIVILEGES ON dashboard_development.* TO 'dashboard'@'10.100.102.11';
+GRANT ALL PRIVILEGES ON dashboard_test.* TO 'dashboard'@'10.100.102.11';
+CREATE USER 'dashboard'@'10.100.102.12' IDENTIFIED BY 'dashboard_password';
+GRANT ALL PRIVILEGES ON dashboard_production.* TO 'dashboard'@'10.100.102.12';
+GRANT ALL PRIVILEGES ON dashboard_development.* TO 'dashboard'@'10.100.102.12';
+GRANT ALL PRIVILEGES ON dashboard_test.* TO 'dashboard'@'10.100.102.12';
 flush privileges;
 quit;
 
@@ -1346,11 +1355,31 @@ quit;
 # All state files are under /var/puppet
 ################################################################################
 
-ezjail-admin create -f lan puppet.pa-us.mydomain.name 10.100.102.11,2001:123:4:5678::11
-ezjail-admin config -f 1 puppet.pa-us.mydomain.name
-echo '/zfs/poudriere/data/packages /usr/jails/puppet.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.puppet_pa_us_mydomain_name
-ezjail-admin console -f puppet.pa-us.mydomain.name
+ezjail-admin create -f lan apps1.pa-us.mydomain.name 10.100.102.11,2001:123:4:5678::11
+ezjail-admin config -f 1 apps1.pa-us.mydomain.name
+mkdir -p /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere
+mkdir -p /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/pkg
+echo '/zfs/poudriere/data/logs /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
+echo '/zfs/poudriere/data/packages /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/pkg nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
+echo '/zfs/poudriere/data/packages /usr/jails/apps1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
+ezjail-admin console -f apps1.pa-us.mydomain.name
 passwd
+
+# Note that the backup jail will follow the majority of the same settings for redundancy
+# and testing purposes.
+
+ezjail-admin create -f lan apps2.pa-us.mydomain.name 10.100.102.12,2001:123:4:5678::12
+ezjail-admin config -f 1 apps2.pa-us.mydomain.name
+mkdir -p /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere
+mkdir -p /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/pkg
+echo '/zfs/poudriere/data/logs /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
+echo '/zfs/poudriere/data/packages /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/pkg nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
+echo '/zfs/poudriere/data/packages /usr/jails/apps2.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
+ezjail-admin console -f apps2.pa-us.mydomain.name
+passwd
+
+# Both apps1 and apps2 will get the same steps from this point on with very minor changes
+# between each other.
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
@@ -1358,7 +1387,7 @@ echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Installing Dependencies:  Install Puppet, Git, Nginx, and Ruby Components
 
-pkg install puppet puppet-lint git nginx rubygem-mysql rubygem-rake ruby18-iconv rubygem-passenger
+pkg install puppet rubygem-puppet-lint git nginx rubygem-rake ruby19-iconv rubygem-passenger rubygem-bundler mysql55-client libxslt node sqlite3
 
 # At this point, Puppet needs to be started so that all its SSL keys can be 
 # generated. This gives the chance to test that Puppet does work before anything
@@ -1366,6 +1395,18 @@ pkg install puppet puppet-lint git nginx rubygem-mysql rubygem-rake ruby18-iconv
 # config file are in place before that step.
 
 service puppetmaster onestart
+
+# On the secondary apps server/Puppet, set the appropriate ca_server directive
+# run the agent manually to generate appropriate keys.
+
+echo "[main]" >> /usr/local/etc/puppet/puppet.conf
+echo "ca = false" >> /usr/local/etc/puppet/puppet.conf
+echo "ca_server = apps1.pa-us.mydomain.name" >> /usr/local/etc/puppet/puppet.conf
+echo "dns_alt_names = puppet.pa-us.mydomain.name,puppet" >> /usr/local/etc/puppet/puppet.conf
+puppet agent --test --waitforcert 10
+
+# On the CA
+puppet cert --allow-dns-alt-names sign apps2.pa-us.mydomain.name
 
 
 # With initial setup of the Puppetmaster done, a RACK file that Nginx will use
@@ -1375,6 +1416,9 @@ mkdir -p /usr/local/etc/puppet/rack/public
 cat > /usr/local/etc/puppet/rack/config.ru << 'EOF'
 # Trimmed back FreeBSD Version of https://github.com/puppetlabs/puppet/blob/master/ext/rack/files/config.ru
 $0 = "master"
+require 'socket'
+host = Socket.gethostname
+ARGV << "--config_file_name" << "puppet.conf.#{host}"
 ARGV << "--rack"
 ARGV << "--confdir" << "/usr/local/etc/puppet"
 ARGV << "--vardir" << "/var/puppet"
@@ -1388,8 +1432,9 @@ chown -R puppet:puppet /usr/local/etc/puppet/rack
 # Follow along with their documentation for a more detailed description of what is being done.
 
 # Installing from Git
+# Clone community supported Dashboard 2.0 instead of than Puppetlab's 1.2
 cd /usr/local/share
-git clone git://github.com/puppetlabs/puppet-dashboard.git
+git clone git://github.com/sodabrew/puppet-dashboard.git
 
 # Manually create the 'puppet-dashboard' user and provide required permissions.
 pw groupadd -n puppet-dashboard -g 800
@@ -1405,13 +1450,29 @@ patch database.yml << 'EOF'
 <   password:
 ---
 >   password: dashboard_password
-51a52
+51c51,52
+<   adapter: postgresql
+---
+>   adapter: mysql2
 >   host: 10.100.102.18
 56c57
 <   password:
 ---
 >   password: dashboard_password
-58a60
+58c59,60
+<   adapter: postgresql
+---
+>   adapter: mysql2
+>   host: 10.100.102.18
+63c65
+<   password:
+---
+>   password: dashboard_password
+65,66c67,68
+<   adapter: postgresql
+< 
+---
+>   adapter: mysql2
 >   host: 10.100.102.18
 'EOF'
 chown puppet-dashboard:puppet-dashboard database.yml
@@ -1426,17 +1487,35 @@ chmod 660 settings.yml
 # Fix shebang line for ENC script
 sed -i '' -e 's/#! \/usr\/bin\/ruby/#!\/usr\/local\/bin\/ruby/' /usr/local/share/puppet-dashboard/bin/external_node
 
+# Install gems required in the 'Gemfile' via the Rubygem Bundler
+# If the postgresql gem bundles is required additional dependencies are needed.
+cd /usr/local/share/puppet-dashboard
+bundle install --path vendor/bundle --without postgresql
+
+# Generate secret_token
+# Cleanup any errors and the default token after generating the new one.
+echo "secret_token: `bundle exec rake secret`" >> config/settings.yml
+vi config/settings.yml
+
 # Creating and Configuring a MariaDB Database - Preparing Schema
 # At this point the database was already installed in another jail with some blank tables.
 # We need to run rake to finish the process with the database structure needed.
 cd /usr/local/share/puppet-dashboard
-rake RAILS_ENV=production db:migrate
+env RAILS_ENV=production bundle exec rake db:setup
+env RAILS_ENV=development bundle exec rake db:setup
 
 # Testing That Dashboard is Working
 # Run Dashboard using Ruby's built-in WEBrick server to validate functionality.
-# It will be available at http://dashboard:3000
+# It will be available at http://dashboard:3000 and use the RAILS_ENV=development database.
 cd /usr/local/share/puppet-dashboard
-su -m puppet-dashboard -c './script/server -e production'
+su -m puppet-dashboard -c 'bundle exec rails server'
+
+# Before going into a production environment, Dashboard 2.0 must precompile
+# assets for production.
+env RAILS_ENV=production bundle exec rake assets:precompile
+
+# Chown any files created up until now to the right owner.
+chown -R puppet-dashboard:puppet-dashboard /usr/local/share/puppet-dashboard
 
 # Configuring Puppet
 # All agent nodes have to be configured to submit reports to the master.
@@ -1452,7 +1531,7 @@ su -m puppet-dashboard -c './script/server -e production'
 #       reports = store, http
 #       reporturl = http://dashboard.example.com:3000/reports/upload
 #       node_terminus = exec
-#       external_nodes = /usr/bin/env PUPPET_DASHBOARD_URL=http://dashboard.pa-us.mydomain.name:80 /usr/local/etc/puppet-dashboard/bin/external_node
+#       external_nodes = /usr/bin/env PUPPET_DASHBOARD_URL=http://dashboard.example.com:3000 /usr/local/share/puppet-dashboard/bin/external_node
 #
 
 # Testing Puppet's Connection to Dashboard
@@ -1464,7 +1543,8 @@ su -m puppet-dashboard -c './script/server -e production'
 # Using the monitor script
 # Dashboard ships a worker process maanager under script/delayed_job.  It can manually start
 # delayed jobs via the following command
-# su -m puppet-dashboard -c 'env RAILS_ENV=production /usr/local/share/puppet-dashboard/script/delayed_job -p dashboard -n 4 -m start'
+# cd /usr/local/share/puppet-dashboard
+# su -m puppet-dashboard -c 'env RAILS_ENV=production bundle exec script/delayed_job -p dashboard -n 2 -m start'
 
 # Rather than manually triggering background workers, this rc script will accomplish the same
 # thing and ensure the background jobs get started on the next reboot.
@@ -1473,16 +1553,15 @@ cat > /usr/local/etc/rc.d/dashboard_workers << 'EOF'
 #!/bin/sh
 
 # PROVIDE: dashboard_workers
-# REQUIRE: nginx
+# REQUIRE: LOGIN
 # KEYWORD: shutdown
 
 # By default dashboard_workers uses flags '-n 1' for 1 worker.  This should be 
 # adjusted to the number of CPU cores.
 dashboard_workers_enable=${dashboard_workers_enable:-"NO"}
 dashboard_workers_flags=${dashboard_workers_flags:-"-n 1"}
-# The default rails environment is set to production and RUBYOPT=W0 is passed
-# to prevent multiple warnings about depreciated functionality.
-dashboard_workers_env=${dashboard_workers_env:-"/usr/bin/env PATH=${PATH}:/usr/local/bin RAILS_ENV=production RUBYOPT=W0"}
+# The default rails environment is set to production
+dashboard_workers_env=${dashboard_workers_env:-"/usr/bin/env PATH=${PATH}:/usr/local/bin RAILS_ENV=production"}
 # The default user is set to puppet-dashboard and install location is set to
 # /usr/local/share/puppet-dashboard.
 dashboard_workers_user=${dashboard_workers_user:-"puppet-dashboard"}
@@ -1491,32 +1570,26 @@ dashboard_workers_chdir=${dashboard_workers_chdir:-"/usr/local/share/puppet-dash
 . /etc/rc.subr
 
 name="dashboard_workers"
-rcvar=dashboard_workers_enable
+rcvar="dashboard_workers_enable"
 load_rc_config $name
-command="${dashboard_workers_chdir}/script/delayed_job"
+extra_commands="reload run zap status"
 
-start_precmd=workers_start_precmd
-restart_precmd=workers_restart_precmd
-status_cmd=workers_status
-stop_cmd=workers_stop
+# All commands call the same function and strip the fast|one|quiet prefix
+# to deliver to the bundler.
+reload_cmd="f_dashboard_workers reload"
+restart_cmd="f_dashboard_workers restart"
+run_cmd="f_dashboard_workers run"
+start_cmd="f_dashboard_workers start"
+status_cmd="f_dashboard_workers status"
+stop_cmd="f_dashboard_workers stop"
+zap_cmd="f_dashboard_workers zap"
 
-workers_start_precmd() {
-        command="${dashboard_workers_env} ${command}"
-        command_args="${rc_flags} -p dashboard -m start"
-        return 0
-}
-workers_restart_precmd() {
-        command="${dashboard_workers_env} ${command}"
-        command_args="${rc_flags} -p dashboard  -m restart"
-        return 0
-}
-workers_status() {
-        ${dashboard_workers_env} ${command} ${rc_flags} -p dashboard -m status
-}
-workers_stop() {
-        ${dashboard_workers_env} ${command} ${rc_flags} -p dashboard -m stop
-        sleep 1
-        pkill -f delayed_job
+# Use the function's ARVG $1 as the bundler program's '-m' flag
+f_dashboard_workers() {
+    cd $dashboard_workers_chdir && \
+    su -m "$dashboard_workers_user" \
+        -c "${dashboard_workers_env} bundle exec script/delayed_job ${rc_flags} -p dashboard -m $1" || \
+    echo "Failed to $1 dashboard_workers"
 }
 
 run_rc_command "$1"
@@ -1524,15 +1597,12 @@ run_rc_command "$1"
 chmod 555 /usr/local/etc/rc.d/dashboard_workers
 
 # With that in place, we need to override the defaults and enable the script along with
-# setting '-n 4' workers to match the number of processor cores and ensure it's ready
+# setting '-n 2' workers to match the number of processor cores and ensure it's ready
 # for a production workload. 
 
 echo 'dashboard_workers_enable="YES"' >> /etc/rc.conf
-echo 'dashboard_workers_flags="-n 4"' >> /etc/rc.conf
+echo 'dashboard_workers_flags="-n 2"' >> /etc/rc.conf
 service dashboard_workers start
-
-# This refresh  will prevent a Ruby warning that can occur when the workers get start.
-rake gems:refresh_specs
 
 # Running Dashboard in a Production-Quality Server
 
@@ -1545,7 +1615,7 @@ rake gems:refresh_specs
 
 cat > /usr/local/etc/nginx/nginx.conf << 'EOF'
 user  www www;
-worker_processes  4;
+worker_processes  2;
 error_log  /var/log/nginx/error.log notice;
 pid        /var/run/nginx.pid;
 
@@ -1554,11 +1624,11 @@ events {
 }
 
 http {
-    passenger_root /usr/local/lib/ruby/gems/1.8/gems/passenger-4.0.17;
+    passenger_root /usr/local/lib/ruby/gems/1.9/gems/passenger-4.0.20;
     passenger_ruby /usr/local/bin/ruby;
-    passenger_max_pool_size 15;
+    passenger_max_pool_size 10;
     passenger_pool_idle_time 300;
-    passenger_spawn_method direct;
+    #passenger_spawn_method direct; # Uncomment on Ruby 1.8 for ENC to work
 
     include       mime.types;
     default_type  application/octet-stream;
@@ -1568,21 +1638,35 @@ http {
     tcp_nodelay        on;
 
     server {
-        listen       80;
-        server_name  dashboard.pa-us.mydomain.name;
+        listen       80 default_server;
+        server_name  dashboard.pa-us.mydomain.name dashboard;
 
         passenger_enabled on;
         passenger_user             puppet-dashboard;
         passenger_group            puppet-dashboard;
 
         access_log /var/log/nginx/dashboard_access.log;
-        error_log  /var/log/nginx/dashboard_error.log;
-
         root /usr/local/share/puppet-dashboard/public;
     }
     server {
+        listen       80;
+        server_name  poudriere.pa-us.mydomain.name poudriere;
+
+        access_log /var/log/nginx/poudriere_access.log;
+        root /usr/local/www/poudriere/bulk;
+        autoindex    on;
+    }
+    server {
+        listen       80;
+        server_name  pkg.pa-us.mydomain.name pkg;
+
+        access_log /var/log/nginx/pkg_access.log;
+        root /usr/local/www/pkg;
+        autoindex    on;
+    }
+    server {
         listen       8140 ssl;
-        server_name  puppet.pa-us.mydomain.name;
+        server_name  puppet.pa-us.mydomain.name puppet;
 
         passenger_enabled          on;
         passenger_set_cgi_param    HTTP_X_CLIENT_DN $ssl_client_s_dn;
@@ -1591,11 +1675,11 @@ http {
         passenger_group            puppet;
 
         access_log                 /var/log/nginx/puppet_access.log;
-        error_log                  /var/log/nginx/puppet_error.log;
-
         root                       /usr/local/etc/puppet/rack/public;
-        ssl_certificate            /var/puppet/ssl/certs/puppet.pa-us.mydomain.name.pem;
-        ssl_certificate_key        /var/puppet/ssl/private_keys/puppet.pa-us.mydomain.name.pem;
+        # ssl_certifcate name must match host installed on (apps1|apps2)
+        ssl_certificate            /var/puppet/ssl/certs/apps1.pa-us.mydomain.name.pem;
+        ssl_certificate_key        /var/puppet/ssl/private_keys/apps1.pa-us.mydomain.name.pem;
+        # copy ca certificates from apps1 -> apps2
         ssl_crl                    /var/puppet/ssl/ca/ca_crl.pem;
         ssl_client_certificate     /var/puppet/ssl/certs/ca.pem;
         ssl_ciphers                SSLv2:-LOW:-EXPORT:RC4+RSA;
@@ -1616,7 +1700,14 @@ printf "/var/log/nginx/*.log\t\t\t644  7\t   *    @T00  JG    /var/run/nginx.pid
 
 
 # If the puppetmaster service is still running from earlier testing, stop it now
+# Mark appropriate optiosn for hostname specific 
 service puppetmaster onestop
+echo 'puppetmaster_enable="NO"' >> /etc/rc.conf
+echo 'puppetmaster_rundir="/var/run/puppet"' >> /etc/rc.conf
+
+echo 'puppetmaster_flags="--config_file_name=puppet.conf.apps1.pa-us.mydomain.name --rundir=${puppetmaster_rundir}"' >> /etc/rc.conf
+# or
+echo 'puppetmaster_flags="--config_file_name=puppet.conf.apps2.pa-us.mydomain.name --rundir=${puppetmaster_rundir}"' >> /etc/rc.conf
 
 # Enable nginx service and start it. At this point basic functionality is online.
 echo 'nginx_enable="YES"' >> /etc/rc.conf
@@ -1630,10 +1721,10 @@ service nginx start
 # be on the Puppetmaster.
 
 cd /usr/local/share/puppet-dashboard
-su -m puppet-dashboard -c 'rake cert:create_key_pair'
-su -m puppet-dashboard -c 'rake cert:request'
+su -m puppet-dashboard -c 'bundle exec rake cert:create_key_pair'
+su -m puppet-dashboard -c 'bundle exec rake cert:request'
 puppet cert sign dashboard
-su -m puppet-dashboard -c 'rake cert:retrieve'
+su -m puppet-dashboard -c 'bundle exec rake cert:retrieve'
 
 # Enabling Inventory Support
 # EXAMPLE:
@@ -1675,21 +1766,26 @@ patch settings.yml << 'EOF'
 # With all the updates made, restart so that it takes effect.
 service nginx restart
 
-# For future maintenance, monthly periodic job to prune old reports and run DB optimization.
+# For future maintenance, periodic jobs to prune old reports and run DB optimization.
 mkdir -p /usr/local/etc/periodic/monthly
 cat > /usr/local/etc/periodic/monthly/clean_dashboard_database.sh << 'EOF'
 #!/bin/sh
-echo "Pruning Old Reports from Puppetmaster"
-echo -n "  Reports Removed:"
-find /var/puppet/reports -mtime 90 | xargs rm -v | wc -l
-
 cd /usr/local/share/puppet-dashboard && \
     echo "Pruning Old Reports from Puppet Dashboard Database" && \
-    /usr/bin/su -m puppet-dashboard -c '/usr/local/bin/rake RAILS_ENV=production reports:prune upto=3 unit=mon' 2> /dev/null && \
+    /usr/bin/su -m puppet-dashboard -c '/usr/local/bin/bundle exec rake RAILS_ENV=production reports:prune upto=3 unit=mon'  && \
     echo "Optimizing Database" && \
-    /usr/bin/su -m puppet-dashboard -c '/usr/local/bin/rake RAILS_ENV=production db:raw:optimize' 2> /dev/null
+    /usr/bin/su -m puppet-dashboard -c '/usr/local/bin/bundle exec rake RAILS_ENV=production db:raw:optimize' 
 'EOF'
 chmod 755 /usr/local/etc/periodic/monthly/clean_dashboard_database.sh
+
+mkdir -p /usr/local/etc/periodic/weekly
+cat > /usr/local/etc/periodic/weekly/clean_puppet_reports.sh << 'EOF'
+#!/bin/sh
+echo "Pruning Puppetmaster Reports greater than 7 days old"
+echo -n "  Reports Removed:"
+find /var/puppet/reports -mtime 7 | xargs rm -v | wc -l
+'EOF'
+chmod 755 /usr/local/etc/periodic/weekly/clean_puppet_reports.sh
 
 ################################################################################
 ##----------------------------------------------------------------------------##
