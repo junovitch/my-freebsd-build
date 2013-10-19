@@ -1783,7 +1783,7 @@ cat > /usr/local/etc/periodic/weekly/clean_puppet_reports.sh << 'EOF'
 #!/bin/sh
 echo "Pruning Puppetmaster Reports greater than 7 days old"
 echo -n "  Reports Removed:"
-find /var/puppet/reports -mtime 7 | xargs rm -v | wc -l
+find /var/puppet/reports -type f -mtime 7 | xargs rm -v | wc -l
 'EOF'
 chmod 755 /usr/local/etc/periodic/weekly/clean_puppet_reports.sh
 
