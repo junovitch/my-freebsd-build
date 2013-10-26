@@ -2215,14 +2215,14 @@ chmod 555 /usr/local/sbin/portsup
 
 # Small Updates, I.E. 9.1-RELEASE to 9.1-RELEASE-p6
 freebsd-update fetch
-sed -i'' -e 's/kern_securelevel/#kern_securelevel/' /etc/rc.conf
-sed -i'' -e 's/ezjail_enable/#ezjail_enable/' /etc/rc.conf
+sed -i '' -e 's/kern_securelevel/#kern_securelevel/' /etc/rc.conf
+sed -i '' -e 's/ezjail_enable/#ezjail_enable/' /etc/rc.conf
 shutdown -r now
 freebsd-update install
 ezjail-admin update -u
 poudriere jail -u -j 91amd64
-sed -i'' -e 's/#kern_securelevel/kern_securelevel/' /etc/rc.conf
-sed -i'' -e 's/#ezjail_enable/ezjail_enable/' /etc/rc.conf
+sed -i '' -e 's/#kern_securelevel/kern_securelevel/' /etc/rc.conf
+sed -i '' -e 's/#ezjail_enable/ezjail_enable/' /etc/rc.conf
 service ezjail start
 sysctl kern.securelevel=1
 
@@ -2232,10 +2232,10 @@ cp -Rp /etc /root/etc.old
 ## Run freebsd-update to get the latest patches
 freebsd-update upgrade -r 9.2-RELEASE
 ## If using a heightened securelevel, lower it and reboot
-sed -i'' -e 's/kern_securelevel/#kern_securelevel/' /etc/rc.conf
+sed -i '' -e 's/kern_securelevel/#kern_securelevel/' /etc/rc.conf
 shutdown -r now
 ## Disable Jails now to speed up reboots during the upgrade process
-sed -i'' -e 's/ezjail_enable/#ezjail_enable/' /etc/rc.conf
+sed -i '' -e 's/ezjail_enable/#ezjail_enable/' /etc/rc.conf
 ## First `freebsd-update install` and reboot for new kernel
 freebsd-update install
 shutdown -r now
@@ -2258,11 +2258,11 @@ shutdown -r now
 ## Third `freebsd-update install` to cleanup old libs (major version upgrades only)
 freebsd-update install
 ## Enable, archive just upgrade jails, and start ezjail
-sed -i'' -e 's/#ezjail_enable/ezjail_enable/' /etc/rc.conf
+sed -i '' -e 's/#ezjail_enable/ezjail_enable/' /etc/rc.conf
 ezjail-admin archive -A
 service ezjail start
 ## Enable and raise securelevel if in use
-sed -i'' -e 's/#kern_securelevel/kern_securelevel/' /etc/rc.conf
+sed -i '' -e 's/#kern_securelevel/kern_securelevel/' /etc/rc.conf
 sysctl kern.securelevel=1
 ## Fetch new Poudriere build jail for new release
 poudriere jails -c -j 92amd64 -v 9.2-RELEASE -a amd64
