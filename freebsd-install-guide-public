@@ -265,7 +265,7 @@ portmaster shells/bash
 # Perl - Used for misc editing tasks and various programs.
 ################################################################################
 
-portmaster lang/perl5.14
+portmaster lang/perl5.16
 
 ################################################################################
 # OpenNTPD - Used for upkeep of time
@@ -1020,7 +1020,7 @@ php5_SET+=APACHE
 ffmpeg1_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB
 APACHE_PORT=www/apache24
 ca_root_nss_SET+=ETCSYMLINK
-DEFAULT_VERSIONS= ruby=1.9 perl5=5.14
+DEFAULT_VERSIONS= ruby=1.9 perl5=5.16
 rubygem-passenger_UNSET+=APACHE22
 rubygem-passenger_SET+=NGINX
 nginx_SET+=PASSENGER HTTP_SSL
@@ -1035,7 +1035,7 @@ ports-mgmt/poudriere
 ports-mgmt/dialog4ports
 sysutils/tmux
 shells/bash
-lang/perl5.14
+lang/perl5.16
 net/openntpd
 mail/opensmtpd
 security/openvpn
