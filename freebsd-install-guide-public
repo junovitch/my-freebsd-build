@@ -1171,6 +1171,7 @@ echo 'daily_status_security_inline="YES"' >> /usr/jails/flavours/example/etc/per
 echo 'daily_status_disks_enable="NO"' >> /usr/jails/flavours/example/etc/periodic.conf
 echo 'daily_status_rwho_enable="NO"' >> /usr/jails/flavours/example/etc/periodic.conf
 echo 'daily_clean_tmps_enable="YES"' >> /usr/jails/flavours/example/etc/periodic.conf
+echo 'daily_status_security_kernelmsg_enable="NO"' >> /usr/jails/flavours/example/etc/periodic.conf
 
 cat >> /usr/jails/flavours/example/etc/rc.conf << 'EOF'
 
