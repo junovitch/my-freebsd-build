@@ -194,26 +194,6 @@ passwd jason
 ##               Configure General Programs for Host System Use               ##
 ##----------------------------------------------------------------------------##
 ################################################################################
-# Looking to the future, let's convert to the new pkgng system for easier
-# package management in the future and updated the periodic scripts for it.
-#
-# WARNING: pkg is still experimental in FreeBSD 9.1 and there aren't packages
-# built for it yet. Be warned that you may run into minor issues.
-#
-# http://www5.us.freebsd.org/doc/en_US.ISO8859-1/books/handbook/pkgng-intro.html
-################################################################################
-
-/usr/sbin/pkg
-echo 'WITH_PKGNG=yes' >> /etc/make.conf
-echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
-pkg2ng
-
-echo 'daily_backup_pkgdb_enable="NO"' >> /etc/periodic.conf
-echo 'daily_status_security_pkgaudit_enable="YES"' >> /etc/periodic.conf
-echo 'weekly_status_pkg_enable="YES"' >> /etc/periodic.conf
-echo 'pkg_version="pkg version -I"' >> /etc/periodic.conf
-
-################################################################################
 # Let's get an initial ports tree for any installs from source. After this point
 # you only have to `portsnap fetch update` to keep everything in check.
 #
@@ -223,8 +203,34 @@ echo 'pkg_version="pkg version -I"' >> /etc/periodic.conf
 portsnap fetch extract
 
 ################################################################################
+# PKG support per instructions in the official package announcement.
+#
+# http://lists.freebsd.org/pipermail/freebsd-pkg/2013-October/000107.html
+# http://www5.us.freebsd.org/doc/en_US.ISO8859-1/books/handbook/pkgng-intro.html
+################################################################################
+
+cd /usr/ports/ports-mgmt/pkg && make install clean
+echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
+pkg2ng
+
+mkdir -p /usr/local/etc/pkg/repos
+cat > /usr/local/etc/pkg/repos/FreeBSD.conf << 'EOF'
+FreeBSD: {
+  url: "http://pkg.FreeBSD.org/${ABI}/latest",
+  mirror_type: "srv",
+  enabled: "yes"
+}
+'EOF'
+
+echo 'daily_backup_pkgdb_enable="NO"' >> /etc/periodic.conf
+echo 'daily_status_security_pkgaudit_enable="YES"' >> /etc/periodic.conf
+echo 'weekly_status_pkg_enable="YES"' >> /etc/periodic.conf
+echo 'pkg_version="pkg version -I"' >> /etc/periodic.conf
+
+################################################################################
 # Portmaster - A powerful tool for managing installs, upgrades, and removal
-# of unused ports. Installed with Bash completions and PKGNG support.
+# of unused ports.
 # http://www5.us.freebsd.org/doc/en_US.ISO8859-1/books/handbook/ports-using.html
 # http://www.cyberciti.biz/faq/freebsd-updating-software-ports-applications/ 
 # Examples:
@@ -236,14 +242,14 @@ portsnap fetch extract
 #    `portmaster` while in a /usr/ports/ directory to install that port
 ################################################################################
 
-cd /usr/ports/ports-mgmt/portmaster/ && make WITH_BASH="YES" install clean
+pkg install ports-mgmt/portmaster
 
 ################################################################################
 # Portdowngrade - Useful if an upgrade port doesn't work as intended and needs
 # to be downgraded to an old version.
 ################################################################################
 
-portmaster ports-mgmt/portdowngrade
+pkg install ports-mgmt/portdowngrade
 
 ################################################################################
 # Tmux - Separates the terminal from the current login. Useful if an SSH link
@@ -251,7 +257,7 @@ portmaster ports-mgmt/portdowngrade
 # will keep running.
 ################################################################################
 
-portmaster sysutils/tmux
+pkg install sysutils/tmux
 rehash
 tmux
 
@@ -259,13 +265,13 @@ tmux
 # Bash - GNU Bourne Again Shell required for some ports and install scripts.
 ################################################################################
 
-portmaster shells/bash
+pkg install shells/bash
 
 ################################################################################
 # Perl - Used for misc editing tasks and various programs.
 ################################################################################
 
-portmaster lang/perl5.16
+pkg install lang/perl5.16
 
 ################################################################################
 # OpenNTPD - Used for upkeep of time
@@ -274,7 +280,7 @@ portmaster lang/perl5.16
 # to using the default gateway for NTP.
 ################################################################################
 
-portmaster net/openntpd
+pkg install net/openntpd
 
 perl -pwi -e 's^servers pool.ntp.org^servers us.pool.ntp.org^' /usr/local/etc/ntpd.conf
 perl -pwi -e 's^#listen on \*^listen on 10.100.102.2\nlisten on 2001:123:4:5678::2^' /usr/local/etc/ntpd.conf
@@ -298,7 +304,7 @@ service openntpd start
 # http://forums.freebsd.org/showthread.php?t=36745
 ################################################################################
 
-portmaster mail/opensmtpd
+pkg install mail/opensmtpd
 
 cd /usr/local/etc/mail/
 cp smtpd.conf.sample smtpd.conf
@@ -336,7 +342,7 @@ echo "Test message" | mail -s "Test Email" root
 # OpenVPN Certificate Authority
 ################################################################################
 
-portmaster security/openvpn
+pkg install security/openvpn
 
 cp -Rv /usr/local/share/easy-rsa/ /usr/local/etc/openvpn-ca
 cd /usr/local/etc/openvpn-ca
@@ -381,35 +387,35 @@ scp keys/xju-rtr.* root@xju-rtr:/usr/local/etc/openvpn/keys
 # Use via `pstree`
 ################################################################################
 
-portmaster sysutils/pstree
+pkg install sysutils/pstree
 
 ################################################################################
 # Iftop - useful tool for network monitoring, more details than `systat -ifs`
 # Use via `iftop -i em1` or `iftop -i em0`
 ################################################################################
 
-portmaster net-mgmt/iftop
+pkg install net-mgmt/iftop
 
 ################################################################################
 # Cmdwatch - Repeat a command every few seconds for monitoring/testing.
 # Use via `cmdwatch`
 ################################################################################
 
-portmaster sysutils/cmdwatch 
+pkg install sysutils/cmdwatch 
 
 ################################################################################
 # Tree - For displaying a more graphical listing of files
 # Use via `tree`
 ################################################################################
 
-portmaster sysutils/tree
+pkg install sysutils/tree
 
 ################################################################################
 # Uprecords - Track uptime trends/percentages.
 # Use via `uprecords`
 ################################################################################
 
-portmaster sysutils/uptimed 
+pkg install sysutils/uptimed 
 
 echo '' >> /etc/rc.conf
 echo '# Enable Uptimed' >> /etc/rc.conf
@@ -424,8 +430,8 @@ service uptimed start
 
 echo '' >> /etc/rc.conf
 echo '# Enable BSDStats/FBSDmon' >> /etc/rc.conf
-portmaster sysutils/bsdstats
-portmaster ports-mgmt/fbsdmon
+pkg install sysutils/bsdstats
+pkg install ports-mgmt/fbsdmon
 echo 'weekly_fbsdmon_enable="YES"' >> /etc/periodic.conf
 echo 'fbsdmon_enable="YES"' >> /etc/rc.conf
 
@@ -433,7 +439,7 @@ echo 'fbsdmon_enable="YES"' >> /etc/rc.conf
 # ClamAV - Antivirus
 ################################################################################
 
-portmaster security/clamav
+pkg install security/clamav
 
 echo '' >> /etc/rc.conf
 echo '# Enable CLAMD' >> /etc/rc.conf
@@ -449,7 +455,7 @@ service clamav-clamd start
 # Also enable "set nomodeline" per the security note.
 ################################################################################
 
-portmaster editors/vim-lite
+pkg install editors/vim-lite
 
 echo 'set nomodeline' >> /etc/skel/.vimrc
 echo 'syntax on' >> /etc/skel/.vimrc
@@ -461,14 +467,14 @@ cp /etc/skel/.vimrc /home/jason/
 # could cause compatibility issues.
 ################################################################################
 
-portmaster devel/checkbashisms
+pkg install devel/checkbashisms
 
 ################################################################################
 # FreeIPMI Utilities and a basic status check during the daily periodic.
 # See `man freeipmi` for more than the what's listed.
 ################################################################################
  
-portmaster sysutils/freeipmi
+pkg install sysutils/freeipmi
 
 cat > /usr/local/etc/periodic/daily/990.ipmi-daily.sh << 'EOF'
 #!/bin/sh
@@ -485,7 +491,7 @@ chmod 555 /usr/local/etc/periodic/daily/990.ipmi-daily.sh
 # http://people.freebsd.org/~thierry/nut_FreeBSD_HowTo.txt 
 ################################################################################
 
-portmaster sysutils/nut
+pkg install sysutils/nut
 
 # Still testing as of 31 December, almost there...
 # Haven't had the time to actually validate this works properly
@@ -533,7 +539,7 @@ service nut_upsmon start
 ################################################################################
 
 # Setup
-portmaster security/logcheck
+pkg install security/logcheck
 
 # Fix permissions
 chown root:logcheck /var/log/auth.log
@@ -543,6 +549,13 @@ perl -pwi -e 's^/var/log/auth\.log\t\t\t600  7     100  \@0101T JC^/var/log/auth
 # Redirect logcheck alias to root
 perl -pwi -e 's^# General redirections for pseudo accounts^# General redirections for pseudo accounts\nlogcheck:\troot^' /usr/local/etc/mail/aliases
 newaliases
+
+################################################################################
+# Panicmail - Report kernel panics.
+################################################################################
+
+pkg install sysutils/panicmail
+echo 'panicmail_enable="YES"' >> /etc/rc.conf
 
 ################################################################################
 # Cleanup periodic messages for readability on a phone.
@@ -599,7 +612,7 @@ perl -pwi -e 's^3|5|7\t^9\t^' /etc/newsyslog.conf
 #	weekly at 6 am on Friday.
 ################################################################################
 
-portmaster sysutils/smartmontools
+pkg install sysutils/smartmontools
 
 cp /usr/local/etc/smartd.conf.sample /usr/local/etc/smartd.conf
 perl -pwi -e 's^\ADEVICESCAN\n^DEVICESCAN -a -o on -S on -I 194 -W 4,35,45 -R 5 -m root -s (S/../.././05|L/../../5/06)\n^' /usr/local/etc/smartd.conf
@@ -616,14 +629,13 @@ service smartd start
 # Rsync
 ################################################################################
 
-portmaster net/rsync
+pkg install net/rsync
 
 ################################################################################
 # Unison
 ################################################################################
 
-cd /usr/ports/net/unison && make config WITHOUT_X11="YES"
-portmaster net/unison
+pkg install net/unison-nox11
 
 ################################################################################
 # Setup of Unison for use
@@ -729,7 +741,7 @@ echo 'daily_unison_checkup="YES"' >> /etc/periodic.conf
 # ZFS-Stats
 ################################################################################
 
-portmaster sysutils/zfs-stats
+pkg install sysutils/zfs-stats
 
 ################################################################################
 ##----------------------------------------------------------------------------##
@@ -995,7 +1007,7 @@ service nfsd start
 ################################################################################
 
 # Install Poudriere
-portmaster ports-mgmt/poudriere
+pkg install ports-mgmt/poudriere
 
 # Backup and change default configuration variables
 cd /usr/local/etc && cp poudriere.conf.sample poudriere.conf
@@ -1052,9 +1064,10 @@ devel/checkbashisms
 sysutils/freeipmi
 sysutils/nut
 security/logcheck
+sysutils/panicmail
 sysutils/smartmontools
 net/rsync
-net/unison
+net/unison-nox11
 sysutils/zfs-stats
 sysutils/ezjail
 ports-mgmt/jailaudit
@@ -1106,7 +1119,7 @@ echo 'packagesite: file:///zfs/poudriere/data/packages/92amd64-default' > /usr/l
 # sysctl security.jail.allow_raw_sockets=1
 ################################################################################
 
-portmaster sysutils/ezjail
+pkg install sysutils/ezjail
 ezjail-admin install
 ezjail-admin update -P
 chmod 700 /usr/jails
@@ -1117,7 +1130,7 @@ chmod 700 /usr/jails
 # audit is already set to run daily.
 ################################################################################
 
-portmaster ports-mgmt/jailaudit
+pkg install ports-mgmt/jailaudit
 echo 'daily_status_security_portaudit_enable="NO"' >> /etc/periodic.conf
 echo 'daily_status_security_jailaudit_enable="YES"' >> /etc/periodic.conf
 
