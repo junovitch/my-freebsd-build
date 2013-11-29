@@ -1106,7 +1106,12 @@ databases/mariadb55-server
 poudriere bulk -f /zfs/poudriere/pkg_list -j 91amd64
 
 # Allow host to install from Poudriere Repo
-echo 'packagesite: file:///zfs/poudriere/data/packages/92amd64-default' > /usr/local/etc/pkg.conf
+mkdir -p /usr/local/etc/pkg/repos
+cat >> /usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
+myrepo: {
+  url: "file:///zfs/poudriere/data/packages/92amd64-default",
+}
+'EOF'
 
 ################################################################################
 ##----------------------------------------------------------------------------##
@@ -1158,14 +1163,19 @@ echo '# Uncomment to allow pings within a jail on upon reboot' >> /etc/sysctl.co
 echo '#security.jail.allow_raw_sockets=1' >> /etc/sysctl.conf
 
 ################################################################################
-# First, copy package repo to basejail and map default pkg.conf to use it
+# First, copy package repo to basejail and map default myrepo.conf to use it
 # Second, copy vim dot files into jail, enable sshd, and enable syslogd with
 # the host system as the destination
 # Third, set up remaining for all jail's rc.conf
 ################################################################################
 
 mkdir -p /usr/jails/newjail/pkgrepo
-echo "packagesite: file:///pkgrepo/91amd64-default" > /usr/jails/flavours/example/usr/local/etc/pkg.conf
+mkdir -p /usr/jails/flavours/example/usr/local/etc/pkg/repos
+cat >> /usr/jails/flavours/example/usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
+myrepo: {
+  url: "file:///pkgrepo/92amd64-default",
+}
+'EOF'
 
 cp /etc/skel/.vimrc /usr/jails/newjail/etc/skel/
 cp /etc/skel/.vimrc /usr/jails/newjail/root
@@ -2283,8 +2293,8 @@ poudriere jails -c -j 92amd64 -v 9.2-RELEASE -a amd64
 ## Move currently built packages and make.conf over if upgrading within same major release
 mv /usr/local/etc/poudriere.d/91amd64-make.conf /usr/local/etc/poudriere.d/92amd64-make.conf
 mv /zfs/poudriere/data/packages/91amd64-default /zfs/poudriere/data/packages/92amd64-default
-## Update jail and host system pkg.conf accordingly
-find / -name pkg.conf -exec sed -i '' -e 's/91amd64/92amd64/' {} \;
+## Update jail and host system myrepo.conf accordingly
+find / -name myrepo.conf -exec sed -i '' -e 's/91amd64/92amd64/' {} \;
 ## Delete old build jail
 poudriere jail -d -j 91amd64
 
