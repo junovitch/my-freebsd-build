@@ -480,9 +480,12 @@ cat > /usr/local/etc/periodic/daily/990.ipmi-daily.sh << 'EOF'
 #!/bin/sh
 echo
 echo "IPMI Sensor Check"
-/usr/local/sbin/ipmi-sensors --no-header-output --interpret-oem-data \
-	| cut -d "|" -f "2 4 5 6" | sed 's/|//g' | awk '{gsub(/^ +|  +$/,"")}1'
-exit 1
+iout=`/usr/local/sbin/ipmi-sensors --no-header-output --interpret-oem-data \
+	| cut -d "|" -f "2 4 5 6" | sed 's/|//g' | awk '{gsub(/^ +|  +$/,"")}1'`
+echo "$iout"
+
+echo "$iout" | egrep -v "Presence detected|OK|Low" > /dev/null && rc=1 || rc=0
+exit $rc
 'EOF'
 chmod 555 /usr/local/etc/periodic/daily/990.ipmi-daily.sh
 
