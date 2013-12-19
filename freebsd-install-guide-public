@@ -1101,6 +1101,7 @@ sysutils/rubygem-bundler
 textproc/libxslt
 www/node
 databases/sqlite3
+databases/mariadb55-client
 ########## MariaDB Jail ##########
 databases/mariadb55-server
 'EOF'
@@ -1414,7 +1415,7 @@ echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Installing Dependencies:  Install Puppet, Git, Nginx, and Ruby Components
 
-pkg install puppet rubygem-puppet-lint git nginx rubygem-rake ruby19-iconv rubygem-passenger rubygem-bundler mysql55-client libxslt node sqlite3
+pkg install puppet rubygem-puppet-lint git nginx rubygem-rake ruby19-iconv rubygem-passenger rubygem-bundler mariadb55-client libxslt node sqlite3
 
 # At this point, Puppet needs to be started so that all its SSL keys can be 
 # generated. This gives the chance to test that Puppet does work before anything
@@ -1651,7 +1652,7 @@ events {
 }
 
 http {
-    passenger_root /usr/local/lib/ruby/gems/1.9/gems/passenger-4.0.20;
+    passenger_root /usr/local/lib/ruby/gems/1.9/gems/passenger-4.0.29;
     passenger_ruby /usr/local/bin/ruby;
     passenger_max_pool_size 10;
     passenger_pool_idle_time 300;
