@@ -1218,7 +1218,7 @@ clear_tmp_enable="YES"
 cat > /usr/local/etc/periodic/daily/999.jail-periodic-daily << 'EOF'
 #!/bin/sh
 #
-# /usr/local/etc/periodic/daily/999.jail-periodic-daily 2013-10-14
+# /usr/local/etc/periodic/daily/999.jail-periodic-daily 2013-11-23
 #
 
 # If there is a global system configuration file, suck it in.
@@ -1229,6 +1229,8 @@ then
     source_periodic_confs
 fi
 
+: ${daily_jail_periodic_ignore_length="0"}
+
 case "$daily_jail_periodic_enable" in
     [Yy][Ee][Ss])
         echo
@@ -1237,9 +1239,12 @@ case "$daily_jail_periodic_enable" in
         paths=`jls | awk '{ print $4 }' | sort`
         for path in $paths; do
             if [ -f ${path}/var/log/daily.log ]; then
-                echo ""
-                echo "daily periodic log in $path"
-                grep -v newsyslog ${path}/var/log/daily.log
+                LENGTH=`grep -vc newsyslog ${path}/var/log/daily.log`
+                if [ $LENGTH -ne $daily_jail_periodic_ignore_length ]; then
+                    echo ""
+                    echo "daily periodic log in $path"
+                    grep -v newsyslog ${path}/var/log/daily.log
+                fi
             fi
         done && rc=1
         ;;
@@ -1259,7 +1264,9 @@ chmod 555 /usr/local/etc/periodic/weekly/999.jail-periodic-weekly
 chmod 555 /usr/local/etc/periodic/monthly/999.jail-periodic-monthly
 
 echo 'daily_jail_periodic_enable="YES"' >> /etc/periodic.conf
+echo 'daily_jail_periodic_ignore_length="4"' >> /etc/periodic.conf
 echo 'weekly_jail_periodic_enable="YES"' >> /etc/periodic.conf
+echo 'weekly_jail_periodic_ignore_length="4"' >> /etc/periodic.conf
 echo 'monthly_jail_periodic_enable="YES"' >> /etc/periodic.conf
 
 ################################################################################
