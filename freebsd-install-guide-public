@@ -1027,14 +1027,11 @@ poudriere jails -c -j 91amd64 -v 9.1-RELEASE -a amd64
 poudriere jail -u -j 91amd64
 
 # Setup make.conf variables for build jail
-cat > /usr/local/etc/poudriere.d/91amd64-make.conf << 'EOF'
+cat > /usr/local/etc/poudriere.d/92amd64-make.conf << 'EOF'
 WITH_SSP_PORTS=yes
 WITH_PKGNG=yes
-portmaster_SET+=BASH
-unison_UNSET+=X11
-php5_SET+=APACHE
-ffmpeg1_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB
-APACHE_PORT=www/apache24
+php5_SET+=FPM
+ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 ca_root_nss_SET+=ETCSYMLINK
 DEFAULT_VERSIONS= ruby=1.9 perl5=5.16
 rubygem-passenger_UNSET+=APACHE22
@@ -1075,10 +1072,9 @@ net/unison-nox11
 sysutils/zfs-stats
 sysutils/ezjail
 ports-mgmt/jailaudit
-########## Apache24 ##########
-www/apache24
 ########## Serviio Jail ##########
 net/serviio
+graphics/dcraw
 ########## PHP5 and dependencies listed by-name for Serviio ##########
 lang/php5
 ftp/php5-curl
@@ -1885,31 +1881,60 @@ echo 'WITH_PKGNG=yes' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Setup FFMPEG options per guidance in the helpful links then start Serviio build.
-# cd /usr/ports/multimedia/ffmpeg1 && make config WITH_RTMP=YES WITH_X11GRAB=YES WITH_FAAC=YES WITH_LAME=YES WITH_AMR_NB=YES WITH_AMR_WB=YES
-# portmaster net/serviio
-pkg install serviio
-
-# Ensure default dist files are in place as the active configs
-cd /usr/local/etc/serviio
-cp profiles.dist.xml profiles.xml
-cp log4j.dist.xml log4j.xml
-cp console-log4j.dist.properties console-log4j.properties                      
-cp application-profiles.dist.xml application-profiles.xml
+# cd /usr/ports/multimedia/ffmpeg && make config WITH_RTMP=YES WITH_X11GRAB=YES WITH_FAAC=YES WITH_LAME=YES WITH_AMR_NB=YES WITH_AMR_WB=YES WITH_ASS=YES
+# portmaster net/serviio graphics/dcraw
+pkg install serviio dcraw
 
 # Fix home directory for Serviio then enable and start it.
-pw usermod dlna -m -d /var/dlna
+#pw usermod dlna -m -d /var/db/serviio/home
+#mkdir -p /var/db/serviio/home/plugins
 echo 'serviio_enable="YES"' >> /etc/rc.conf
-echo serviio_args=\'-Dserviio.advertisementDuration=\"15\" -Dserviio.remoteHost=\"10.100.102.14\"\' >> /etc/rc.conf
+echo serviio_args=\'-Dserviio.advertisementDuration=\"15\"\' >> /etc/rc.conf
 service serviio start
 
+########### Option 1: PHP5 FPM listener for Nginx App Jail Frontend ############
+#cd /usr/ports/lang/php5 && make config WITH_FPM=YES
+#portmaster lang/php5 ftp/php5-curl textproc/php5-xml converters/php5-mbstring devel/php5-json textproc/php5-simplexml textproc/php5-dom
+pkg install php5 php5-curl php5-xml php5-mbstring php5-json php5-simplexml php5-dom
+
+sed -i '' -e 's/;listen.allowed_clients = 127.0.0.1/listen.allowed_clients = 10.100.102.11,10.100.102.12/' /usr/local/etc/php-fpm.conf
+
+cd /tmp && fetch https://github.com/SwoopX/Web-UI-for-Serviio/archive/Serviio-1.3.zip
+mkdir -p /usr/local/www
+unzip -d /usr/local/www Serviio-1.3.zip
+
+# rsync the entire /usr/local/www/Web-UI-for-Serviio-Serviio-1.3 directory
+# to both apps servers and add this to their nginx.conf
+
+    server {
+        listen 80;
+        server_name serviio-console.pa-us.mydomain.name serviio-console;
+        root /usr/local/www/Web-UI-for-Serviio-Serviio-1.3;
+        location / {
+            index index.php;
+        }
+        location ~ \.php$ {
+            fastcgi_pass 10.100.102.14:9000;
+            fastcgi_index index.php;
+            fastcgi_param SCRIPT_FILENAME /usr/local/www/Web-UI-for-Serviio-Serviio-1.3$fastcgi_script_name;
+            include fastcgi_params;
+        }
+        location ~ /\.ht {
+            deny all;
+        }
+    }
+
+echo 'php_fpm_enable="YES"' >> /etc/rc.conf
+service php-fpm start
+
+################### Option 2: Standalone Apache/PHP Stack ######################
 # Setup Apache 2.4
 # portmaster www/apache24
 pkg install apache24
 
 # Setup PHP5 configuration then start port build with WebUI dependencies
-# cd /usr/ports/lang/php5 && make config WITH_APACHE=YES
-# portmaster lang/php5 ftp/php5-curl textproc/php5-xml converters/php5-mbstring devel/php5-json textproc/php5-simplexml textproc/php5-dom
-pkg install php5 php5-curl php5-xml php5-mbstring php5-json php5-simplexml php5-dom
+cd /usr/ports/lang/php5 && make config WITH_APACHE=YES
+portmaster lang/php5 ftp/php5-curl textproc/php5-xml converters/php5-mbstring devel/php5-json textproc/php5-simplexml textproc/php5-dom
 
 # Fetch the current WebUI. Update if a new version is available on the Serviio wiki.
 # http://wiki.serviio.org/doku.php?id=phpwebui
