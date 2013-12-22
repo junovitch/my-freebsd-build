@@ -98,6 +98,7 @@ cat > /etc/rc.conf << 'EOF'
 # General System Config
 # Set dumpdev to "AUTO" to enable crash dumps, "NO" to disable
 dumpdev="AUTO"
+fsck_y_enable="YES"
 powerd_enable="YES"
 
 # General Network Configuration
