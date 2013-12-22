@@ -1950,8 +1950,7 @@ service php-fpm start
 
 ################### Option 2: Standalone Apache/PHP Stack ######################
 # Setup Apache 2.4
-# portmaster www/apache24
-pkg install apache24
+portmaster www/apache24
 
 # Setup PHP5 configuration then start port build with WebUI dependencies
 cd /usr/ports/lang/php5 && make config WITH_APACHE=YES
