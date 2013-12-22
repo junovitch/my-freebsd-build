@@ -308,11 +308,26 @@ service openntpd start
 pkg install mail/opensmtpd
 
 cd /usr/local/etc/mail/
-cp smtpd.conf.sample smtpd.conf
-perl -pwi -e 'if ($_ =~ m/table aliases/) { print "table secrets db:/usr/local/etc/mail/secrets.db\ntable trusted_IPs { 10.100.0.0/16, 2001:987:6:543::/64, 2001:123:4:5678::/64 }\n" }' smtpd.conf
-perl -pwi -e 's^accept for any relay^accept from local for domain "gmail.com" relay via tls+auth://gmail_login\@smtp.gmail.com:587 auth <secrets>^' smtpd.conf
-perl -pwi -e 's^listen on 127.0.0.1^listen on 10.100.102.2\nlisten on 2001:123:4:5678::2^' smtpd.conf
-echo 'accept from source trusted_IPs for local alias <aliases> deliver to mbox' >> smtpd.conf
+
+cat > smtpd.conf << 'EOF'
+# This is the smtpd server system-wide configuration file.
+# See smtpd.conf(5) for more information.
+
+# To accept external mail, replace with: listen on all
+listen on 10.100.102.2
+listen on 2001:123:4:5678::2
+
+# If you edit the file, you have to run "smtpctl update table aliases"
+table aliases file:/etc/mail/aliases
+table secrets db:/usr/local/etc/mail/secrets.db
+table trusted_IPs { 10.100.0.0/16, 2001:987:6:543::/64, 2001:123:4:5678::/64 }
+
+# Uncomment the following to accept external mail for domain "example.org"
+#accept from any for domain "example.org" alias <aliases> deliver to mbox
+accept for local alias <aliases> deliver to mbox
+accept from local for domain "gmail.com" relay via tls+auth://gmail_login@smtp.gmail.com:587 auth <secrets>
+accept from source trusted_IPs for local alias <aliases> deliver to mbox
+'EOF'
 
 touch secrets
 chmod 640 secrets
@@ -320,9 +335,8 @@ chown root:_smtpd secrets
 echo 'gmail_login  jason.unovitch:CHANGETHISTOTHEPASSWORD' >> secrets
 /usr/local/libexec/opensmtpd/makemap secrets
 
-cp /etc/mail/aliases /usr/local/etc/mail/aliases
-perl -pwi -e 's^# root:\tme\@my.domain^root:\tjason.unovitch\@gmail.com^' aliases
-/usr/local/libexec/opensmtpd/makemap aliases
+perl -pwi -e 's^# root:\tme\@my.domain^root:\tjason.unovitch\@gmail.com^' /etc/mail/aliases
+smtpctl update table aliases
 
 echo '' >> /etc/rc.conf
 echo '# Disable Sendmail MTA' >> /etc/rc.conf
