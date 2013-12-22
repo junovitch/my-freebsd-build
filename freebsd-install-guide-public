@@ -1189,6 +1189,8 @@ cp -a /usr/home/jason/.ssh /usr/jails/newjail/root/
 chown -R root:wheel /usr/jails/newjail/root/.ssh
 perl -pwi -e 's^#PermitRootLogin no^PermitRootLogin without-password^g' /usr/jails/newjail/etc/ssh/sshd_config
 
+perl -pwi -e 's^1,31\t0-5\t\*\t\*\t\*\troot\tadjkerntz -a^#1,31\t0-5\t\*\t\*\t\*\troot\tadjkerntz -a^' /usr/jails/newjail/etc/crontab
+
 perl -pwi -e 's^# sshd_enable="YES"^sshd_enable="YES"^g' /usr/jails/flavours/example/etc/rc.conf
 perl -pwi -e 's^syslogd_flags="-ss"^syslogd_flags="-s -v -v"^g' /usr/jails/flavours/example/etc/rc.conf
 perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.100.102.2^g' /usr/jails/newjail/etc/syslog.conf
