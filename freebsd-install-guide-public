@@ -853,7 +853,7 @@ zfs create zfs/homedirs/public
 zfs create zfs/homedirs/jason
 zfs create zfs/homedirs/common_media
 zfs create zfs/homedirs/common_assorted
-zfs set compression=on zfs/homedirs/common_assorted
+zfs set compression=lz4 zfs/homedirs/common_assorted
 zfs create zfs/homedirs/family_albums
 zfs set dedup=on zfs/homedirs/family_albums
 zfs create zfs/local
