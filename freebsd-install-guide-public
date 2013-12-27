@@ -1085,7 +1085,6 @@ net/rsync
 net/unison-nox11
 sysutils/zfs-stats
 sysutils/ezjail
-ports-mgmt/jailaudit
 ########## Serviio Jail ##########
 net/serviio
 graphics/dcraw
@@ -1143,16 +1142,6 @@ pkg install sysutils/ezjail
 ezjail-admin install
 ezjail-admin update -P
 chmod 700 /usr/jails
-
-################################################################################
-# Port/Jail Audit tools - Check for vulnerabilities every day and email the
-# admin during the periodic check. Portaudit part will be disabled since pkg
-# audit is already set to run daily.
-################################################################################
-
-pkg install ports-mgmt/jailaudit
-echo 'daily_status_security_portaudit_enable="NO"' >> /etc/periodic.conf
-echo 'daily_status_security_jailaudit_enable="YES"' >> /etc/periodic.conf
 
 ################################################################################
 # Make SSH jail friendly by not allowing it to listen to all IP aliases
