@@ -1695,6 +1695,15 @@ http {
 
         access_log /var/log/nginx/dashboard_access.log;
         root /usr/local/share/puppet-dashboard/public;
+
+        auth_basic             "Puppet Dashboard";
+        auth_basic_user_file   htpasswd;
+        allow 10.100.102.11;
+        allow 10.100.102.12; 
+        allow 2001:123:4:5678::11;
+        allow 2001:123:4:5678::12;
+        deny all;
+        satisfy any;
     }
     server {
         listen       80;
@@ -1746,6 +1755,10 @@ mkdir /var/log/nginx
 # Enable a daily log file rotation via newsyslog.conf
 printf "/var/log/nginx/*.log\t\t\t644  7\t   *    @T00  JG    /var/run/nginx.pid  30\n" >> /etc/newsyslog.conf
 
+# Create a password file for auth_basic login
+echo "dashboard:`openssl passwd -crypt PUT_PASSWORD_HERE`" >> /usr/local/etc/nginx/htpasswd
+chmod 640 /usr/local/etc/nginx/htpasswd
+chown root:www /usr/local/etc/nginx/htpasswd
 
 # If the puppetmaster service is still running from earlier testing, stop it now
 # Mark appropriate optiosn for hostname specific 
