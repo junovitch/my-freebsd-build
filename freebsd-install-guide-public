@@ -326,7 +326,7 @@ table trusted_IPs { 10.100.0.0/16, 2001:987:6:543::/64, 2001:123:4:5678::/64 }
 #accept from any for domain "example.org" alias <aliases> deliver to mbox
 accept for local alias <aliases> deliver to mbox
 accept from local for domain "gmail.com" relay via tls+auth://gmail_login@smtp.gmail.com:587 auth <secrets>
-accept from source trusted_IPs for local alias <aliases> deliver to mbox
+accept from source <trusted_IPs> for domain "mydomain.name" alias <aliases> deliver to mbox
 'EOF'
 
 touch secrets
