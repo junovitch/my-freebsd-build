@@ -1909,8 +1909,8 @@ echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 pkg install serviio dcraw
 
 # Fix home directory for Serviio then enable and start it.
-#pw usermod dlna -m -d /var/db/serviio/home
-#mkdir -p /var/db/serviio/home/plugins
+pw usermod dlna -m -d /var/db/serviio/home
+mkdir -p /var/db/serviio/home/plugins
 echo 'serviio_enable="YES"' >> /etc/rc.conf
 echo serviio_args=\'-Dserviio.advertisementDuration=\"15\"\' >> /etc/rc.conf
 service serviio start
