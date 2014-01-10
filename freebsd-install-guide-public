@@ -210,17 +210,19 @@ portsnap fetch extract
 # http://www5.us.freebsd.org/doc/en_US.ISO8859-1/books/handbook/pkgng-intro.html
 ################################################################################
 
-cd /usr/ports/ports-mgmt/pkg && make install clean
+pkg
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 pkg2ng
 
+# FreeBSD 9 only, this is done on 10
+rm /usr/local/etc/pkg.conf
 mkdir -p /usr/local/etc/pkg/repos
 cat > /usr/local/etc/pkg/repos/FreeBSD.conf << 'EOF'
 FreeBSD: {
   url: "http://pkg.FreeBSD.org/${ABI}/latest",
   mirror_type: "srv",
-  enabled: "yes"
+  enabled: yes
 }
 'EOF'
 
