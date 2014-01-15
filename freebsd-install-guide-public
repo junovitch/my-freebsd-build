@@ -571,6 +571,12 @@ perl -pwi -e 's^# General redirections for pseudo accounts^# General redirection
 newaliases
 
 ################################################################################
+# Iperf
+################################################################################
+
+pkg install benchmarks/iperf
+
+################################################################################
 # Panicmail - Report kernel panics.
 ################################################################################
 
@@ -1087,6 +1093,7 @@ net/rsync
 net/unison-nox11
 sysutils/zfs-stats
 sysutils/ezjail
+benchmarks/iperf
 ########## Serviio Jail ##########
 net/serviio
 graphics/dcraw
