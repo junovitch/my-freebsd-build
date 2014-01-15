@@ -148,8 +148,8 @@ ifconfig_em1_alias8="inet 10.100.102.15/32 fib 1"		# unused
 ifconfig_em1_alias9="inet6 2001:123:4:5678::15/128 fib 1"	# unused
 ifconfig_em1_alias10="inet 10.100.102.16/32 fib 1"		# unused
 ifconfig_em1_alias11="inet6 2001:123:4:5678::16/128 fib 1"	# unused
-ifconfig_em1_alias12="inet 10.100.102.17/32 fib 1"		# unused
-ifconfig_em1_alias13="inet6 2001:123:4:5678::17/128 fib 1"	# unused
+ifconfig_em1_alias12="inet 10.100.102.17/32 fib 1"		# pdbi.pa-us.mydomain.name
+ifconfig_em1_alias13="inet6 2001:123:4:5678::17/128 fib 1"	# pdbi.pa-us.mydomain.name
 ifconfig_em1_alias14="inet 10.100.102.18/32 fib 1"		# mdbi.pa-us.mydomain.name
 ifconfig_em1_alias15="inet6 2001:123:4:5678::18/128 fib 1"	# mdbi.pa-us.mydomain.name
 ifconfig_em1_alias16="inet 10.100.102.19/32"			# vpn.pa-us.mydomain.name
@@ -1114,8 +1114,11 @@ textproc/libxslt
 www/node
 databases/sqlite3
 databases/mariadb55-client
+databases/postgresql93-client
 ########## MariaDB Jail ##########
 databases/mariadb55-server
+########## PostgreSQL Jail ##########
+databases/postgresql93-serve
 'EOF'
 
 # Start a bulk build of all ports in that list
@@ -1326,6 +1329,43 @@ cd /root && ./make-quicksha256-key.sh www.mydomain.name
 
 ################################################################################
 ##----------------------------------------------------------------------------##
+##                     PostgreSQL Jail Configuration                          ##
+##----------------------------------------------------------------------------##
+################################################################################
+
+ezjail-admin create -f lan pdbi.pa-us.mydomain.name 10.100.102.17,2001:123:4:5678::17
+ezjail-admin config -f 1 pdbi.pa-us.mydomain.name
+echo '/zfs/poudriere/data/packages /usr/jails/pdbi.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.pdbi_pa_us_mydomain_name
+perl -pwi -e 's/parameters=""/parameters="allow.sysvipc=1"/g' /usr/local/etc/ezjail/pdbi_pa_us_mydomain_name
+ezjail-admin console -f pdbi.pa-us.mydomain.name
+passwd
+
+pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
+echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
+
+# Install PostgreSQL with default options
+pkg install postgresql93-server
+
+# Enable and start PostgreSQL
+echo 'postgresql_enable="YES"' >> /etc/rc.conf
+service postgresql initdb
+service postgresql start
+
+echo 'daily_pgsql_backup_enable="YES"' >> /etc/periodic.conf
+echo 'daily_pgsql_vacuum_enable="YES"' >> /etc/periodic.conf
+
+su - pgsql
+createuser -sdrP admin
+
+echo "host all all 10.100.102.11/32 md5" >> /usr/local/pgsql/data/pg_hba.conf
+echo "host all all 10.100.102.12/32 md5" >> /usr/local/pgsql/data/pg_hba.conf
+echo "host all all 2001:123:4:5678::11/128 md5" >> /usr/local/pgsql/data/pg_hba.conf
+echo "host all all 2001:123:4:5678::12/128 md5" >> /usr/local/pgsql/data/pg_hba.conf
+service postgresql reload
+
+################################################################################
+##----------------------------------------------------------------------------##
 ##                       MariaDB Jail Configuration                           ##
 ##----------------------------------------------------------------------------##
 ################################################################################
@@ -1426,7 +1466,7 @@ echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Installing Dependencies:  Install Puppet, Git, Nginx, and Ruby Components
 
-pkg install puppet rubygem-puppet-lint git nginx rubygem-rake ruby19-iconv rubygem-passenger rubygem-bundler mariadb55-client libxslt node sqlite3
+pkg install puppet rubygem-puppet-lint git nginx rubygem-rake ruby19-iconv rubygem-passenger rubygem-bundler mariadb55-client libxslt node sqlite3 postgresql93-client
 
 # At this point, Puppet needs to be started so that all its SSL keys can be 
 # generated. This gives the chance to test that Puppet does work before anything
@@ -1529,7 +1569,7 @@ sed -i '' -e 's/#! \/usr\/bin\/ruby/#!\/usr\/local\/bin\/ruby/' /usr/local/share
 # Install gems required in the 'Gemfile' via the Rubygem Bundler
 # If the postgresql gem bundles is required additional dependencies are needed.
 cd /usr/local/share/puppet-dashboard
-bundle install --path vendor/bundle --without postgresql
+bundle install --path vendor/bundle
 
 # Generate secret_token
 # Cleanup any errors and the default token after generating the new one.
