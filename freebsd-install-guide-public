@@ -726,7 +726,7 @@ printf "*/10\t*\t*\t*\t*\troot\tpgrep -f 'unison syncLAN.prf' || /usr/local/bin/
 cat > /usr/local/etc/periodic/daily/800.unison << 'EOF'
 #!/bin/sh
 #
-# /usr/local/etc/periodic/daily/800.unison 2013-04-16
+# /usr/local/etc/periodic/daily/800.unison 2014-01-15
 #
 # Check logs for yesterday's Unison runs
 #
@@ -741,21 +741,25 @@ fi
 
 case "$daily_unison_checkup" in
     [Yy][Ee][Ss])
+        # Run twice to show all then again to get exit statuses
         echo ""
         echo "Checking yesterday's Unison LAN syncs"
         bzgrep "Synchronization" /var/log/unison-syncLAN.log.0.bz2
-
+        bzgrep "Synchronization" /var/log/unison-syncLAN.log.0.bz2 | \
+                tail -2 | grep incomplete > /dev/null && lan=1 || lan=0
         echo ""
         echo "Checking yesterday's Unison WAN sync"
         bzgrep "Synchronization" /var/log/unison-syncWAN.log.0.bz2
+        bzgrep "Synchronization" /var/log/unison-syncWAN.log.0.bz2 | \
+                tail -2 | grep incomplete > /dev/null && wan=1 || wan=0
 
-        # Exit assuming info to be checked success or fail
-        rc=1
+        # With an incomplete in either of the last 2 log entries, do 
+        # bitwise OR to set rc to 1 
+        rc=$(( $lan | $wan ))
         ;;
     *)
         rc=0
         ;;
-
 esac
 
 exit $rc
