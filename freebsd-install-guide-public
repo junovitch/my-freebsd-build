@@ -587,6 +587,7 @@ echo 'panicmail_enable="YES"' >> /etc/rc.conf
 # Cleanup periodic messages for readability on a phone.
 ################################################################################
 
+echo 'daily_status_rwho_enable="NO"' >> /etc/periodic.conf
 echo 'daily_clean_hoststat_enable="NO"' >> /etc/periodic.conf
 echo 'daily_status_disks_df_flags="-t ufs -h"' >> /etc/periodic.conf
 echo 'weekly_noid_enable="NO"' >> /etc/periodic.conf  
