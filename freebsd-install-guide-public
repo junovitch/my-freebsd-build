@@ -1130,7 +1130,7 @@ databases/postgresql93-client
 ########## MariaDB Jail ##########
 databases/mariadb55-server
 ########## PostgreSQL Jail ##########
-databases/postgresql93-serve
+databases/postgresql93-server
 'EOF'
 
 # Start a bulk build of all ports in that list
