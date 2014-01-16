@@ -1579,7 +1579,6 @@ chmod 660 settings.yml
 sed -i '' -e 's/#! \/usr\/bin\/ruby/#!\/usr\/local\/bin\/ruby/' /usr/local/share/puppet-dashboard/bin/external_node
 
 # Install gems required in the 'Gemfile' via the Rubygem Bundler
-# If the postgresql gem bundles is required additional dependencies are needed.
 cd /usr/local/share/puppet-dashboard
 bundle install --path vendor/bundle
 
