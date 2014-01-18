@@ -1169,15 +1169,12 @@ perl -pwi -e 's^#ListenAddress\ ::^ListenAddress 2001:123:4:5678::2^g' /etc/ssh/
 service sshd restart
 
 ################################################################################
-# Enable jails in rc.conf and load Apache module into kernel for www jails.
+# Enable jails in rc.conf and put block for enabling raw sockets in sysctl.conf
 ################################################################################
 
 echo '' >> /etc/rc.conf
 echo '# Ezjail Configuration' >> /etc/rc.conf
 echo 'ezjail_enable="YES"' >> /etc/rc.conf
-
-echo 'accf_http_load="YES"' >> /boot/loader.conf
-kldload accf_http
 
 echo '' >> /etc/sysctl.conf
 echo '# Uncomment to allow pings within a jail on upon reboot' >> /etc/sysctl.conf
