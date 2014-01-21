@@ -1221,8 +1221,6 @@ kern_securelevel="3"
 
 # Clear Tmp
 clear_tmp_enable="YES"
-
-# Local Jail Configuration Follows
 'EOF'
 
 ################################################################################
@@ -1357,7 +1355,7 @@ echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 pkg install postgresql93-server
 
 # Enable and start PostgreSQL
-echo 'postgresql_enable="YES"' >> /etc/rc.conf
+echo 'postgresql_enable="YES"' >> /etc/rc.conf.local
 service postgresql initdb
 service postgresql start
 
@@ -1407,7 +1405,7 @@ patch /var/db/mysql/my.cnf << 'EOF'
 'EOF'
 
 # Enable and start MariaDB
-echo 'mysql_enable="YES"' >> /etc/rc.conf
+echo 'mysql_enable="YES"' >> /etc/rc.conf.local
 service mysql-server start
 
 # Prepare Database for use by running the secure installation.
@@ -1687,8 +1685,8 @@ chmod 555 /usr/local/etc/rc.d/dashboard_workers
 # setting '-n 2' workers to match the number of processor cores and ensure it's ready
 # for a production workload. 
 
-echo 'dashboard_workers_enable="YES"' >> /etc/rc.conf
-echo 'dashboard_workers_flags="-n 2"' >> /etc/rc.conf
+echo 'dashboard_workers_enable="YES"' >> /etc/rc.conf.local
+echo 'dashboard_workers_flags="-n 2"' >> /etc/rc.conf.local
 service dashboard_workers start
 
 # Running Dashboard in a Production-Quality Server
@@ -1802,15 +1800,15 @@ chown root:www /usr/local/etc/nginx/htpasswd
 # If the puppetmaster service is still running from earlier testing, stop it now
 # Mark appropriate optiosn for hostname specific 
 service puppetmaster onestop
-echo 'puppetmaster_enable="NO"' >> /etc/rc.conf
-echo 'puppetmaster_rundir="/var/run/puppet"' >> /etc/rc.conf
+echo 'puppetmaster_enable="NO"' >> /etc/rc.conf.local
+echo 'puppetmaster_rundir="/var/run/puppet"' >> /etc/rc.conf.local
 
-echo 'puppetmaster_flags="--config_file_name=puppet.conf.apps1.pa-us.mydomain.name --rundir=${puppetmaster_rundir}"' >> /etc/rc.conf
+echo 'puppetmaster_flags="--config_file_name=puppet.conf.apps1.pa-us.mydomain.name --rundir=${puppetmaster_rundir}"' >> /etc/rc.conf.local
 # or
-echo 'puppetmaster_flags="--config_file_name=puppet.conf.apps2.pa-us.mydomain.name --rundir=${puppetmaster_rundir}"' >> /etc/rc.conf
+echo 'puppetmaster_flags="--config_file_name=puppet.conf.apps2.pa-us.mydomain.name --rundir=${puppetmaster_rundir}"' >> /etc/rc.conf.local
 
 # Enable nginx service and start it. At this point basic functionality is online.
-echo 'nginx_enable="YES"' >> /etc/rc.conf
+echo 'nginx_enable="YES"' >> /etc/rc.conf.local
 service nginx start
 
 # Configuring Dashboard
@@ -1926,8 +1924,8 @@ echo "ftp" >> /etc/ftpchroot
 touch /var/log/ftpd
 
 # Finalize and activate
-echo 'ftpd_enable="YES"' >> /etc/rc.conf
-echo 'ftpd_flags="-ASll"' >> /etc/rc.conf
+echo 'ftpd_enable="YES"' >> /etc/rc.conf.local
+echo 'ftpd_flags="-ASll"' >> /etc/rc.conf.local
 service ftpd start
 
 ################################################################################
@@ -1961,8 +1959,8 @@ pkg install serviio dcraw
 # Fix home directory for Serviio then enable and start it.
 pw usermod dlna -m -d /var/db/serviio/home
 mkdir -p /var/db/serviio/home/plugins
-echo 'serviio_enable="YES"' >> /etc/rc.conf
-echo serviio_args=\'-Dserviio.advertisementDuration=\"15\"\' >> /etc/rc.conf
+echo 'serviio_enable="YES"' >> /etc/rc.conf.local
+echo serviio_args=\'-Dserviio.advertisementDuration=\"15\"\' >> /etc/rc.conf.local
 service serviio start
 
 ########### Option 1: PHP5 FPM listener for Nginx App Jail Frontend ############
@@ -1997,7 +1995,7 @@ unzip -d /usr/local/www Serviio-1.3.zip
         }
     }
 
-echo 'php_fpm_enable="YES"' >> /etc/rc.conf
+echo 'php_fpm_enable="YES"' >> /etc/rc.conf.local
 service php-fpm start
 
 ################### Option 2: Standalone Apache/PHP Stack ######################
@@ -2049,7 +2047,7 @@ patch httpd-default.conf << 'EOF'
 'EOF'
 
 # Finalize and activate
-echo 'apache24_enable="YES"' >> /etc/rc.conf
+echo 'apache24_enable="YES"' >> /etc/rc.conf.local
 apachectl start
 
 # Now bring up http://serviio/ in a web browser for configuration
@@ -2153,8 +2151,8 @@ verb 3
 mute 20
 'EOF'
 
-echo 'openvpn_enable="YES"' >> /etc/rc.conf
-echo 'openvpn_configfile="/usr/local/etc/openvpn/unovpnsvr.conf"' >> /etc/rc.conf
+echo 'openvpn_enable="YES"' >> /etc/rc.conf.local
+echo 'openvpn_configfile="/usr/local/etc/openvpn/unovpnsvr.conf"' >> /etc/rc.conf.local
 service openvpn start
 
 ################################################################################
@@ -2250,7 +2248,7 @@ patch httpd-ssl.conf << 'EOF'
 
 # Finalize and activate
 chmod u+w /usr/local/www/owncloud/.htaccess
-echo 'apache24_enable="YES"' >> /etc/rc.conf
+echo 'apache24_enable="YES"' >> /etc/rc.conf.local
 apachectl start
 
 ################################################################################
