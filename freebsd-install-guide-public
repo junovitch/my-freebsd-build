@@ -832,10 +832,8 @@ printf "/var/log/unison-syncLAN.log\t\t600  9\t   *\t@T00  J\n" >> /etc/newsyslo
 # Unison. All results will be sent to /dev/null.
 ################################################################################
 
-echo '#' >> /etc/crontab
-echo '# Run regular Unison backups' >> /etc/crontab
-printf "15\t4\t*\t*\t*\troot\tpgrep -f 'unison syncWAN.prf' || /usr/local/bin/unison syncWAN.prf > /dev/null 2>&1\n" >> /etc/crontab
-printf "*/10\t*\t*\t*\t*\troot\tpgrep -f 'unison syncLAN.prf' || /usr/local/bin/unison syncLAN.prf > /dev/null 2>&1\n" >> /etc/crontab
+echo "15   4 * * * pgrep -f 'unison syncWAN.prf' || /usr/local/bin/unison syncWAN.prf > /dev/null 2>&1" >> /var/cron/tabs/root
+echo "*/10 * * * * pgrep -f 'unison syncLAN.prf' || /usr/local/bin/unison syncLAN.prf > /dev/null 2>&1" >> /var/cron/tabs/root
 
 ################################################################################
 # Finally, put a quick script into periodic that will grep for "Synchronization"
