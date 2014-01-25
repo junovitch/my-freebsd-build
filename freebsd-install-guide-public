@@ -1069,7 +1069,6 @@ shells/bash
 lang/perl5.16
 net/openntpd
 mail/opensmtpd
-security/openvpn
 sysutils/pstree
 net-mgmt/iftop
 sysutils/cmdwatch
@@ -1090,6 +1089,9 @@ net/unison-nox11
 sysutils/zfs-stats
 sysutils/ezjail
 benchmarks/iperf
+########## VPN/Proxy Jail ##########
+security/openvpn
+www/squid33
 ########## Serviio Jail ##########
 net/serviio
 graphics/dcraw
@@ -2154,6 +2156,35 @@ mute 20
 echo 'openvpn_enable="YES"' >> /etc/rc.conf.local
 echo 'openvpn_configfile="/usr/local/etc/openvpn/unovpnsvr.conf"' >> /etc/rc.conf.local
 service openvpn start
+
+# Also install squid for VPN clients to use
+pkg install www/squid33
+echo 'squid_enable="YES"' >> /etc/rc.conf.local
+
+# Patch configure to allow monitorix to monitor, enable cache dir, and
+# munge internal LAN info sent out to servers
+patch /usr/local/etc/squid/squid.conf << 'EOF'
+7a8,10
+> acl jailhost src 10.100.102.19
+> acl jailhost src 192.168.102.19
+> 
+37a41
+> http_access allow jailhost manager
+62c66
+< #cache_dir ufs /var/squid/cache/squid 100 16 256
+---
+> cache_dir ufs /var/squid/cache/squid 100 16 256
+73a78,80
+> 
+> forwarded_for off
+> visible_hostname squid.lan
+'EOF'
+
+# Initialize
+squid -z
+
+# Start Squid
+service squid start
 
 ################################################################################
 ##----------------------------------------------------------------------------##
