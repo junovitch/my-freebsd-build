@@ -822,8 +822,8 @@ logfile=/var/log/unison-syncWAN.log
 # /etc/newsyslog.conf to rotate them every day by newsyslog.
 ################################################################################
 
-printf "/var/log/unison-syncWAN.log\t\t600  9\t   *\t@T00  J\n" >> /etc/newsyslog.conf
-printf "/var/log/unison-syncLAN.log\t\t600  9\t   *\t@T00  J\n" >> /etc/newsyslog.conf
+printf "/var/log/unison-syncWAN.log\t\t640  9\t   *\t@T00  J\n" >> /etc/newsyslog.conf
+printf "/var/log/unison-syncLAN.log\t\t640  9\t   *\t@T00  J\n" >> /etc/newsyslog.conf
 
 ################################################################################
 # Now echo some jobs into cron for this. The full WAN sync will be daily at 0415
