@@ -554,8 +554,8 @@ chmod 640 /var/log/auth.log
 perl -pwi -e 's^/var/log/auth\.log\t\t\t600  7     100  \@0101T JC^/var/log/auth.log\troot:logcheck\t640  7     100  \@0101T JC^' /etc/newsyslog.conf
 
 # Redirect logcheck alias to root
-perl -pwi -e 's^# General redirections for pseudo accounts^# General redirections for pseudo accounts\nlogcheck:\troot^' /usr/local/etc/mail/aliases
-newaliases
+perl -pwi -e 's^# General redirections for pseudo accounts^# General redirections for pseudo accounts\nlogcheck:\troot^' /etc/mail/aliases
+smtpctl update table aliases
 
 ################################################################################
 # Iperf
