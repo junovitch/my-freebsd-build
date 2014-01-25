@@ -717,22 +717,23 @@ daily_clean_tmps_enable="YES"
 'EOF'
 
 ################################################################################
-# Add a bi-weekly `freebsd-update` check as well as a
-# `portsnap -I cron update` to keep the ports tree Index updated. This ensures
-# the weekly `pkg version -v` works as intended.
+# Make all periodic jobs run one hour later. Also add a bi-weekly 
+# `freebsd-update` check as well as a `portsnap cron` to keep have a current
+# ports files ready to go.
 #
 # The new /etc/crontab will look like this:
 #
 # 1	4	*	*	*	root	periodic daily
-# 5	4	*	*	6	root	portsnap -I cron update
 # 15	5	*	*	6	root	periodic weekly
-# 30	5	*	*	2,6	root	freebsd-update cron
 # 30	6	1	*	*	root	periodic monthly
 ################################################################################
 
-perl -pwi -e 's^1\t3\t\*\t\*\t\*\troot\tperiodic daily^1\t4\t*\t*\t*\troot\tperiodic daily^' /etc/crontab
-perl -pwi -e 's^15\t4\t\*\t\*\t6\troot\tperiodic weekly^5\t4\t*\t*\t6\troot\tportsnap -I cron update\n15\t5\t*\t*\t6\troot\tperiodic weekly\n30\t5\t*\t*\t2,6\troot\tfreebsd-update cron^' /etc/crontab
-perl -pwi -e 's^30\t5\t1\t\*\t\*\troot\tperiodic monthly^30\t6\t1\t*\t*\troot\tperiodic monthly^' /etc/crontab
+perl -pwi -e 's/^1\t3/1\t4/' /etc/crontab
+perl -pwi -e 's/^15\t4/15\t5/' /etc/crontab
+perl -pwi -e 's/^30\t5/30\t6/' /etc/crontab
+
+echo "5    4 * * * /usr/sbin/portsnap cron" >> /var/cron/tabs/root
+echo "30   5 * * 6 /usr/sbin/freebsd-update cron" >> /var/cron/tabs/root
 
 ################################################################################
 # Make default syslog sizes a bit bigger and keep more of them
