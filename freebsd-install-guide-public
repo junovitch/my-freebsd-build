@@ -1612,6 +1612,8 @@ pkg install puppet rubygem-puppet-lint git nginx rubygem-rake ruby19-iconv rubyg
 # else gets stacked on as well as ensures the SSL keys referenced by Nginx's
 # config file are in place before that step.
 
+mkdir -p /usr/local/etc/puppet/manifests/
+touch /usr/local/etc/puppet/manifests/site.pp
 service puppetmaster onestart
 
 # On the secondary apps server/Puppet, set the appropriate ca_server directive
@@ -1654,10 +1656,9 @@ chown -R puppet:puppet /usr/local/etc/puppet/rack
 cd /usr/local/share
 git clone git://github.com/sodabrew/puppet-dashboard.git
 
-# Manually create the 'puppet-dashboard' user and provide required permissions.
+# Manually create the 'puppet-dashboard' user
 pw groupadd -n puppet-dashboard -g 800
 pw useradd -n puppet-dashboard -c "Puppet Dashboard,,," -u 800 -g puppet-dashboard -s /usr/sbin/nologin
-chown -R puppet-dashboard:puppet-dashboard /usr/local/share/puppet-dashboard
 
 # Configuring Dashboard
 # database.yml:  Copy the example database YAML file. Update with database information.
@@ -1693,14 +1694,12 @@ patch database.yml << 'EOF'
 >   adapter: mysql2
 >   host: 10.100.102.18
 'EOF'
-chown puppet-dashboard:puppet-dashboard database.yml
-chmod 660 database.yml
+chmod 640 database.yml
 
 # settings.yml:  Copy the example settings YAML file. No changes needed.
 cd /usr/local/share/puppet-dashboard/config
 cp settings.yml.example settings.yml
-chown puppet-dashboard:puppet-dashboard settings.yml
-chmod 660 settings.yml
+chmod 640 settings.yml
 
 # Fix shebang line for ENC script
 sed -i '' -e 's/#! \/usr\/bin\/ruby/#!\/usr\/local\/bin\/ruby/' /usr/local/share/puppet-dashboard/bin/external_node
@@ -1714,6 +1713,10 @@ bundle install --path vendor/bundle
 echo "secret_token: `bundle exec rake secret`" >> config/settings.yml
 vi config/settings.yml
 
+# Before going into a production environment, Dashboard 2.0 must precompile
+# assets for production.
+env RAILS_ENV=production bundle exec rake assets:precompile
+
 # Creating and Configuring a MariaDB Database - Preparing Schema
 # At this point the database was already installed in another jail with some blank tables.
 # We need to run rake to finish the process with the database structure needed.
@@ -1721,18 +1724,21 @@ cd /usr/local/share/puppet-dashboard
 env RAILS_ENV=production bundle exec rake db:setup
 env RAILS_ENV=development bundle exec rake db:setup
 
+# Fix permissions on everything
+mkdir /usr/local/share/puppet-dashboard/certs
+chgrp -R puppet-dashboard /usr/local/share/puppet-dashboard
+find /usr/local/share/puppet-dashboard/certs -type d -exec chmod g+w {} \;
+find /usr/local/share/puppet-dashboard/certs -type f -exec chmod g+w {} \;
+find /usr/local/share/puppet-dashboard/tmp -type d -exec chmod g+w {} \;
+find /usr/local/share/puppet-dashboard/tmp -type f -exec chmod g+w {} \;
+find /usr/local/share/puppet-dashboard/log -type d -exec chmod g+w {} \;
+find /usr/local/share/puppet-dashboard/log -type f -exec chmod g+w {} \;
+
 # Testing That Dashboard is Working
 # Run Dashboard using Ruby's built-in WEBrick server to validate functionality.
 # It will be available at http://dashboard:3000 and use the RAILS_ENV=development database.
 cd /usr/local/share/puppet-dashboard
 su -m puppet-dashboard -c 'bundle exec rails server'
-
-# Before going into a production environment, Dashboard 2.0 must precompile
-# assets for production.
-env RAILS_ENV=production bundle exec rake assets:precompile
-
-# Chown any files created up until now to the right owner.
-chown -R puppet-dashboard:puppet-dashboard /usr/local/share/puppet-dashboard
 
 # Configuring Puppet
 # All agent nodes have to be configured to submit reports to the master.
