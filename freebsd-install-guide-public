@@ -564,6 +564,134 @@ smtpctl update table aliases
 pkg install benchmarks/iperf
 
 ################################################################################
+# Monitorix for basic system monitoring and Perl SQL module for monitoring DB.
+################################################################################
+
+pkg install sysutils/monitorix databases/p5-DBD-mysql55
+echo '' >> /etc/rc.conf
+echo '# Monitorix' >> /etc/rc.conf
+echo 'monitorix_enable="YES"' >> /etc/rc.conf
+
+# Bare Minimum Configuration:
+# - Run as www user to write graphs to /usr/local/www/monitorix/imgs
+# - Bind to LAN Internal IP to be jail friendly
+patch -l /usr/local/etc/monitorix.conf << 'EOF'
+26c26
+< 	host =
+---
+> 	host = 10.100.102.2
+28,29c28,29
+< 	user = nobody
+< 	group = nobody
+---
+> 	user = www
+> 	group = www
+'EOF'
+
+# Update NICs from Linux names to FreeBSD driver names
+patch -l /usr/local/etc/monitorix.conf << 'EOF'
+225c225
+< 	list = eth0
+---
+> 	list = em0, em1
+227c227,228
+< 		eth0 = FastEthernet LAN, 0, 10000000
+---
+> 		em0 = GigabitEthernet DMZ, 0, 10000000
+> 		em1 = GigabitEthernet LAN, 0, 10000000
+229c230
+< 	gateway = eth0
+---
+> 	gateway = 
+'EOF'
+
+# Enable disk monitoring using sysutils/smartmontools and update disk names
+patch -l /usr/local/etc/monitorix.conf << 'EOF'
+70c70
+< 	disk		= n
+---
+> 	disk		= y
+186c186
+< 		0 = /dev/sda, /dev/sdb, /dev/sdc
+---
+> 		0 = /dev/ada0, /dev/ada1, /dev/ada2, /dev/ada3
+'EOF'
+
+# General personal preference configuration:
+# - Give it a title
+# - Turn on show gaps so things like reboots or outages have no data
+# - Also change the coloring on those gaps to a light gray rather than white
+# - Make detailed graphs bigger
+patch -l /usr/local/etc/monitorix.conf << 'EOF'
+6c6
+< title = Place a title here
+---
+> title = xts-bsd-lan Monitorix
+15c15
+< show_gaps = n
+---
+> show_gaps = y
+73c73
+< 	serv		= y
+---
+> 	serv		= n
+606c607
+< 		gap		= FFFFFF
+---
+> 		gap		= 202020
+617c618
+< 	zoom	= 800x300
+---
+> 	zoom	= 1200x450
+'EOF'
+
+# Enable monitoring MySQL database jail
+# - The following will need to be done in the jail to allow this:
+# CREATE USER 'monitorix'@'10.100.102.18' IDENTIFIED BY 'MY_MONITORIX_PASSWORD';
+patch -l /usr/local/etc/monitorix.conf << 'EOF'
+81c81
+< 	mysql		= n
+---
+> 	mysql		= y
+333,334c334,335
+< 	list = localhost
+< #	list = /var/lib/mysql/mysql.sock
+---
+> 	list = 10.100.102.18
+> #	list = /tmp/mysql.sock
+336c337
+< 		localhost = 3306, user, secret
+---
+> 		10.100.102.18 = 3306, monitorix, MY_MONITORIX_PASSWORD
+'EOF'
+
+# Allow monitoring squid in VPN jail
+patch -l /usr/local/etc/monitorix.conf << 'EOF'
+55c55
+< squid_log	= /var/log/squid/access.log
+---
+> squid_log	= /usr/jails/vpn.pa-us.mydomain.name/var/log/squid/access.log
+82c82
+< 	squid		= n
+---
+> 	squid		= y
+346c347
+< 	cmd = squidclient -h 127.0.0.1
+---
+> 	cmd = /usr/jails/vpn.pa-us.mydomain.name/usr/local/sbin/squidclient -h 10.100.102.19
+'EOF'
+
+# Correct location of CLAMAV log
+patch -l /usr/local/etc/monitorix.conf << 'EOF'
+53c53
+< clamav_log	= /var/log/clamav/clamav.log
+---
+> clamav_log	= /var/log/clamav/clamd.log
+'EOF'
+
+service monitorix start
+
+################################################################################
 # Panicmail - Report kernel panics.
 ################################################################################
 
@@ -1088,6 +1216,8 @@ net/rsync
 net/unison-nox11
 sysutils/zfs-stats
 sysutils/ezjail
+sysutils/monitorix
+databases/p5-DBD-mysql55
 benchmarks/iperf
 ########## VPN/Proxy Jail ##########
 security/openvpn
@@ -1414,7 +1544,7 @@ service mysql-server start
 # Choose a root password and answer yes to all questions.
 mysql_secure_installation
 
-# Login to MariaDB and create appropriate tables for Dashboard
+# Login to MariaDB and create appropriate tables for Dashboard and Monitorix
 mysql -u root -p
 CREATE DATABASE dashboard_production CHARACTER SET utf8;
 CREATE DATABASE dashboard_development CHARACTER SET utf8;
@@ -1427,6 +1557,7 @@ CREATE USER 'dashboard'@'10.100.102.12' IDENTIFIED BY 'dashboard_password';
 GRANT ALL PRIVILEGES ON dashboard_production.* TO 'dashboard'@'10.100.102.12';
 GRANT ALL PRIVILEGES ON dashboard_development.* TO 'dashboard'@'10.100.102.12';
 GRANT ALL PRIVILEGES ON dashboard_test.* TO 'dashboard'@'10.100.102.12';
+CREATE USER 'monitorix'@'10.100.102.18' IDENTIFIED BY 'monitorix_password';
 flush privileges;
 quit;
 
