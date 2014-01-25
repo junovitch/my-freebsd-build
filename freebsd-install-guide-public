@@ -1387,8 +1387,8 @@ pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 echo 'WITH_PKGNG=yes' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
-# Install MariaDB with default options
-pkg install mariadb-server
+# Install MariaDB 5.5
+pkg install mariadb55-server
 
 # Creating and Configurating a MariaDB Database for Puppet Dashboard
 # Tuning:
