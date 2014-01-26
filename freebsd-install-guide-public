@@ -732,8 +732,8 @@ perl -pwi -e 's/^1\t3/1\t4/' /etc/crontab
 perl -pwi -e 's/^15\t4/15\t5/' /etc/crontab
 perl -pwi -e 's/^30\t5/30\t6/' /etc/crontab
 
-echo "5    4 * * * /usr/sbin/portsnap cron" >> /var/cron/tabs/root
-echo "30   5 * * 6 /usr/sbin/freebsd-update cron" >> /var/cron/tabs/root
+printf "5\t4\t*\t*\t*\t/usr/sbin/portsnap cron\n" >> /var/cron/tabs/root
+printf "30\t5\t*\t*\t2,6\t/usr/sbin/freebsd-update cron\n" >> /var/cron/tabs/root
 
 ################################################################################
 # Make default syslog sizes a bit bigger and keep more of them
@@ -833,8 +833,8 @@ printf "/var/log/unison-syncLAN.log\t\t640  9\t   *\t@T00  J\n" >> /etc/newsyslo
 # Unison. All results will be sent to /dev/null.
 ################################################################################
 
-echo "15   4 * * * pgrep -f 'unison syncWAN.prf' || /usr/local/bin/unison syncWAN.prf > /dev/null 2>&1" >> /var/cron/tabs/root
-echo "*/10 * * * * pgrep -f 'unison syncLAN.prf' || /usr/local/bin/unison syncLAN.prf > /dev/null 2>&1" >> /var/cron/tabs/root
+printf "15\t4\t*\t*\t*\t/bin/pgrep -f 'unison syncWAN.prf' || /usr/local/bin/unison syncWAN.prf > /dev/null 2>&1\n" >> /var/cron/tabs/root
+printf "*/10\t*\t*\t*\t*\t/bin/pgrep -f 'unison syncLAN.prf' || /usr/local/bin/unison syncLAN.prf > /dev/null 2>&1\n" >> /var/cron/tabs/root
 
 ################################################################################
 # Finally, put a quick script into periodic that will grep for "Synchronization"
