@@ -129,8 +129,8 @@ ifconfig_em1_alias4="inet 10.100.102.13/32 fib 1"		# ftp.pa-us.mydomain.name
 ifconfig_em1_alias5="inet6 2001:123:4:5678::13/128 fib 1"	# ftp.pa-us.mydomain.name
 ifconfig_em1_alias6="inet 10.100.102.14/32 fib 1"		# serviio.pa-us.mydomain.name
 ifconfig_em1_alias7="inet6 2001:123:4:5678::14/128 fib 1"	# serviio.pa-us.mydomain.name
-ifconfig_em1_alias8="inet 10.100.102.15/32 fib 1"		# unused
-ifconfig_em1_alias9="inet6 2001:123:4:5678::15/128 fib 1"	# unused
+ifconfig_em1_alias8="inet 10.100.102.15/32 fib 1"		# lanser.pa-us.mydomain.name
+ifconfig_em1_alias9="inet6 2001:123:4:5678::15/128 fib 1"	# lanser.pa-us.mydomain.name
 ifconfig_em1_alias10="inet 10.100.102.16/32 fib 1"		# unused
 ifconfig_em1_alias11="inet6 2001:123:4:5678::16/128 fib 1"	# unused
 ifconfig_em1_alias12="inet 10.100.102.17/32 fib 1"		# pdbi.pa-us.mydomain.name
@@ -1253,6 +1253,10 @@ databases/postgresql93-client
 databases/mariadb55-server
 ########## PostgreSQL Jail ##########
 databases/postgresql93-server
+########## LAN Service Jail ##########
+net/isc-dhcp42-server
+dns/bind99
+ftp/tftp-hpa
 'EOF'
 
 # Start a bulk build of all ports in that list
@@ -1429,6 +1433,7 @@ cp -Rp example lan
 
 echo 'search pa-us.mydomain.name. nc-us.mydomain.name.' >> /usr/jails/flavours/dmz/etc/resolv.conf
 echo 'nameserver 192.168.102.1' >> /usr/jails/flavours/dmz/etc/resolv.conf
+echo 'nameserver 10.100.102.15' >> /usr/jails/flavours/dmz/etc/resolv.conf
 
 ################################################################################
 # LAN-specific segment config 
@@ -1436,6 +1441,7 @@ echo 'nameserver 192.168.102.1' >> /usr/jails/flavours/dmz/etc/resolv.conf
 
 echo 'search pa-us.mydomain.name. nc-us.mydomain.name.' >> /usr/jails/flavours/lan/etc/resolv.conf
 echo 'nameserver 10.100.102.1' >> /usr/jails/flavours/lan/etc/resolv.conf
+echo 'nameserver 10.100.102.15' >> /usr/jails/flavours/lan/etc/resolv.conf
 
 ################################################################################
 #  WWW jail prerequisite - self signed keys used for testing
@@ -2321,6 +2327,50 @@ squid -z
 
 # Start Squid
 service squid start
+
+################################################################################
+##----------------------------------------------------------------------------##
+##            Lan Service Jail Configuration (DHCPD/NAMED/TFTPD)              ##
+##----------------------------------------------------------------------------##
+################################################################################
+# References:
+# http://dan.langille.org/2013/08/18/creating-a-freebsd-jail-to-run-dhcp-and-dns/
+# http://www.wonkity.com/~wblock/docs/html/pxe.html
+# https://forums.freebsd.org/viewtopic.php?&t=33849
+
+# Enable devfs ruleset similar to ezjail default but allowing access to bpf
+# device required by DHCPD
+cat >> /etc/devfs.rules << 'EOF'
+
+# Rules for DHCP jail
+#
+[devfsrules_jail_with_bpf=6]
+add include $devfsrules_hide_all
+add include $devfsrules_unhide_basic
+add include $devfsrules_unhide_login
+add path 'bpf*' unhide
+add path zfs unhide
+'EOF'
+
+ezjail-admin create -f lan lanser.pa-us.mydomain.name 10.100.102.15,2001:123:4:5678::15
+ezjail-admin config -f 1 lanser.pa-us.mydomain.name
+perl -pwi -e 's/parameters=""/parameters="allow.raw_sockets=1"/g' /usr/local/etc/ezjail/lanser_pa_us_mydomain_name
+echo '/zfs/poudriere/data/packages /usr/jails/lanser.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.lanser_pa_us_mydomain_name
+ezjail-admin console -f lanser.pa-us.mydomain.name
+passwd
+
+pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
+echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
+
+# Install BIND
+pkg install dns/bind99
+echo 'named_enable="YES"' >> /etc/rc.conf.local
+## Put config files in place from desktop
+# scp configs/named.conf root@lanser:/etc/namedb/
+# scp -r configs/myzonefiles root@lanser:/usr/local/etc/namedb/dynamic
+chown bind /usr/local/etc/namedb/dynamic/*
+service named start
 
 ################################################################################
 ##----------------------------------------------------------------------------##
