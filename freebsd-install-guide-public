@@ -196,11 +196,11 @@ portsnap fetch extract
 ################################################################################
 
 pkg
-echo 'WITH_PKGNG=yes' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 pkg2ng
 
 # FreeBSD 9 only, this is done on 10
+echo 'WITH_PKGNG=yes' >> /etc/make.conf
 rm /usr/local/etc/pkg.conf
 mkdir -p /usr/local/etc/pkg/repos
 cat > /usr/local/etc/pkg/repos/FreeBSD.conf << 'EOF'
@@ -1167,17 +1167,16 @@ perl -pwi -e 's^BASEFS=/usr/local/poudriere^BASEFS=/zfs/poudriere^g' poudriere.c
 # Setup Poudriere to use the current host /usr/ports as the default
 poudriere ports -c -F -f none -M /usr/ports -p default
 
-# Setup 9.1-RELEASE build environment and update to the current patch level
-poudriere jails -c -j 91amd64 -v 9.1-RELEASE -a amd64
-poudriere jail -u -j 91amd64
+# Setup 10.0-RELEASE build environment and update to the current patch level
+poudriere jails -c -j 10_0amd64 -v 10.0-RELEASE -a amd64
+poudriere jail -u -j 10_0amd64
 
 # Setup make.conf variables for build jail
-cat > /usr/local/etc/poudriere.d/92amd64-make.conf << 'EOF'
+cat > /usr/local/etc/poudriere.d/10_0amd64-make.conf << 'EOF'
 WITH_SSP_PORTS=yes
-WITH_PKGNG=yes
+#WITH_PKGNG=yes #only uncommented on earlier releases than 10
 php5_SET+=FPM
 ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
-ca_root_nss_SET+=ETCSYMLINK
 DEFAULT_VERSIONS= ruby=1.9 perl5=5.16
 rubygem-passenger_UNSET+=APACHE22
 rubygem-passenger_SET+=NGINX
@@ -1260,13 +1259,13 @@ ftp/tftp-hpa
 'EOF'
 
 # Start a bulk build of all ports in that list
-poudriere bulk -f /zfs/poudriere/pkg_list -j 91amd64
+poudriere bulk -f /zfs/poudriere/pkg_list -j 10_0amd64
 
 # Allow host to install from Poudriere Repo
 mkdir -p /usr/local/etc/pkg/repos
 cat >> /usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
 myrepo: {
-  url: "file:///zfs/poudriere/data/packages/92amd64-default",
+  url: "file:///zfs/poudriere/data/packages/10_0amd64-default",
 }
 'EOF'
 
@@ -1317,7 +1316,7 @@ mkdir -p /usr/jails/newjail/pkgrepo
 mkdir -p /usr/jails/flavours/example/usr/local/etc/pkg/repos
 cat >> /usr/jails/flavours/example/usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
 myrepo: {
-  url: "file:///pkgrepo/92amd64-default",
+  url: "file:///pkgrepo/10_0amd64-default",
 }
 'EOF'
 
@@ -1480,12 +1479,13 @@ cd /root && ./make-quicksha256-key.sh www.mydomain.name
 ezjail-admin create -f lan pdbi.pa-us.mydomain.name 10.100.102.17,2001:123:4:5678::17
 ezjail-admin config -f 1 pdbi.pa-us.mydomain.name
 echo '/zfs/poudriere/data/packages /usr/jails/pdbi.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.pdbi_pa_us_mydomain_name
+sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 perl -pwi -e 's/parameters=""/parameters="allow.sysvipc=1"/g' /usr/local/etc/ezjail/pdbi_pa_us_mydomain_name
 ezjail-admin console -f pdbi.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Install PostgreSQL with default options
@@ -1517,11 +1517,12 @@ service postgresql reload
 ezjail-admin create -f lan mdbi.pa-us.mydomain.name 10.100.102.18,2001:123:4:5678::18
 ezjail-admin config -f 1 mdbi.pa-us.mydomain.name
 echo '/zfs/poudriere/data/packages /usr/jails/mdbi.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.mdbi_pa_us_mydomain_name
+sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 ezjail-admin console -f mdbi.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Install MariaDB 5.5
@@ -1586,6 +1587,7 @@ mkdir -p /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/pkg
 echo '/zfs/poudriere/data/logs /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/pkg nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/apps1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
+sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 ezjail-admin console -f apps1.pa-us.mydomain.name
 passwd
 
@@ -1599,6 +1601,7 @@ mkdir -p /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/pkg
 echo '/zfs/poudriere/data/logs /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/pkg nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/apps2.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
+sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 ezjail-admin console -f apps2.pa-us.mydomain.name
 passwd
 
@@ -1606,7 +1609,7 @@ passwd
 # between each other.
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Installing Dependencies:  Install Puppet, Git, Nginx, and Ruby Components
@@ -2046,11 +2049,12 @@ ezjail-admin config -f 1 ftp.pa-us.mydomain.name
 mkdir -p /usr/jails/ftp.pa-us.mydomain.name/var/ftp/pkgrepo
 echo '/zfs/poudriere/data/packages /usr/jails/ftp.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.ftp_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/ftp.pa-us.mydomain.name/var/ftp/pkgrepo nullfs ro 0 0' >> /etc/fstab.ftp_pa_us_mydomain_name
+sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 ezjail-admin console -f ftp.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Add anonymous user
@@ -2088,11 +2092,12 @@ mkdir -p /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_photo_albums
 echo '/zfs/homedirs/common_media /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_media nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
 echo '/zfs/homedirs/common_photo_albums /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_photo_albums nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/serviio.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
+sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 ezjail-admin console -f serviio.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Setup FFMPEG options per guidance in the helpful links then start Serviio build.
@@ -2237,6 +2242,7 @@ echo '/zfs/poudriere/data/packages /usr/jails/vpn.pa-us.mydomain.name/pkgrepo nu
 
 # Set to use devfs rules and assign interface IP on jail start
 perl -pwi -e 's/"devfsrules_jail"/"devfsrules_jail_with_vpn"/g' /usr/local/etc/ezjail/vpn_pa_us_mydomain_name
+sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 echo 'export jail_vpn_pa_us_mydomain_name_ip_multi0="tun0|10.100.103.1 10.100.103.2 netmask 255.255.255.255"' >> /usr/local/etc/ezjail/vpn_pa_us_mydomain_name
 echo 'export jail_vpn_pa_us_mydomain_name_exec_prestart0="/sbin/route add -net 10.100.103.0/24 10.100.103.2"' >> /usr/local/etc/ezjail/vpn_pa_us_mydomain_name
 
@@ -2252,7 +2258,7 @@ ezjail-admin console -f vpn.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # OpenVPN installation and configuration 
@@ -2359,11 +2365,12 @@ ezjail-admin create -f lan lanser.pa-us.mydomain.name 10.100.102.15,2001:123:4:5
 ezjail-admin config -f 1 lanser.pa-us.mydomain.name
 perl -pwi -e 's/parameters=""/parameters="allow.raw_sockets=1"/g' /usr/local/etc/ezjail/lanser_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/lanser.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.lanser_pa_us_mydomain_name
+sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 ezjail-admin console -f lanser.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Install BIND
@@ -2388,13 +2395,14 @@ service named start
 ezjail-admin create -f dmz www1.pa-us.mydomain.name 192.168.102.13,2001:123:4567:890::13
 ezjail-admin config -f 2 www1.pa-us.mydomain.name
 echo '/zfs/poudriere/data/packages /usr/jails/www1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.www1_pa_us_mydomain_name
+sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 mkdir /usr/jails/www1.pa-us.mydomain.name/usr/local/etc/apache24/
 cp /root/mycert/www.mydomain.name.* /usr/jails/www1.pa-us.mydomain.name/usr/local/etc/apache24/
 ezjail-admin console -f www1.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Assign Apache module build to the PHP5 config then start the full build.
@@ -2484,11 +2492,12 @@ apachectl start
 ezjail-admin create -f dmz ms1.pa-us.mydomain.name 192.168.102.11,2001:123:4567:890::11
 ezjail-admin config -f 2 ms1.pa-us.mydomain.name
 echo '/zfs/poudriere/data/packages /usr/jails/ms1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.ms1_pa_us_mydomain_name
+sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 ezjail-admin console -f ms1.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo 'WITH_PKGNG=yes' >> /etc/make.conf
+echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 fetch https://bitbucket.org/zhb/iredmail/downloads/iRedMail-0.8.5.tar.bz2
@@ -2572,53 +2581,71 @@ sed -i '' -e 's/#ezjail_enable/ezjail_enable/' /etc/rc.conf
 service ezjail start
 sysctl kern.securelevel=1
 
-# Big Updates, I.E. 9.1-RELEASE to 9.2-RELEASE
+# Big Updates, I.E. 9.2-RELEASE to 10.0-RELEASE
 ## Backup Old /etc
 cp -Rp /etc /root/etc.old
 ## Run freebsd-update to get the latest patches
-freebsd-update upgrade -r 9.2-RELEASE
+freebsd-update upgrade -r 10.0-RELEASE
 ## If using a heightened securelevel, lower it and reboot
 sed -i '' -e 's/kern_securelevel/#kern_securelevel/' /etc/rc.conf
 shutdown -r now
-## Disable Jails now to speed up reboots during the upgrade process
-sed -i '' -e 's/ezjail_enable/#ezjail_enable/' /etc/rc.conf
 ## First `freebsd-update install` and reboot for new kernel
 freebsd-update install
 shutdown -r now
 ## Second `freebsd-update install` for new userland
 freebsd-update install
+shutdown -r now
+## Poudriere start - Fetch new Poudriere build jail for new release - Jump ahead if using public packages
+poudriere jails -c -j 10_0amd64 -v 10.0-RELEASE -a amd64
+## If upgrading within a release, move currently built packages and make.conf
+mv /usr/local/etc/poudriere.d/91amd64-make.conf /usr/local/etc/poudriere.d/92amd64-make.conf
+mv /zfs/poudriere/data/packages/91amd64-default /zfs/poudriere/data/packages/92amd64-default
+## If upgrading to a new major release, copy current make.conf only, rebuild and reinstall all packages
+cp /usr/local/etc/poudriere.d/92amd64-make.conf /usr/local/etc/poudriere.d/10_0amd64-make.conf
+poudriere bulk -f /zfs/poudriere/pkg_list -j 10_0amd64
+## Update local repository files to point to the new release
+find / -name myrepo.conf -exec sed -i '' -e 's/92amd64/10_0amd64/' {} \;
+## Delete old build jail
+poudriere jail -d -j 91amd64
+## Poudriere end - continue from here if just using public packages
+pkg-static upgrade -fy
+pkg autoremove
+## Third `freebsd-update install` to cleanup old libs (major version upgrades only)
+freebsd-update install
+shutdown -r now
+## The host is completely upgraded to the new version and all cleanup is done
+## Jails can be updated anytime after upgrading the host.
 ## Archive original jail set
+ezjail-admin stop
 ezjail-admin archive -A
 ## Update basejail to the new release it see already via `uname` and give it the source release
-ezjail-admin update -U -s 9.1-RELEASE-p6
+ezjail-admin update -U -s 9.2-RELEASE-p3
 ## For upgrading to 9.2, open vipw and immediatly save so mergemaster recognizes
 ## the new auditdistd user
 vipw
+## For upgrading from 9->10, update deprecated variables to the new format
+find /usr/jails -name periodic.conf -exec sed -i '' -e 's/"daily_status_security_ipfwdenied_enable"/"security_status_ipfwdenied_enable"/;s/"daily_status_security_ipfwlimit_enable"/"security_status_ipfwlimit_enable"/;s/"daily_status_security_kernelmsg_enable"/"security_status_kernelmsg_enable"/' {} \;
+## For upgrading from 9->10, update all jail devfs rules to use integers rather than strings
+sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 ## Run mergemaster on each jail
 mergemaster -p /usr/jails/newjail
 mergemaster -UF -D /usr/jails/newjail
 mergemaster -p /usr/jails/jail1
 mergemaster -UF -D /usr/jails/jail1 # and continue on for each jail
-## Reboot to put new userland into effect
-shutdown -r now
-## Third `freebsd-update install` to cleanup old libs (major version upgrades only)
-freebsd-update install
-## Enable, archive just upgrade jails, and start ezjail
-sed -i '' -e 's/#ezjail_enable/ezjail_enable/' /etc/rc.conf
+## Major release upgrades only - disable starting any services dependent on old libraries and start ezjail
+find /usr/jails -name rc.conf.local -exec sed -i '' -e 's/YES/NO/' {} \;
+service ezjail start
+## Log in to each jail and perform full upgrades on each jail for a new major release
+## ssh or `ezjail-admin console <jail>` for each one
+pkg-static upgrade -fy
+pkg autoremove
+## Back to the host; stop, archive, and start again the newly upgraded jails
+service ezjail stop
 ezjail-admin archive -A
 service ezjail start
 ## Enable and raise securelevel if in use
 sed -i '' -e 's/#kern_securelevel/kern_securelevel/' /etc/rc.conf
 sysctl kern.securelevel=1
-## Fetch new Poudriere build jail for new release
-poudriere jails -c -j 92amd64 -v 9.2-RELEASE -a amd64
-## Move currently built packages and make.conf over if upgrading within same major release
-mv /usr/local/etc/poudriere.d/91amd64-make.conf /usr/local/etc/poudriere.d/92amd64-make.conf
-mv /zfs/poudriere/data/packages/91amd64-default /zfs/poudriere/data/packages/92amd64-default
-## Update jail and host system myrepo.conf accordingly
-find / -name myrepo.conf -exec sed -i '' -e 's/91amd64/92amd64/' {} \;
-## Delete old build jail
-poudriere jail -d -j 91amd64
 
 ################################################################################
 # CONSOLE USE ONLY
