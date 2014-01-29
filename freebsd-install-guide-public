@@ -2301,7 +2301,6 @@ service openvpn start
 
 # Also install squid for VPN clients to use
 pkg install www/squid33
-echo 'squid_enable="YES"' >> /etc/rc.conf.local
 
 # Patch configure to allow monitorix to monitor, enable cache dir, and
 # munge internal LAN info sent out to servers
@@ -2321,6 +2320,10 @@ patch /usr/local/etc/squid/squid.conf << 'EOF'
 > forwarded_for off
 > visible_hostname squid.lan
 'EOF'
+
+# Fix permissions and enable
+chgrp squid /usr/local/etc/squid/squid.conf
+echo 'squid_enable="YES"' >> /etc/rc.conf.local
 
 # Initialize
 squid -z
