@@ -2624,7 +2624,7 @@ ezjail-admin update -U -s 9.2-RELEASE-p3
 ## the new auditdistd user
 vipw
 ## For upgrading from 9->10, update deprecated variables to the new format
-find /usr/jails -name periodic.conf -exec sed -i '' -e 's/"daily_status_security_ipfwdenied_enable"/"security_status_ipfwdenied_enable"/;s/"daily_status_security_ipfwlimit_enable"/"security_status_ipfwlimit_enable"/;s/"daily_status_security_kernelmsg_enable"/"security_status_kernelmsg_enable"/' {} \;
+find /usr/jails -name periodic.conf -exec sed -i '' -e 's/daily_status_security_ipfwdenied_enable/security_status_ipfwdenied_enable/;s/daily_status_security_ipfwlimit_enable/security_status_ipfwlimit_enable/;s/daily_status_security_kernelmsg_enable/security_status_kernelmsg_enable/' {} \;
 ## For upgrading from 9->10, update all jail devfs rules to use integers rather than strings
 sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 ## Run mergemaster on each jail
