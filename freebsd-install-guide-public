@@ -1182,7 +1182,7 @@ ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 DEFAULT_VERSIONS= ruby=1.9 perl5=5.16
 rubygem-passenger_UNSET+=APACHE22
 rubygem-passenger_SET+=NGINX
-nginx_SET+=PASSENGER HTTP_SSL
+nginx_SET+=PASSENGER
 'EOF'
 
 # Setup a package list of all ports used on host and in jails
