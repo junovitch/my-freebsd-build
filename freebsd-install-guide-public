@@ -1296,24 +1296,26 @@ perl -pwi -e 's^#ListenAddress\ ::^ListenAddress 2001:123:4:5678::2^g' /etc/ssh/
 service sshd restart
 
 ################################################################################
-# Enable jails in rc.conf and put block for enabling raw sockets in sysctl.conf
+# Configure systemwide jail settings
 ################################################################################
 
+# Enable jails in rc.conf
 echo '' >> /etc/rc.conf
 echo '# Ezjail Configuration' >> /etc/rc.conf
 echo 'ezjail_enable="YES"' >> /etc/rc.conf
 
+# Put commented block for enabling raw sockets in sysctl.conf if needed later on
 echo '' >> /etc/sysctl.conf
 echo '# Uncomment to allow pings within a jail on upon reboot' >> /etc/sysctl.conf
 echo '#security.jail.allow_raw_sockets=1' >> /etc/sysctl.conf
 
-################################################################################
-# First, copy package repo to basejail and map default myrepo.conf to use it
-# Second, copy vim dot files into jail, enable sshd, and enable syslogd with
-# the host system as the destination
-# Third, set up remaining for all jail's rc.conf
-################################################################################
+# FreeBSD 10+ devfs handling (rules must be numbers not names)
+sed -i '' -e 's/# ezjail_devfs_ruleset="devfsrules_jail"/ezjail_devfs_ruleset="4"/' /usr/local/etc/ezjail.conf
 
+# Define default jail stop command to ensure graceful shutdown of jails
+echo 'ezjail_exec_stop="/bin/sh /etc/rc.shutdown"' >> /usr/local/etc/ezjail.conf
+
+# Copy package repo to basejail and map default myrepo.conf to use it
 mkdir -p /usr/jails/newjail/pkgrepo
 mkdir -p /usr/jails/flavours/example/usr/local/etc/pkg/repos
 cat >> /usr/jails/flavours/example/usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
@@ -1322,19 +1324,37 @@ myrepo: {
 }
 'EOF'
 
+# Copy vim dot files into jail
 cp /etc/skel/.vimrc /usr/jails/newjail/etc/skel/
 cp /etc/skel/.vimrc /usr/jails/newjail/root
 
+# Copy .ssh directory for my user to the root user of each jail
 cp -a /usr/home/jason/.ssh /usr/jails/newjail/root/
 chown -R root:wheel /usr/jails/newjail/root/.ssh
+
+# Enable logging in as root with SSH keys
 perl -pwi -e 's^#PermitRootLogin no^PermitRootLogin without-password^g' /usr/jails/newjail/etc/ssh/sshd_config
 
+# Disable useless cron entries to prevent them spamming syslog
 perl -pwi -e 's^1,31\t0-5\t\*\t\*\t\*\troot\tadjkerntz -a^#1,31\t0-5\t\*\t\*\t\*\troot\tadjkerntz -a^' /usr/jails/newjail/etc/crontab
 
+# Set up remaining for all jail's rc.conf
 perl -pwi -e 's^# sshd_enable="YES"^sshd_enable="YES"^g' /usr/jails/flavours/example/etc/rc.conf
 perl -pwi -e 's^syslogd_flags="-ss"^syslogd_flags="-s -v -v"^g' /usr/jails/flavours/example/etc/rc.conf
 perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.100.102.2^g' /usr/jails/newjail/etc/syslog.conf
 
+cat >> /usr/jails/flavours/example/etc/rc.conf << 'EOF'
+
+# Kernel Secure Level
+kern_securelevel_enable="YES"
+kern_securelevel="3"
+
+# Clear Tmp
+clear_tmp_enable="YES"
+'EOF'
+
+# Configure baseline periodic.conf for all jail templates.
+# periodic.conf.local will be used for any things specific to one jail only.
 cat >> /usr/jails/flavours/example/etc/periodic.conf << 'EOF'
 ##### General formatting for all jails
 daily_show_success="NO"
@@ -1351,15 +1371,6 @@ daily_clean_tmps_enable="YES"
 daily_status_security_pkg_checksum_enable="YES"
 'EOF'
 
-cat >> /usr/jails/flavours/example/etc/rc.conf << 'EOF'
-
-# Kernel Secure Level
-kern_securelevel_enable="YES"
-kern_securelevel="3"
-
-# Clear Tmp
-clear_tmp_enable="YES"
-'EOF'
 
 ################################################################################
 # Quick script to display all periodic log files in all running jails.
@@ -1480,7 +1491,6 @@ cd /root && ./make-quicksha256-key.sh www.mydomain.name
 ezjail-admin create -f lan pdbi.pa-us.mydomain.name 10.100.102.17,2001:123:4:5678::17
 ezjail-admin config -f 1 pdbi.pa-us.mydomain.name
 echo '/zfs/poudriere/data/packages /usr/jails/pdbi.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.pdbi_pa_us_mydomain_name
-sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 perl -pwi -e 's/parameters=""/parameters="allow.sysvipc=1"/g' /usr/local/etc/ezjail/pdbi_pa_us_mydomain_name
 ezjail-admin console -f pdbi.pa-us.mydomain.name
 passwd
@@ -1518,7 +1528,6 @@ service postgresql reload
 ezjail-admin create -f lan mdbi.pa-us.mydomain.name 10.100.102.18,2001:123:4:5678::18
 ezjail-admin config -f 1 mdbi.pa-us.mydomain.name
 echo '/zfs/poudriere/data/packages /usr/jails/mdbi.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.mdbi_pa_us_mydomain_name
-sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 ezjail-admin console -f mdbi.pa-us.mydomain.name
 passwd
 
@@ -1588,7 +1597,6 @@ mkdir -p /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/pkg
 echo '/zfs/poudriere/data/logs /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/pkg nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/apps1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
-sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 ezjail-admin console -f apps1.pa-us.mydomain.name
 passwd
 
@@ -1602,7 +1610,6 @@ mkdir -p /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/pkg
 echo '/zfs/poudriere/data/logs /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/pkg nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/apps2.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
-sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 ezjail-admin console -f apps2.pa-us.mydomain.name
 passwd
 
@@ -2052,7 +2059,6 @@ ezjail-admin config -f 1 ftp.pa-us.mydomain.name
 mkdir -p /usr/jails/ftp.pa-us.mydomain.name/var/ftp/pkgrepo
 echo '/zfs/poudriere/data/packages /usr/jails/ftp.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.ftp_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/ftp.pa-us.mydomain.name/var/ftp/pkgrepo nullfs ro 0 0' >> /etc/fstab.ftp_pa_us_mydomain_name
-sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 ezjail-admin console -f ftp.pa-us.mydomain.name
 passwd
 
@@ -2095,7 +2101,6 @@ mkdir -p /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_photo_albums
 echo '/zfs/homedirs/common_media /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_media nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
 echo '/zfs/homedirs/common_photo_albums /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_photo_albums nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/serviio.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
-sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 ezjail-admin console -f serviio.pa-us.mydomain.name
 passwd
 
@@ -2244,8 +2249,7 @@ ezjail-admin create -f dmz vpn.pa-us.mydomain.name 192.168.102.19,10.100.102.19,
 echo '/zfs/poudriere/data/packages /usr/jails/vpn.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.vpn_pa_us_mydomain_name
 
 # Set to use devfs rules and assign interface IP on jail start
-perl -pwi -e 's/"devfsrules_jail"/"devfsrules_jail_with_vpn"/g' /usr/local/etc/ezjail/vpn_pa_us_mydomain_name
-sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
+sed -i '' -e 's/devfs_ruleset="4"/devfs_ruleset="5"/' /usr/local/etc/ezjail/vpn_pa_us_mydomain_name
 echo 'export jail_vpn_pa_us_mydomain_name_ip_multi0="tun0|10.100.103.1 10.100.103.2 netmask 255.255.255.255"' >> /usr/local/etc/ezjail/vpn_pa_us_mydomain_name
 echo 'export jail_vpn_pa_us_mydomain_name_exec_prestart0="/sbin/route add -net 10.100.103.0/24 10.100.103.2"' >> /usr/local/etc/ezjail/vpn_pa_us_mydomain_name
 
@@ -2368,7 +2372,7 @@ ezjail-admin create -f lan lanser.pa-us.mydomain.name 10.100.102.15,2001:123:4:5
 ezjail-admin config -f 1 lanser.pa-us.mydomain.name
 perl -pwi -e 's/parameters=""/parameters="allow.raw_sockets=1"/g' /usr/local/etc/ezjail/lanser_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/lanser.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.lanser_pa_us_mydomain_name
-sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
+sed -i '' -e 's/devfs_ruleset="4"/devfs_ruleset="6"/' /usr/local/etc/ezjail/lanser_pa_us_mydomain_name
 ezjail-admin console -f lanser.pa-us.mydomain.name
 passwd
 
@@ -2398,7 +2402,6 @@ service named start
 ezjail-admin create -f dmz www1.pa-us.mydomain.name 192.168.102.13,2001:123:4567:890::13
 ezjail-admin config -f 2 www1.pa-us.mydomain.name
 echo '/zfs/poudriere/data/packages /usr/jails/www1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.www1_pa_us_mydomain_name
-sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 mkdir /usr/jails/www1.pa-us.mydomain.name/usr/local/etc/apache24/
 cp /root/mycert/www.mydomain.name.* /usr/jails/www1.pa-us.mydomain.name/usr/local/etc/apache24/
 ezjail-admin console -f www1.pa-us.mydomain.name
@@ -2495,7 +2498,6 @@ apachectl start
 ezjail-admin create -f dmz ms1.pa-us.mydomain.name 192.168.102.11,2001:123:4567:890::11
 ezjail-admin config -f 2 ms1.pa-us.mydomain.name
 echo '/zfs/poudriere/data/packages /usr/jails/ms1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.ms1_pa_us_mydomain_name
-sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 ezjail-admin console -f ms1.pa-us.mydomain.name
 passwd
 
