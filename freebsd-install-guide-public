@@ -567,7 +567,7 @@ pkg install benchmarks/iperf
 # Monitorix for basic system monitoring and Perl SQL module for monitoring DB.
 ################################################################################
 
-pkg install sysutils/monitorix databases/p5-DBD-mysql55
+pkg install sysutils/monitorix databases/p5-DBD-mysql
 echo '' >> /etc/rc.conf
 echo '# Monitorix' >> /etc/rc.conf
 echo 'monitorix_enable="YES"' >> /etc/rc.conf
@@ -1217,7 +1217,7 @@ net/unison-nox11
 sysutils/zfs-stats
 sysutils/ezjail
 sysutils/monitorix
-databases/p5-DBD-mysql55
+databases/p5-DBD-mysql
 benchmarks/iperf
 ########## VPN/Proxy Jail ##########
 security/openvpn
