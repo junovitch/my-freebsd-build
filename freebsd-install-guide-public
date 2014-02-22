@@ -1303,6 +1303,7 @@ service sshd restart
 echo '' >> /etc/rc.conf
 echo '# Ezjail Configuration' >> /etc/rc.conf
 echo 'ezjail_enable="YES"' >> /etc/rc.conf
+echo 'devfs_load_rulesets="YES"' >> /etc/rc.conf
 
 # Put commented block for enabling raw sockets in sysctl.conf if needed later on
 echo '' >> /etc/sysctl.conf
