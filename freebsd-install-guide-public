@@ -1272,6 +1272,11 @@ myrepo: {
 }
 'EOF'
 
+# - To update a jail with latest security patches but stay at the same version:
+# poudriere jail -u -j jailname
+# - To upgrade to a newer version of FreeBSD, let's say from 9.0 to 9.1:
+# poudriere jail -u -t 9.1-RELEASE -j jailname
+
 ################################################################################
 ##----------------------------------------------------------------------------##
 ##                    Host System Initial Jail Configuration                  ##
