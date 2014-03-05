@@ -226,9 +226,12 @@ daily_status_security_pkg_checksum_enable="YES"
 #    `portmaster -L` to show what can be updated
 #    `portmaster port_name` to install or update one port only
 #    `portmaster -a` to update all (-a) installed ports
+#    `portmaster -fa` to force update of all installed ports
 #    `portmaster -e port_name` to expunge (-e) a port and all dependencies
 #    `portmaster -s` to remove stale (-s) ports no longer depended on
 #    `portmaster` while in a /usr/ports/ directory to install that port
+#    `rm /var/db/portsnap/tag && rm -rf /var/db/portsnap/files && portsnap fetch extract`
+#	to completely blow away all portsnap cached files and start fresh
 ################################################################################
 
 pkg install ports-mgmt/portmaster
