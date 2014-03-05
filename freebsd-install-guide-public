@@ -1497,6 +1497,8 @@ cd /root && ./make-quicksha256-key.sh www.mydomain.name
 ##                     PostgreSQL Jail Configuration                          ##
 ##----------------------------------------------------------------------------##
 ################################################################################
+# Useful references:
+# http://daemon-notes.com/articles/network/postgresql
 
 ezjail-admin create -f lan pdbi.pa-us.mydomain.name 10.100.102.17,2001:123:4:5678::17
 ezjail-admin config -f 1 pdbi.pa-us.mydomain.name
