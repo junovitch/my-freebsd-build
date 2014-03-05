@@ -2255,8 +2255,8 @@ echo '/zfs/poudriere/data/packages /usr/jails/vpn.pa-us.mydomain.name/pkgrepo nu
 
 # Set to use devfs rules and assign interface IP on jail start
 sed -i '' -e 's/devfs_ruleset="4"/devfs_ruleset="5"/' /usr/local/etc/ezjail/vpn_pa_us_mydomain_name
-echo 'export jail_vpn_pa_us_mydomain_name_ip_multi0="tun0|10.100.103.1 10.100.103.2 netmask 255.255.255.255"' >> /usr/local/etc/ezjail/vpn_pa_us_mydomain_name
-echo 'export jail_vpn_pa_us_mydomain_name_exec_prestart0="/sbin/route add -net 10.100.103.0/24 10.100.103.2"' >> /usr/local/etc/ezjail/vpn_pa_us_mydomain_name
+echo 'export jail_vpn_pa_us_mydomain_name_exec_prestart0="/sbin/ifconfig tun0 inet 10.100.103.1/32 10.100.103.2"' >> /usr/local/etc/ezjail/vpn_pa_us_mydomain_name
+echo 'export jail_vpn_pa_us_mydomain_name_exec_prestart1="/sbin/route add -net 10.100.103.0/24 10.100.103.2"' >> /usr/local/etc/ezjail/vpn_pa_us_mydomain_name
 
 # Place keys from host's CA into jail
 mkdir -p /usr/jails/vpn.pa-us.mydomain.name/usr/local/etc/openvpn/keys/
