@@ -990,6 +990,8 @@ zpool create zfs raidz /dev/gpt/bay2_WCAWZ0415892.nop /dev/gpt/bay3_WCAWZ0416712
 # Build datasets as needed
 ################################################################################
 
+zfs create zfs/data
+zfs set compression=lz4 zfs/data
 zfs create zfs/homedirs
 zfs create zfs/homedirs/public
 zfs create zfs/homedirs/jason
@@ -1614,9 +1616,11 @@ ezjail-admin create -f lan apps1.pa-us.mydomain.name 10.100.102.11,2001:123:4:56
 ezjail-admin config -f 1 apps1.pa-us.mydomain.name
 mkdir -p /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere
 mkdir -p /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/pkg
+mkdir -p /usr/jails/apps1.pa-us.mydomain.name/zfs/data
 echo '/zfs/poudriere/data/logs /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/pkg nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/apps1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
+echo '/zfs/data /usr/jails/apps1.pa-us.mydomain.name/zfs/data nullfs rw 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
 ezjail-admin console -f apps1.pa-us.mydomain.name
 passwd
 
@@ -1627,9 +1631,11 @@ ezjail-admin create -f lan apps2.pa-us.mydomain.name 10.100.102.12,2001:123:4:56
 ezjail-admin config -f 1 apps2.pa-us.mydomain.name
 mkdir -p /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere
 mkdir -p /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/pkg
+mkdir -p /usr/jails/apps2.pa-us.mydomain.name/zfs/data
 echo '/zfs/poudriere/data/logs /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/pkg nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/apps2.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
+echo '/zfs/data /usr/jails/apps2.pa-us.mydomain.name/zfs/data nullfs rw 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
 ezjail-admin console -f apps2.pa-us.mydomain.name
 passwd
 
@@ -2393,8 +2399,10 @@ add path zfs unhide
 
 ezjail-admin create -f lan lanser.pa-us.mydomain.name 10.100.102.15,2001:123:4:5678::15
 ezjail-admin config -f 1 lanser.pa-us.mydomain.name
+mkdir -p /usr/jails/lanser.pa-us.mydomain.name/zfs/data
 perl -pwi -e 's/parameters=""/parameters="allow.raw_sockets=1"/g' /usr/local/etc/ezjail/lanser_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/lanser.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.lanser_pa_us_mydomain_name
+echo '/zfs/data /usr/jails/lanser.pa-us.mydomain.name/zfs/data nullfs rw 0 0' >> /etc/fstab.lanser_pa_us_mydomain_name
 sed -i '' -e 's/devfs_ruleset="4"/devfs_ruleset="6"/' /usr/local/etc/ezjail/lanser_pa_us_mydomain_name
 ezjail-admin console -f lanser.pa-us.mydomain.name
 passwd
