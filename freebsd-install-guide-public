@@ -477,6 +477,12 @@ cp /etc/skel/.vimrc /home/jason/
 pkg install devel/checkbashisms
 
 ################################################################################
+# Portlint and Rclint for checking ports and scripts for syntax issues 
+################################################################################
+
+pkg install ports-mgmt/portlint devel/rclint
+
+################################################################################
 # FreeIPMI Utilities and a basic status check during the daily periodic.
 # See `man freeipmi` for more than the what's listed.
 ################################################################################
@@ -1196,6 +1202,8 @@ ports-mgmt/portmaster
 ports-mgmt/portdowngrade
 ports-mgmt/poudriere
 ports-mgmt/dialog4ports
+ports-mgmt/portlint
+devel/rclint
 sysutils/tmux
 shells/bash
 lang/perl5.16
