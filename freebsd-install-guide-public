@@ -2420,6 +2420,71 @@ echo 'named_enable="YES"' >> /etc/rc.conf.local
 chown bind /usr/local/etc/namedb/dynamic/*
 service named start
 
+# Install TFTPD
+pkg install ftp/tftp-hpa
+# Get syslinux-6.01 (6.02 didn't boot from local hard drive properly when tested)
+cd /root
+fetch --no-verify-peer https://www.kernel.org/pub/linux/utils/boot/syslinux/syslinux-6.01.zip
+mkdir syslinux-6.01
+unzip -d syslinux-6.01 syslinux-6.01.zip
+rm syslinux-6.01.zip
+# Populate tftpboot directory with bare minimum files needed from syslinux package
+mkdir -p /zfs/data/tftpboot/images
+mkdir -p /zfs/data/tftpboot/pxelinux.cfg
+cp -v \
+	syslinux-6.01/bios/com32/chain/chain.c32 \
+	syslinux-6.01/bios/gpxe/gpxelinux.0 \
+	syslinux-6.01/bios/com32/elflink/ldlinux/ldlinux.c32 \
+	syslinux-6.01/bios/com32/lib/libcom32.c32 \
+	syslinux-6.01/bios/core/lpxelinux.0 \
+	syslinux-6.01/bios/memdisk/memdisk \
+	syslinux-6.01/bios/com32/menu/menu.c32 \
+	syslinux-6.01/bios/com32/modules/reboot.c32 \
+	syslinux-6.01/bios/com32/menu/vesamenu.c32 \
+	/zfs/data/tftpboot
+# Get Ubuntu netboot installer
+fetch http://archive.ubuntu.com/ubuntu/dists/saucy/main/installer-amd64/current/images/netboot/netboot.tar.gz
+tar xvzf netboot.tar.gz
+mv ubuntu-installer /zfs/data/tftpboot/
+# Get mfsBSD images for testing
+cd /zfs/data/tftpboot/images
+fetch http://mfsbsd.vx.sk/files/images/10/i386/mfsbsd-10.0-RELEASE-i386.img
+fetch http://mfsbsd.vx.sk/files/images/10/amd64/mfsbsd-10.0-RELEASE-amd64.img
+# Populate default configuration using the above
+cat > /zfs/data/tftpboot/pxelinux.cfg/default << 'EOF'
+ui vesamenu.c32
+menu title Network Boot Menu
+timeout 100
+
+label localboot
+  menu label Boot from Hard Drive
+  kernel chain.c32
+  append hd0
+
+menu begin ubuntu
+	menu title Network Install Ubuntu 13.10 to Hard Disk
+	include ubuntu-installer/amd64/pxelinux.cfg/default
+menu end
+
+label mfsbsd64
+  menu label Load mfsBSD 10.0-RELEASE amd64
+  kernel memdisk
+  initrd images/mfsbsd-10.0-RELEASE-amd64.img raw
+
+label mfsbsd32
+  menu label Load mfsBSD 10.0-RELEASE i386
+  kernel memdisk
+  initrd images/mfsbsd-10.0-RELEASE-i386.img raw
+
+label reboot
+  menu label Reboot
+  kernel reboot.c32
+'EOF'
+# Enable and start tftpd
+echo 'tftpd_enable="YES"' >> /etc/rc.conf.local
+echo 'tftpd_flags="-p -s /zfs/data/tftpboot -B 1024"' >> /etc/rc.conf.local
+service tftpd start
+
 ################################################################################
 ##----------------------------------------------------------------------------##
 ##                       Owncloud Jail Configuration                          ##
