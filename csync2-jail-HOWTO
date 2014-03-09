@@ -1,0 +1,109 @@
+################################################################################
+##                        Csync2 Jail Configuration                           ##
+################################################################################
+#
+# Unison was a better fit than Csync2 because it is two way and faster than
+# Csync2 with the number of files synced up, but this did work out.
+#
+# Written in April 2013 by Jason Unovitch
+#   jason.unovitch@gmail.com
+#   https://github.com/junovitch
+#
+# References:
+# http://oss.linbit.com/csync2/paper.pdf
+# http://linuxaria.com/howto/csync2-a-filesystem-syncronization-tool-for-linux?lang=en
+#
+
+ezjail-admin create -f lan csync-jail 10.100.102.10
+
+# Make mount directories 
+mkdir -p /usr/jails/csync-jail/zfs/homedirs/public
+mkdir -p /usr/jails/csync-jail/zfs/homedirs/common_assorted
+mkdir -p /usr/jails/csync-jail/zfs/homedirs/common_media
+mkdir -p /usr/jails/csync-jail/zfs/homedirs/common_photo_albums
+
+# Update ezjail mount file with each Nullfs mount
+cat >> /etc/fstab.csync_jail_unovitch_com << __EOF__
+/zfs/homedirs /usr/jails/csync-jail/zfs/homedirs nullfs rw 0 0
+/zfs/homedirs/public /usr/jails/csync-jail/zfs/homedirs/public nullfs rw 0 0
+/zfs/homedirs/common_assorted /usr/jails/csync-jail/zfs/homedirs/common_assorted nullfs rw 0 0
+/zfs/homedirs/common_media /usr/jails/csync-jail/zfs/homedirs/common_media nullfs rw 0 0
+/zfs/homedirs/common_photo_albums /usr/jails/csync-jail/zfs/homedirs/common_photo_albums nullfs rw 0 0
+__EOF__
+
+# Start jail and change password
+ezjail-admin console -f csync-jail
+passwd
+
+# Install csync (using pkg)
+echo 'WITH_PKGNG=yes' >> /etc/make.conf
+portmaster net/csync2
+
+# Generate preshared keys
+cd /usr/local/etc
+csync2 -k csync2.psk
+openssl genrsa -out csync2_ssl_key.pem 1024
+openssl req -new -key csync2_ssl_key.pem -out csync2_ssl_cert.csr
+openssl x509 -req -days 600 -in csync2_ssl_cert.csr -signkey csync2_ssl_key.pem -out csync2_ssl_cert.pem
+
+# Make config using preshared key and desktop/server jail
+cat > csync2.cfg << __EOF__
+group mycluster
+{
+	host desktop;
+	host csync-jail;
+
+	key /usr/local/etc/csync2.psk;
+
+	include /zfs/homedirs;
+	auto younger;
+}
+__EOF__
+
+# Enable csync and update /etc/services with its protocol information
+printf 'csync2\t\t30865/tcp  #cluster synchronization tool\n' >> /etc/services
+echo 'csync2_enable="YES"' >> /etc/rc.conf
+
+# Create a daily periodic job to run the sync
+cat > /usr/local/etc/periodic/daily/999-csync2 << __EOF__
+#!/bin/sh
+#
+# /usr/local/etc/periodic/daily/999-csync2 2013-03-08
+#
+# Run csync2 push
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+hostname=\`hostname\`
+rc=0
+case "\$daily_csync2_enable" in
+    [Yy][Ee][Ss])
+	if [ ! -f /var/db/csync2/\${hostname}.db ]; then
+	     echo '\$daily_csync2_enable is enabled but' \
+	          "/var/db/csync2/\${hostname}.db doesn't exist"
+	     rc=2
+	else
+	    echo ""
+	    echo "Running Csync2 backup:"
+	    /usr/local/sbin/csync2 -x
+	    rc=\$?
+	fi
+	;;
+    *)
+	rc=0
+	;;
+esac
+exit \$rc
+__EOF__
+chmod 555 /usr/local/etc/periodic/daily/999-csync2
+
+# Enable daily csync job
+echo 'daily_csync2_enable="YES"' >> /etc/periodic.conf
+service csync2 start
