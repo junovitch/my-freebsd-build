@@ -370,10 +370,12 @@ bash
 . ./vars
 ./clean-all
 ./build-dh
-export KEY_CN=xts-bsd.pa-us.mydomain.name && export KEY_NAME=xts-bsd.pa-us.mydomain.name && ./build-ca
-export KEY_CN=vpn.pa-us.mydomain.name && export KEY_NAME=vpn.pa-us.mydomain.name && ./build-key-server vpn.pa-us.mydomain.name
-export KEY_CN=xts-rtr.pa-us.mydomain.name && export KEY_NAME=xts-rtr.pa-us.mydomain.name && ./build-key-server xts-rtr.pa-us.mydomain.name
-export KEY_CN=xju-rtr.nc-us.mydomain.name && export KEY_NAME=xju-rtr.nc-us.mydomain.name && ./build-key xju-rtr.nc-us.mydomain.name
+export KEY_CN=xts-bsd && export KEY_NAME=xts-bsd && ./build-ca
+export KEY_CN=vpn && export KEY_NAME=vpn && ./build-key-server vpn
+export KEY_CN=xts-rtr-server && export KEY_NAME=xts-rtr-server && ./build-key-server xts-rtr-server
+export KEY_CN=xju-rtr-server && export KEY_NAME=xju-rtr-server && ./build-key-server xju-rtr-server
+export KEY_CN=xts-rtr-client && export KEY_NAME=xts-rtr-client && ./build-key xts-rtr-client
+export KEY_CN=xju-rtr-client && export KEY_NAME=xju-rtr-client && ./build-key xju-rtr-client
 
 /usr/local/sbin/openvpn --genkey --secret keys/ta.key
 
@@ -385,8 +387,8 @@ scp keys/ca.crt root@xju-rtr:/usr/local/etc/openvpn/keys
 scp keys/ta.key root@xts-rtr:/usr/local/etc/openvpn/keys
 scp keys/ta.key root@xju-rtr:/usr/local/etc/openvpn/keys
 
-scp keys/xts-rtr.* root@xts-rtr:/usr/local/etc/openvpn/keys
-scp keys/xju-rtr.* root@xju-rtr:/usr/local/etc/openvpn/keys
+scp keys/xts-rtr-* root@xts-rtr:/usr/local/etc/openvpn/keys
+scp keys/xju-rtr-* root@xju-rtr:/usr/local/etc/openvpn/keys
 
 ################################################################################
 # Pstree - Better eye on process associations.
