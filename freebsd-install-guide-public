@@ -2634,6 +2634,69 @@ echo '# Auditing' >> /etc/rc.conf
 echo 'auditd_enable="YES"' >> /etc/rc.conf
 service auditd start
 
+## Enable auditdistd
+# Examples from https://wiki.freebsd.org/auditdistd
+# Passwords/hashes/fingerprints from wiki example, change as needed
+
+## Server side only
+# Generate certs
+openssl req -x509 -nodes -newkey rsa:4096 -days 1825 -batch -out /etc/security/auditdistd.cert.pem -keyout /etc/security/auditdistd.key.pem
+chmod 0600 /etc/security/auditdistd.key.pem /etc/security/auditdistd.cert.pem
+chown root:wheel /etc/security/auditdistd.key.pem /etc/security/auditdistd.cert.pem
+
+# Get Fingerprints
+openssl x509 -in /etc/security/auditdistd.cert.pem -noout -fingerprint -sha256 | awk -F '[ =]' '{printf("%s=%s\n", $1, $3)}'
+
+# Generate Shared Password
+dd if=/dev/urandom bs=32 count=1 | openssl base64 | cut -b -32
+
+# Create /etc/security/auditdistd.conf configuration file
+cat > /etc/security/auditdistd.conf << 'EOF'
+receiver {
+	listen "10.100.102.2:7878"
+	host "xju-rtr" {
+		remote "10.100.82.1"
+		password "YjwbK69H5cEBlhcT+eJpJgJTFn5B2SrG"
+	}
+	host "xts-rtr" {
+		remote "10.100.102.1"
+		password "YjwbK69H5cEBlhcT+eJpJgJTFn5B2SrG"
+	}
+}
+'EOF'
+
+## Client side only
+sed -i '' -e 's/dist:off/dist:on/g' /etc/security/audit_control
+
+cat > /etc/security/auditdistd.conf << 'EOF'
+sender {
+	source "10.100.82.1"
+	host "xju-rtr" {
+		remote "10.100.102.2:7878"
+		fingerprint "SHA256=8F:0A:FC:8A:3D:09:80:AF:D9:AA:38:CC:8A:86:53:E6:8F:B6:1C:55:30:14:D7:F9:AA:8B:3E:73:CD:F5:76:2B"
+		password "YjwbK69H5cEBlhcT+eJpJgJTFn5B2SrG"
+	}
+}
+'EOF'
+cat > /etc/security/auditdistd.conf << 'EOF'
+sender {
+	source "10.100.102.1"
+	host "xts-rtr" {
+		remote "10.100.102.2:7878"
+		fingerprint "SHA256=8F:0A:FC:8A:3D:09:80:AF:D9:AA:38:CC:8A:86:53:E6:8F:B6:1C:55:30:14:D7:F9:AA:8B:3E:73:CD:F5:76:2B"
+		password "YjwbK69H5cEBlhcT+eJpJgJTFn5B2SrG"
+	}
+}
+'EOF'
+
+## Both sides
+# Because the configuration file contains passwords, set its permissions properly:
+chmod 600 /etc/security/auditdistd.conf
+chown root:wheel /etc/security/auditdistd.conf
+
+echo 'auditdistd_enable="YES"' >> /etc/rc.conf
+service auditdistd start
+
 ################################################################################
 ##----------------------------------------------------------------------------##
 ##                             Maintenance Notes                              ##
