@@ -1202,7 +1202,7 @@ ca_root_nss_SET+=ETCSYMLINK
 DEFAULT_VERSIONS= ruby=1.9 perl5=5.16
 rubygem-passenger_UNSET+=APACHE22
 rubygem-passenger_SET+=NGINX
-nginx_SET+=PASSENGER
+nginx_SET+=PASSENGER HTTP_FANCYINDEX
 'EOF'
 
 # Setup a package list of all ports used on host and in jails
@@ -1940,7 +1940,7 @@ http {
 
         access_log /var/log/nginx/poudriere_access.log;
         root /usr/local/www/poudriere/bulk;
-        autoindex    on;
+        fancyindex   on;
     }
     server {
         listen       80;
@@ -1948,7 +1948,7 @@ http {
 
         access_log /var/log/nginx/pkg_access.log;
         root /usr/local/www/pkg;
-        autoindex    on;
+        fancyindex   on;
     }
     server {
         listen       8140 ssl;
