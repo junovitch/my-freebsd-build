@@ -786,6 +786,12 @@ echo 'smartd_enable="YES"' >> /etc/rc.conf
 service smartd start
 
 ################################################################################
+# NCDU - Useful tool for determining disk usage
+################################################################################
+
+pkg install sysutils/ncdu
+
+################################################################################
 # Rsync
 ################################################################################
 
@@ -1228,6 +1234,7 @@ sysutils/nut
 security/logcheck
 sysutils/panicmail
 sysutils/smartmontools
+sysutils/ncdu
 net/rsync
 net/unison-nox11
 sysutils/zfs-stats
