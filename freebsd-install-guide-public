@@ -2355,22 +2355,72 @@ pkg install www/squid33
 
 # Patch configure to allow monitorix to monitor, enable cache dir, and
 # munge internal LAN info sent out to servers
+# Squid/apt-get cache reference 1:  http://itkia.com/using-squid-to-cache-apt-updates-for-debian-and-ubuntu/
+# Squid/apt-get cache reference 2:  http://shadow-file.blogspot.com/2008/12/ditching-apt-cacher-ng-for-squid.html 
+# Squid/apt-get cache reference 3:  https://tails.boum.org/contribute/build/squid-deb-proxy/squid-deb-proxy.conf
 patch /usr/local/etc/squid/squid.conf << 'EOF'
-7a8,10
+7a8,9
 > acl jailhost src 10.100.102.19
 > acl jailhost src 192.168.102.19
+26a29,34
+> acl no_cache myport 3128
+> acl cache myport 3129
 > 
-37a41
+> cache deny no_cache
+> cache allow cache
+> 
+37a46
 > http_access allow jailhost manager
-62c66
+59a69
+> http_port 3129
+62c72,74
 < #cache_dir ufs /var/squid/cache/squid 100 16 256
 ---
-> cache_dir ufs /var/squid/cache/squid 100 16 256
-73a78,80
+> cache_dir ufs /var/squid/cache/squid 8192 16 256
+> cache_replacement_policy heap LFUDA
+> maximum_object_size 1024 MB
+70,73c82,113
+< refresh_pattern ^ftp:		1440	20%	10080
+< refresh_pattern ^gopher:	1440	0%	1440
+< refresh_pattern -i (/cgi-bin/|\?) 0	0%	0
+< refresh_pattern .		0	20%	4320
+---
+> refresh_pattern -i (/cgi-bin/|\?)	0	0%	0
+> refresh_pattern ^ftp:			1440	20%	10080
+> refresh_pattern ^gopher:		1440	0%	1440
+> refresh_pattern deb$			525600	100%	1576800
+> refresh_pattern udeb$			525600	100%	1576800
+> refresh_pattern tar.gz$			525600	100%	1576800
+> refresh_pattern DiffIndex$		0	20%	4320 refresh-ims
+> refresh_pattern PackagesIndex$		0	20%	4320 refresh-ims
+> refresh_pattern Packages\.bz2$		0	20%	4320 refresh-ims
+> refresh_pattern Packages\.gz$		0	20%	4320 refresh-ims
+> refresh_pattern Packages\.lzma$		0	20%	4320 refresh-ims
+> refresh_pattern SourcesIndex$		0	20%	4320 refresh-ims
+> refresh_pattern Sources\.bz2$		0	20%	4320 refresh-ims
+> refresh_pattern Sources\.gz$		0	20%	4320 refresh-ims
+> refresh_pattern Sources\.lzma$		0	20%	4320 refresh-ims
+> refresh_pattern Release$		0	20%	4320 refresh-ims
+> refresh_pattern Release\.gpg$		0	20%	4320 refresh-ims
+> refresh_pattern Translation-en\.bzip2$	0	20%	4320 refresh-ims
+> refresh_pattern Translation-en\.bz2$	0	20%	4320 refresh-ims
+> refresh_pattern Translation-en\.gz$	0	20%	4320 refresh-ims
+> refresh_pattern Translation-en\.lzma$	0	20%	4320 refresh-ims
+> refresh_pattern Translation-fr\.bzip2$	0	20%	4320 refresh-ims
+> refresh_pattern Translation-fr\.bz2$	0	20%	4320 refresh-ims
+> refresh_pattern Translation-fr\.gz$	0	20%	4320 refresh-ims
+> refresh_pattern Translation-fr\.lzma$	0	20%	4320 refresh-ims
+> refresh_pattern .			0	20%	4320
+> refresh_all_ims on
 > 
 > forwarded_for off
+> dns_defnames on
 > visible_hostname squid.lan
+> httpd_suppress_version_string on
 'EOF'
+
+# Enable a daily log file rotation via root crontab
+printf "0\t8\t*\t*\t*\t/usr/local/sbin/squid -k rotate\n" >> /var/cron/tabs/root
 
 # Fix permissions and enable
 chgrp squid /usr/local/etc/squid/squid.conf
