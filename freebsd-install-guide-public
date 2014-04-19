@@ -1258,12 +1258,14 @@ textproc/php5-simplexml
 textproc/php5-dom
 ########## Owncloud Jail##########
 www/owncloud
-########## Puppet/Puppet Dashboard Jail ##########
+########## Puppet/Foreman/Web Applications Jails ##########
 sysutils/puppet
 sysutils/puppet-lint
 devel/git
 devel/ruby-gems
 devel/rubygem-rake
+devel/gmake
+lang/gcc
 converters/ruby-iconv
 www/rubygem-passenger
 www/nginx
@@ -1273,6 +1275,8 @@ www/node
 databases/sqlite3
 databases/mariadb55-client
 databases/postgresql93-client
+net/foreman-proxy
+security/sudo
 ########## MariaDB Jail ##########
 databases/mariadb55-server
 ########## PostgreSQL Jail ##########
@@ -1399,7 +1403,6 @@ daily_status_security_kernelmsg_enable="NO"
 daily_clean_tmps_enable="YES"
 daily_status_security_pkg_checksum_enable="YES"
 'EOF'
-
 
 ################################################################################
 # Quick script to display all periodic log files in all running jails.
@@ -1541,8 +1544,12 @@ service postgresql start
 echo 'daily_pgsql_backup_enable="YES"' >> /etc/periodic.conf.local
 echo 'daily_pgsql_vacuum_enable="YES"' >> /etc/periodic.conf.local
 
+# Create users and databases
 su - pgsql
 createuser -sdrP admin
+createuser foreman
+createdb -O foreman -e foreman
+psql -c "ALTER USER foreman WITH ENCRYPTED PASSWORD 'foreman_password'"
 
 echo "host all all 10.100.102.11/32 md5" >> /usr/local/pgsql/data/pg_hba.conf
 echo "host all all 10.100.102.12/32 md5" >> /usr/local/pgsql/data/pg_hba.conf
@@ -1569,21 +1576,8 @@ echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 # Install MariaDB 5.5
 pkg install mariadb55-server
 
-# Creating and Configurating a MariaDB Database for Puppet Dashboard
-# Tuning:
-# Copy one of the default config files and change the max packet size to allow
-# for the 17 MB data rows that Dashboard can occasionally send.
-
-cp /usr/local/share/mysql/my-huge.cnf /var/db/mysql/my.cnf
-patch /var/db/mysql/my.cnf << 'EOF'
-32c32,33
-< max_allowed_packet = 1M
----
-> # Allow 32MB packet Size for ~17MB size rows Puppet dashboard sends
-> max_allowed_packet = 32M
-'EOF'
-
 # Enable and start MariaDB
+cp /usr/local/share/mysql/my-medium.cnf /var/db/mysql/my.cnf
 echo 'mysql_enable="YES"' >> /etc/rc.conf.local
 service mysql-server start
 
@@ -1591,26 +1585,24 @@ service mysql-server start
 # Choose a root password and answer yes to all questions.
 mysql_secure_installation
 
-# Login to MariaDB and create appropriate tables for Dashboard and Monitorix
+# Login to MariaDB and create appropriate tables for Foreman devel/test databases and Monitorix
+# Sub with random passwords:  dd if=/dev/urandom bs=32 count=1 | openssl base64 | cut -b -32
 mysql -u root -p
-CREATE DATABASE dashboard_production CHARACTER SET utf8;
-CREATE DATABASE dashboard_development CHARACTER SET utf8;
-CREATE DATABASE dashboard_test CHARACTER SET utf8;
-CREATE USER 'dashboard'@'10.100.102.11' IDENTIFIED BY 'dashboard_password';
-GRANT ALL PRIVILEGES ON dashboard_production.* TO 'dashboard'@'10.100.102.11';
-GRANT ALL PRIVILEGES ON dashboard_development.* TO 'dashboard'@'10.100.102.11';
-GRANT ALL PRIVILEGES ON dashboard_test.* TO 'dashboard'@'10.100.102.11';
-CREATE USER 'dashboard'@'10.100.102.12' IDENTIFIED BY 'dashboard_password';
-GRANT ALL PRIVILEGES ON dashboard_production.* TO 'dashboard'@'10.100.102.12';
-GRANT ALL PRIVILEGES ON dashboard_development.* TO 'dashboard'@'10.100.102.12';
-GRANT ALL PRIVILEGES ON dashboard_test.* TO 'dashboard'@'10.100.102.12';
+CREATE DATABASE foreman CHARACTER SET utf8;
+CREATE DATABASE foreman_test CHARACTER SET utf8;
+CREATE USER 'foreman'@'10.100.102.11' IDENTIFIED BY 'foreman_password';
+CREATE USER 'foreman'@'10.100.102.12' IDENTIFIED BY 'foreman_password';
+GRANT ALL PRIVILEGES ON foreman.* TO 'foreman'@'10.100.102.11';
+GRANT ALL PRIVILEGES ON foreman.* TO 'foreman'@'10.100.102.12';
+GRANT ALL PRIVILEGES ON foreman_test.* TO 'foreman'@'10.100.102.11';
+GRANT ALL PRIVILEGES ON foreman_test.* TO 'foreman'@'10.100.102.12';
 CREATE USER 'monitorix'@'10.100.102.18' IDENTIFIED BY 'monitorix_password';
 flush privileges;
 quit;
 
 ################################################################################
 ##----------------------------------------------------------------------------##
-##     Puppet with Puppet Dashboard on Nginx/Passenger Jail Configuration     ##
+##          Puppet and Foreman on Nginx/Passenger Jail Configuration          ##
 ##----------------------------------------------------------------------------##
 ################################################################################
 # References:
@@ -1657,7 +1649,7 @@ echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Installing Dependencies:  Install Puppet, Git, Nginx, and Ruby Components
 
-pkg install puppet rubygem-puppet-lint git nginx rubygem-rake ruby19-iconv rubygem-passenger rubygem-bundler mariadb55-client libxslt node sqlite3 postgresql93-client
+pkg install puppet rubygem-puppet-lint git nginx rubygem-rake ruby19-iconv rubygem-passenger rubygem-bundler mariadb55-client libxslt node sqlite3 postgresql93-client gcc gmake sudo foreman-proxy
 
 # At this point, Puppet needs to be started so that all its SSL keys can be 
 # generated. This gives the chance to test that Puppet does work before anything
@@ -1674,12 +1666,11 @@ service puppetmaster onestart
 echo "[main]" >> /usr/local/etc/puppet/puppet.conf
 echo "ca = false" >> /usr/local/etc/puppet/puppet.conf
 echo "ca_server = apps1.pa-us.mydomain.name" >> /usr/local/etc/puppet/puppet.conf
-echo "dns_alt_names = puppet.pa-us.mydomain.name,puppet" >> /usr/local/etc/puppet/puppet.conf
+echo "dns_alt_names = foreman.pa-us.mydomain.name,foreman,puppet.pa-us.mydomain.name,puppet" >> /usr/local/etc/puppet/puppet.conf
 puppet agent --test --waitforcert 10
 
 # On the CA
 puppet cert --allow-dns-alt-names sign apps2.pa-us.mydomain.name
-
 
 # With initial setup of the Puppetmaster done, a RACK file that Nginx will use
 # to start the Ruby application will be needed. Copy/paste the example.
@@ -1699,190 +1690,151 @@ run Puppet::Util::CommandLine.new.execute
 'EOF'
 chown -R puppet:puppet /usr/local/etc/puppet/rack
 
-# Installing Puppet Dashboard
-# Procedures follow Puppet Lab's documentation at:  http://docs.puppetlabs.com/dashboard/manual/1.2
-# Follow along with their documentation for a more detailed description of what is being done.
-
-# Installing from Git
-# Clone community supported Dashboard 2.0 instead of than Puppetlab's 1.2
+# Installing Foreman from Git
 cd /usr/local/share
-git clone git://github.com/sodabrew/puppet-dashboard.git
+git clone https://github.com/theforeman/foreman.git -b 1.4-stable
+cd foreman
+cp config/settings.yaml.example config/settings.yaml
 
-# Manually create the 'puppet-dashboard' user
-pw groupadd -n puppet-dashboard -g 800
-pw useradd -n puppet-dashboard -c "Puppet Dashboard,,," -u 800 -g puppet-dashboard -s /usr/sbin/nologin
+# Note: rubygem-libv8 doesn't recognize current gcc47 and requires a link
+# GCC and gmake are required to successfully build and install
+cd /usr/local/bin && ln g++47 g++ && cd -
+bundle install --path vendor/bundle --without console libvirt ovirt test vmware
+rm /usr/local/bin/g++
 
-# Configuring Dashboard
 # database.yml:  Copy the example database YAML file. Update with database information.
-cd /usr/local/share/puppet-dashboard/config
-cp database.yml.example database.yml
-patch database.yml << 'EOF'
-49c49
-<   password:
----
->   password: dashboard_password
-51c51,52
-<   adapter: postgresql
----
->   adapter: mysql2
->   host: 10.100.102.18
-56c57
-<   password:
----
->   password: dashboard_password
-58c59,60
-<   adapter: postgresql
----
->   adapter: mysql2
->   host: 10.100.102.18
-63c65
-<   password:
----
->   password: dashboard_password
-65,66c67,68
-<   adapter: postgresql
-< 
----
->   adapter: mysql2
->   host: 10.100.102.18
+cd /usr/local/share/foreman/config
+cat > database.yml << 'EOF'
+# Warning: The database defined as "test" will be erased and
+# re-generated from your development database when you run "rake".
+# Do not set this db to the same as development or production.
+test:
+  adapter: mysql2
+  database: foreman_test
+  username: foreman
+  password: foreman_password
+  host: 10.100.102.18
+
+development:
+  adapter: mysql2
+  database: foreman
+  username: foreman
+  password: foreman_password
+  host: 10.100.102.18
+
+production:
+  adapter: postgresql
+  database: foreman
+  username: foreman
+  password: foreman_password
+  host: 10.100.102.17
 'EOF'
+
+# Configure email server settings
+cat > email.yaml << 'EOF'
+# Outgoing email settings
+
+production:
+  delivery_method: :smtp
+  smtp_settings:
+    address: xts-bsd-lan.pa-us.mydomain.name
+    port: 25
+    domain: mydomain.name
+    authentication: :none
+'EOF'
+
+# Update settings.yaml file
+# Change certificate as needed
+cat > settings.yaml << 'EOF'
+---
+# You must restart the Rack server after changing either of these values
+# because they are cached at startup.
+:unattended: true
+:login: true
+:require_ssl: true
+:locations_enabled: false
+:organizations_enabled: false
+:puppetconfdir: /usr/local/etc/puppet
+:puppetvardir: /var/puppet
+:ssl_ca_file: /var/puppet/ssl/certs/ca.pem
+:ssl_certificate: /var/puppet/ssl/certs/apps1.pa-us.mydomain.name.pem
+:ssl_priv_key: /var/puppet/ssl/private_keys/apps1.pa-us.mydomain.name.pem
+'EOF'
+
+# Update access perms on these files
+chmod 640 settings.yaml
 chmod 640 database.yml
 
-# settings.yml:  Copy the example settings YAML file. No changes needed.
-cd /usr/local/share/puppet-dashboard/config
-cp settings.yml.example settings.yml
-chmod 640 settings.yml
+# Generate keys with extra dns_alt_names to match
+puppet cert generate apps1.pa-us.mydomain.name --dns_alt_names puppet,puppet.pa-us.mydomain.name,foreman,foreman.pa-us.mydomain.name
+puppet cert generate apps2.pa-us.mydomain.name --dns_alt_names puppet,puppet.pa-us.mydomain.name,foreman,foreman.pa-us.mydomain.name
 
-# Fix shebang line for ENC script
-sed -i '' -e 's/#! \/usr\/bin\/ruby/#!\/usr\/local\/bin\/ruby/' /usr/local/share/puppet-dashboard/bin/external_node
+# Setup production database
+env RAILS_ENV=production bundle exec rake db:migrate
 
-# Install gems required in the 'Gemfile' via the Rubygem Bundler
-cd /usr/local/share/puppet-dashboard
-bundle install --path vendor/bundle
-
-# Generate secret_token
-# Cleanup any errors and the default token after generating the new one.
-echo "secret_token: `bundle exec rake secret`" >> config/settings.yml
-vi config/settings.yml
-
-# Before going into a production environment, Dashboard 2.0 must precompile
+# Before going into a production environment, Foreman must precompile
 # assets for production.
-env RAILS_ENV=production bundle exec rake assets:precompile
+env RAILS_ENV=production bundle exec rake db:seed assets:precompile locale:pack
 
-# Creating and Configuring a MariaDB Database - Preparing Schema
-# At this point the database was already installed in another jail with some blank tables.
-# We need to run rake to finish the process with the database structure needed.
-cd /usr/local/share/puppet-dashboard
-env RAILS_ENV=production bundle exec rake db:setup
-env RAILS_ENV=development bundle exec rake db:setup
+# Testing That Foreman is Working
+# Run Foreman using Ruby's built-in WEBrick server to validate functionality.
+# It will be available at http://foreman:3000 and use the RAILS_ENV=development database.
+env RAILS_ENV=production bundle exec rails server
 
-# Fix permissions on everything
-mkdir /usr/local/share/puppet-dashboard/certs
-chgrp -R puppet-dashboard /usr/local/share/puppet-dashboard
-find /usr/local/share/puppet-dashboard/certs -type d -exec chmod g+w {} \;
-find /usr/local/share/puppet-dashboard/certs -type f -exec chmod g+w {} \;
-find /usr/local/share/puppet-dashboard/tmp -type d -exec chmod g+w {} \;
-find /usr/local/share/puppet-dashboard/tmp -type f -exec chmod g+w {} \;
-find /usr/local/share/puppet-dashboard/log -type d -exec chmod g+w {} \;
-find /usr/local/share/puppet-dashboard/log -type f -exec chmod g+w {} \;
+# Manually create the 'foreman' user
+pw groupadd -n foreman -g 813
+pw useradd -n foreman -c "The Foreman,,," -u 813 -g foreman -d /usr/local/share/foreman -s /usr/sbin/nologin
 
-# Testing That Dashboard is Working
-# Run Dashboard using Ruby's built-in WEBrick server to validate functionality.
-# It will be available at http://dashboard:3000 and use the RAILS_ENV=development database.
-cd /usr/local/share/puppet-dashboard
-su -m puppet-dashboard -c 'bundle exec rails server'
+# Add Puppet group access to Foreman so it can read what it needs to read
+pw usermod foreman_proxy -G puppet
+pw usermod foreman -G puppet
+chmod g+r /var/puppet/ssl/private_keys/*
+
+# Fix permissions on everything so far
+mkdir /usr/local/share/foreman/tmp
+chgrp -R foreman /usr/local/share/foreman
+find /usr/local/share/foreman/tmp -type d -exec chmod g+rw {} \;
+find /usr/local/share/foreman/tmp -type f -exec chmod g+rw {} \;
+find /usr/local/share/foreman/log -type d -exec chmod g+rw {} \;
+find /usr/local/share/foreman/log -type f -exec chmod g+rw {} \;
 
 # Configuring Puppet
 # All agent nodes have to be configured to submit reports to the master.
-# The master has to be configured to send reports to Dashboard.
+# The master has to be configured to send reports to Foreman.
+
+# Changes to make in foreman.rb:
+# $foreman_url='https://foreman.pa-us.mydomain.name'
+# $foreman_ssl_ca = "/var/puppet/ssl/certs/ca.pem"
+# $foreman_ssl_cert = "/var/puppet/ssl/certs/apps2.pa-us.mydomain.name.pem"
+# $foreman_ssl_key = "/var/puppet/ssl/private_keys/apps2.pa-us.mydomain.name.pem"
+cd /usr/local/lib/ruby/site_ruby/1.9/puppet/reports
+fetch https://raw.github.com/theforeman/puppet-foreman/master/templates/foreman-report_v2.rb.erb
+mv foreman-report_v2.rb.erb foreman.rb
+vim foreman.rb
+
+# Changes to make in foreman_enc.rb
+# Change shebang to /usr/local/bin/ruby
+# Update SSL keys same as report file
+cd /usr/local/etc/puppet
+fetch https://raw.github.com/theforeman/puppet-foreman/master/templates/external_node_v2.rb.erb
+cp external_node_v2.rb.erb foreman_enc.rb.apps1.pa-us.mydomain.name.rb
+mv external_node_v2.rb.erb foreman_enc.rb.apps2.pa-us.mydomain.name.rb
+vim foreman_enc.rb.apps1.pa-us.mydomain.name.rb
+vim foreman_enc.rb.apps2.pa-us.mydomain.name.rb
 
 # Example:
 #   puppet.conf (on each agent)
 #     [agent]
 #       report = true
 #
-#   puppet.conf (on puppet master)
+#   puppet.conf (on puppet master, update ENC as needed)
 #     [master]
-#       reports = store, http
-#       reporturl = http://dashboard.example.com:3000/reports/upload
+#       reports = store, foreman
 #       node_terminus = exec
-#       external_nodes = /usr/bin/env PUPPET_DASHBOARD_URL=http://dashboard.example.com:3000 /usr/local/share/puppet-dashboard/bin/external_node
+#       external_nodes = /usr/local/etc/puppet/foreman_enc.apps1.pa-us.mydomain.name.rb
 #
 
-# Testing Puppet's Connection to Dashboard
-# From a Puppet agent, run `puppet agent --test`.  A new background task should show in the 
-# Dashboard UI at http://dashboard:3000
-
-# Starting and Managing Delayed Job Workers
-#
-# Using the monitor script
-# Dashboard ships a worker process maanager under script/delayed_job.  It can manually start
-# delayed jobs via the following command
-# cd /usr/local/share/puppet-dashboard
-# su -m puppet-dashboard -c 'env RAILS_ENV=production bundle exec script/delayed_job -p dashboard -n 2 -m start'
-
-# Rather than manually triggering background workers, this rc script will accomplish the same
-# thing and ensure the background jobs get started on the next reboot.
-
-cat > /usr/local/etc/rc.d/dashboard_workers << 'EOF'
-#!/bin/sh
-
-# PROVIDE: dashboard_workers
-# REQUIRE: LOGIN
-# KEYWORD: shutdown
-
-. /etc/rc.subr
-
-name=dashboard_workers
-rcvar=dashboard_workers_enable
-
-load_rc_config $name
-
-# By default dashboard_workers uses flags '-n 1' for 1 worker.  This should be 
-# adjusted to the number of CPU cores.
-dashboard_workers_enable=${dashboard_workers_enable:-"NO"}
-dashboard_workers_flags=${dashboard_workers_flags:-"-n 1"}
-# The default rails environment is set to production
-dashboard_workers_env=${dashboard_workers_env:-"/usr/bin/env PATH=${PATH}:/usr/local/bin RAILS_ENV=production"}
-# The default user is set to puppet-dashboard and install location is set to
-# /usr/local/share/puppet-dashboard.
-dashboard_workers_user=${dashboard_workers_user:-"puppet-dashboard"}
-dashboard_workers_chdir=${dashboard_workers_chdir:-"/usr/local/share/puppet-dashboard"}
-
-# All commands call the same function and strip the fast|one|quiet prefix
-# to deliver to the bundler.
-extra_commands="reload run zap status"
-reload_cmd="f_dashboard_workers reload"
-restart_cmd="f_dashboard_workers restart"
-run_cmd="f_dashboard_workers run"
-start_cmd="f_dashboard_workers start"
-status_cmd="f_dashboard_workers status"
-stop_cmd="f_dashboard_workers stop"
-zap_cmd="f_dashboard_workers zap"
-
-# Use the function's ARVG $1 as the bundler program's '-m' flag
-f_dashboard_workers()
-{
-    cd $dashboard_workers_chdir && \
-    su -m "$dashboard_workers_user" \
-        -c "${dashboard_workers_env} bundle exec script/delayed_job ${rc_flags} -p dashboard -m $1" || \
-    echo "Failed to $1 dashboard_workers"
-}
-
-run_rc_command "$1"
-'EOF'
-chmod 555 /usr/local/etc/rc.d/dashboard_workers
-
-# With that in place, we need to override the defaults and enable the script along with
-# setting '-n 2' workers to match the number of processor cores and ensure it's ready
-# for a production workload. 
-
-echo 'dashboard_workers_enable="YES"' >> /etc/rc.conf.local
-echo 'dashboard_workers_flags="-n 2"' >> /etc/rc.conf.local
-service dashboard_workers start
-
-# Running Dashboard in a Production-Quality Server
-
+# Running Foreman on a Production-Quality Server
 # Configuring Nginx and Passenger
 # Nginx/Passenger Instructions and Configuration was derived from these two examples 
 # that refer to how to set it up on CentOS
@@ -1891,63 +1843,72 @@ service dashboard_workers start
 # http://www.watters.ws/mediawiki/index.php/Configure_puppet_master_using_nginx_and_mod_passenger
 
 cat > /usr/local/etc/nginx/nginx.conf << 'EOF'
-user  www www;
+user              www www;
 worker_processes  2;
-error_log  /var/log/nginx/error.log notice;
-pid        /var/run/nginx.pid;
+error_log         /var/log/nginx/error.log notice;
+pid               /var/run/nginx.pid;
 
 events {
     worker_connections  1024;
 }
 
 http {
-    passenger_root /usr/local/lib/ruby/gems/1.9/gems/passenger-4.0.29;
-    passenger_ruby /usr/local/bin/ruby;
-    passenger_max_pool_size 10;
+    passenger_root           /usr/local/lib/ruby/gems/1.9/gems/passenger-4.0.41;
+    passenger_ruby           /usr/local/bin/ruby;
+    passenger_max_pool_size  10;
     passenger_pool_idle_time 300;
-    #passenger_spawn_method direct; # Uncomment on Ruby 1.8 for ENC to work
 
-    include       mime.types;
-    default_type  application/octet-stream;
-    sendfile      on;
-    tcp_nopush    on;
+    include            mime.types;
+    default_type       application/octet-stream;
+    sendfile           on;
+    tcp_nopush         on;
     keepalive_timeout  65;
     tcp_nodelay        on;
 
     server {
         listen       80 default_server;
-        server_name  dashboard.pa-us.mydomain.name dashboard;
+        server_name  foreman.pa-us.mydomain.name foreman;
 
-        passenger_enabled on;
-        passenger_user             puppet-dashboard;
-        passenger_group            puppet-dashboard;
+        passenger_enabled          on;
+        passenger_user             foreman;
+        passenger_group            foreman;
 
-        access_log /var/log/nginx/dashboard_access.log;
-        root /usr/local/share/puppet-dashboard/public;
+        access_log   /var/log/nginx/foreman_http_access.log;
+        root         /usr/local/share/foreman/public;
+    }
+    server {
+        listen       443 ssl;
+        server_name  foreman.pa-us.mydomain.name foreman;
 
-        auth_basic             "Puppet Dashboard";
-        auth_basic_user_file   htpasswd;
-        allow 10.100.102.11;
-        allow 10.100.102.12; 
-        allow 2001:123:4:5678::11;
-        allow 2001:123:4:5678::12;
-        deny all;
-        satisfy any;
+        passenger_enabled          on;
+        passenger_set_cgi_param    HTTP_X_CLIENT_DN $ssl_client_s_dn;
+        passenger_set_cgi_param    HTTP_X_CLIENT_VERIFY $ssl_client_verify;
+        passenger_user             foreman;
+        passenger_group            foreman;
+
+        access_log                 /var/log/nginx/foreman_https_access.log;
+        root                       /usr/local/share/foreman/public;
+        ssl_certificate            /var/puppet/ssl/certs/apps1.pa-us.mydomain.name.pem;
+        ssl_certificate_key        /var/puppet/ssl/private_keys/apps1.pa-us.mydomain.name.pem;
+        ssl_crl                    /var/puppet/ssl/ca/ca_crl.pem;
+        ssl_client_certificate     /var/puppet/ssl/certs/ca.pem;
+        ssl_verify_client          optional;
+        ssl_verify_depth           1;
     }
     server {
         listen       80;
         server_name  poudriere.pa-us.mydomain.name poudriere;
 
-        access_log /var/log/nginx/poudriere_access.log;
-        root /usr/local/www/poudriere/bulk;
+        access_log   /var/log/nginx/poudriere_access.log;
+        root         /usr/local/www/poudriere/bulk;
         fancyindex   on;
     }
     server {
         listen       80;
         server_name  pkg.pa-us.mydomain.name pkg;
 
-        access_log /var/log/nginx/pkg_access.log;
-        root /usr/local/www/pkg;
+        access_log   /var/log/nginx/pkg_access.log;
+        root         /usr/local/www/pkg;
         fancyindex   on;
     }
     server {
@@ -1984,11 +1945,6 @@ mkdir /var/log/nginx
 # Enable a daily log file rotation via newsyslog.conf
 printf "/var/log/nginx/*.log\t\t\t644  7\t   *    @T00  JG    /var/run/nginx.pid  30\n" >> /etc/newsyslog.conf
 
-# Create a password file for auth_basic login
-echo "dashboard:`openssl passwd -crypt PUT_PASSWORD_HERE`" >> /usr/local/etc/nginx/htpasswd
-chmod 640 /usr/local/etc/nginx/htpasswd
-chown root:www /usr/local/etc/nginx/htpasswd
-
 # If the puppetmaster service is still running from earlier testing, stop it now
 # Mark appropriate optiosn for hostname specific 
 service puppetmaster onestop
@@ -2003,27 +1959,6 @@ echo 'puppetmaster_flags="--config_file_name=puppet.conf.apps2.pa-us.mydomain.na
 echo 'nginx_enable="YES"' >> /etc/rc.conf.local
 service nginx start
 
-# Configuring Dashboard
-# Advanced Features
-
-# Generating Certs and Connecting to the Puppet Master
-# With separate Puppet/Dashboard systems the `puppet cert sign dashboard` will
-# be on the Puppetmaster.
-
-cd /usr/local/share/puppet-dashboard
-su -m puppet-dashboard -c 'bundle exec rake cert:create_key_pair'
-su -m puppet-dashboard -c 'bundle exec rake cert:request'
-puppet cert sign dashboard
-su -m puppet-dashboard -c 'bundle exec rake cert:retrieve'
-
-# Enabling Inventory Support
-# EXAMPLE:
-#   auth.conf (on puppet master)
-#   path /facts
-#   auth yes
-#   method find, search
-#   allow dashboard
-
 # Enabling the Filebucket Viewer
 # EXAMPLE
 #   site.pp (on puppet master)
@@ -2034,40 +1969,10 @@ su -m puppet-dashboard -c 'bundle exec rake cert:retrieve'
 #
 # File { backup => "main" }
 
-# Go back and add the line for Inventory Support.
-# While I'm here, also increase reporting cutoff to deal with laptop/powered off systems getting
-# flagged unresponsive.
-cd /usr/local/share/puppet-dashboard/config
-patch settings.yml << 'EOF'
-35c35
-< enable_inventory_service: false
----
-> enable_inventory_service: true
-45c45
-< use_file_bucket_diffs: false
----
-> use_file_bucket_diffs: true
-54c54
-< no_longer_reporting_cutoff: 3600
----
-> no_longer_reporting_cutoff: 259200
-'EOF'
-
 # With all the updates made, restart so that it takes effect.
 service nginx restart
 
-# For future maintenance, periodic jobs to prune old reports and run DB optimization.
-mkdir -p /usr/local/etc/periodic/monthly
-cat > /usr/local/etc/periodic/monthly/clean_dashboard_database.sh << 'EOF'
-#!/bin/sh
-cd /usr/local/share/puppet-dashboard && \
-    echo "Pruning Old Reports from Puppet Dashboard Database" && \
-    /usr/bin/su -m puppet-dashboard -c '/usr/local/bin/bundle exec rake RAILS_ENV=production reports:prune upto=3 unit=mon'  && \
-    echo "Optimizing Database" && \
-    /usr/bin/su -m puppet-dashboard -c '/usr/local/bin/bundle exec rake RAILS_ENV=production db:raw:optimize' 
-'EOF'
-chmod 755 /usr/local/etc/periodic/monthly/clean_dashboard_database.sh
-
+# For future maintenance, periodic jobs to prune old reports.
 mkdir -p /usr/local/etc/periodic/weekly
 cat > /usr/local/etc/periodic/weekly/clean_puppet_reports.sh << 'EOF'
 #!/bin/sh
@@ -2076,6 +1981,26 @@ echo -n "  Reports Removed:"
 find /var/puppet/reports -type f -mtime +7 | xargs rm -v | wc -l
 'EOF'
 chmod 755 /usr/local/etc/periodic/weekly/clean_puppet_reports.sh
+
+# And cron jobs for everything else
+touch /var/log/foreman-cron.log
+chown foreman:wheel /var/log/foreman-cron.log
+cat > /var/cron/tabs/foreman << 'EOF'
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+RAILS_ENV=production
+FOREMAN_HOME=/usr/local/share/foreman
+# Clean up the session entries in the database
+15 23 * * *     bundle exec rake db:sessions:clear >/var/log/foreman-cron.log 2>&1
+# Send out daily summary
+0 7 * * *       bundle exec rake reports:summarize >/var/log/foreman-cron.log 2>&1
+# Expire old reports
+30 7 * * *      bundle exec rake reports:expire >/var/log/foreman-cron.log 2>&1
+# Collects trends data
+*/30 * * * *    bundle exec rake trends:counter >/var/log/foreman-cron.log 2>&1
+# Remove duplicate trends data
+0 8 * * *       bundle exec rake trends:clean >/var/log/foreman-cron.log 2>&1
+'EOF'
 
 ################################################################################
 ##----------------------------------------------------------------------------##
@@ -2170,11 +2095,11 @@ unzip -d /usr/local/www Serviio-1.3.zip
 # to both apps servers and add this to their nginx.conf
 
     server {
-        listen 80;
-        server_name serviio-console.pa-us.mydomain.name serviio-console;
+        listen       80;
+        server_name  serviio-console.pa-us.mydomain.name serviio-console;
 
-        access_log /var/log/nginx/serviio_console_access.log;
-        root /usr/local/www/Web-UI-for-Serviio-Serviio-1.3;
+        access_log   /var/log/nginx/serviio_console_access.log;
+        root         /usr/local/www/Web-UI-for-Serviio-Serviio-1.3;
 
         location / {
             index index.php;
