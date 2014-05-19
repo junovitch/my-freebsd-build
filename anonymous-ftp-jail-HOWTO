@@ -1,0 +1,36 @@
+################################################################################
+##                          FTP Jail Configuration                            ##
+################################################################################
+# Anonymous FTP suited for a few quick internal uses only.
+#
+# Modified from:
+# http://157.85.32.130/freebsd/servers/ftp/ftpd.html
+# http://www5.us.freebsd.org/doc/handbook/network-ftp.html
+################################################################################
+
+ezjail-admin create -f lan ftp.mydomain.name 10.100.102.13
+ezjail-admin console -f ftp.mydomain.name
+passwd
+
+pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
+echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
+echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
+
+# Add anonymous user
+pw useradd -m -n ftp -c "Anonymous FTP User,,," -s /sbin/nologin -d "/var/ftp"
+
+# Remove the skel directory created above and create default ftp structure
+cd /var/ftp
+rm -r .*
+mkdir etc pub incoming
+chown -R root:ftp /var/ftp/
+chmod 755 etc pub
+chown -R nobody incoming
+chmod 5777 incoming
+echo "ftp" >> /etc/ftpchroot
+touch /var/log/ftpd
+
+# Finalize and activate
+echo 'ftpd_enable="YES"' >> /etc/rc.conf.local
+echo 'ftpd_flags="-ASll"' >> /etc/rc.conf.local
+service ftpd start

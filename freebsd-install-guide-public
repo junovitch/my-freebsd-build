@@ -125,8 +125,8 @@ ifconfig_em1_alias0="inet 10.100.102.11/32 fib 1"		# apps1.pa-us.mydomain.name
 ifconfig_em1_alias1="inet6 2001:123:4:5678::11/128 fib 1"	# apps1.pa-us.mydomain.name
 ifconfig_em1_alias2="inet 10.100.102.12/32 fib 1"		# apps2.pa-us.mydomain.name
 ifconfig_em1_alias3="inet6 2001:123:4:5678::12/128 fib 1"	# apps2.pa-us.mydomain.name
-ifconfig_em1_alias4="inet 10.100.102.13/32 fib 1"		# ftp.pa-us.mydomain.name
-ifconfig_em1_alias5="inet6 2001:123:4:5678::13/128 fib 1"	# ftp.pa-us.mydomain.name
+ifconfig_em1_alias4="inet 10.100.102.13/32 fib 1"		# unused
+ifconfig_em1_alias5="inet6 2001:123:4:5678::13/128 fib 1"	# unused
 ifconfig_em1_alias6="inet 10.100.102.14/32 fib 1"		# serviio.pa-us.mydomain.name
 ifconfig_em1_alias7="inet6 2001:123:4:5678::14/128 fib 1"	# serviio.pa-us.mydomain.name
 ifconfig_em1_alias8="inet 10.100.102.15/32 fib 1"		# lanser.pa-us.mydomain.name
@@ -708,6 +708,16 @@ service monitorix start
 
 pkg install sysutils/panicmail
 echo 'panicmail_enable="YES"' >> /etc/rc.conf
+
+################################################################################
+# FTPD
+################################################################################
+
+echo '' >> /etc/rc.conf
+echo '# Enable FTPD' >> /etc/rc.conf
+echo 'ftpd_enable="YES"' >> /etc/rc.conf
+echo 'ftpd_flags="-h -ll -a 10.100.102.2"' >> /etc/rc.conf
+service ftpd start
 
 ################################################################################
 # Cleanup periodic messages for readability on a phone.
@@ -2000,49 +2010,6 @@ FOREMAN_HOME=/usr/local/share/foreman
 # Remove duplicate trends data
 0 8 * * *       bundle exec rake trends:clean >/var/log/foreman-cron.log 2>&1
 'EOF'
-
-################################################################################
-##----------------------------------------------------------------------------##
-##                          FTP Jail Configuration                            ##
-##----------------------------------------------------------------------------##
-################################################################################
-# Anonymous FTP suited for a few quick internal uses only.
-#
-# Modified from:
-# http://157.85.32.130/freebsd/servers/ftp/ftpd.html
-# http://www5.us.freebsd.org/doc/handbook/network-ftp.html
-################################################################################
-
-ezjail-admin create -f lan ftp.pa-us.mydomain.name 10.100.102.13,2001:123:4:5678::13
-ezjail-admin config -f 1 ftp.pa-us.mydomain.name
-mkdir -p /usr/jails/ftp.pa-us.mydomain.name/var/ftp/pkgrepo
-echo '/zfs/poudriere/data/packages /usr/jails/ftp.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.ftp_pa_us_mydomain_name
-echo '/zfs/poudriere/data/packages /usr/jails/ftp.pa-us.mydomain.name/var/ftp/pkgrepo nullfs ro 0 0' >> /etc/fstab.ftp_pa_us_mydomain_name
-ezjail-admin console -f ftp.pa-us.mydomain.name
-passwd
-
-pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
-echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
-
-# Add anonymous user
-pw useradd -m -n ftp -c "Anonymous FTP User,,," -s /sbin/nologin -d "/var/ftp"
-
-# Remove the skel directory created above and create default ftp structure
-cd /var/ftp
-rm -r .*
-mkdir etc pub incoming
-chown -R root:ftp /var/ftp/
-chmod 755 etc pub
-chown -R nobody incoming
-chmod 5777 incoming
-echo "ftp" >> /etc/ftpchroot
-touch /var/log/ftpd
-
-# Finalize and activate
-echo 'ftpd_enable="YES"' >> /etc/rc.conf.local
-echo 'ftpd_flags="-ASll"' >> /etc/rc.conf.local
-service ftpd start
 
 ################################################################################
 ##                       Serviio Jail Configuration                           ##
