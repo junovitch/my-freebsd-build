@@ -1292,8 +1292,8 @@ databases/mariadb55-server
 ########## PostgreSQL Jail ##########
 databases/postgresql93-server
 ########## LAN Service Jail ##########
-net/isc-dhcp42-server
-dns/bind99
+net/isc-dhcp43-server
+dns/bind910
 ftp/tftp-hpa
 'EOF'
 
@@ -2362,7 +2362,7 @@ echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/mak
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Install BIND
-pkg install dns/bind99
+pkg install dns/bind910
 echo 'named_enable="YES"' >> /etc/rc.conf.local
 ## Put config files in place from desktop
 # scp configs/named.conf root@lanser:/etc/namedb/
