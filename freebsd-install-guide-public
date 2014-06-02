@@ -802,6 +802,12 @@ service smartd start
 pkg install sysutils/ncdu
 
 ################################################################################
+# DUFF - Find duplicates
+################################################################################
+
+pkg install sysutils/duff
+
+################################################################################
 # Rsync
 ################################################################################
 
@@ -1245,6 +1251,7 @@ security/logcheck
 sysutils/panicmail
 sysutils/smartmontools
 sysutils/ncdu
+sysutils/duff
 net/rsync
 net/unison-nox11
 sysutils/zfs-stats
