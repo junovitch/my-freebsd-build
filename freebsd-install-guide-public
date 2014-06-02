@@ -1313,6 +1313,9 @@ cat >> /usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
 myrepo: {
   url: "file:///zfs/poudriere/data/packages/10_0amd64-default",
 }
+FreeBSD: {
+  enabled: no
+}
 'EOF'
 
 # - To update a jail with latest security patches but stay at the same version:
@@ -1370,6 +1373,9 @@ mkdir -p /usr/jails/flavours/example/usr/local/etc/pkg/repos
 cat >> /usr/jails/flavours/example/usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
 myrepo: {
   url: "file:///pkgrepo/10_0amd64-default",
+}
+FreeBSD: {
+  enabled: no
 }
 'EOF'
 
