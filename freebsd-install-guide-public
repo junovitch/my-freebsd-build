@@ -111,8 +111,8 @@ ifconfig_em0_alias12="inet 192.168.102.17/32 fib 2"		# unused
 ifconfig_em0_alias13="inet6 2001:123:4567:890::17/128 fib 2"	# unused
 ifconfig_em0_alias14="inet 192.168.102.18/32 fib 2"		# unused
 ifconfig_em0_alias15="inet6 2001:123:4567:890::18/128 fib 2"	# unused
-ifconfig_em0_alias16="inet 192.168.102.19/32"			# vpn.pa-us.mydomain.name
-ifconfig_em0_alias17="inet6 2001:123:4567:890::19/128"		# vpn.pa-us.mydomain.name
+ifconfig_em0_alias16="inet 192.168.102.19/32"			# squid.pa-us.mydomain.name
+ifconfig_em0_alias17="inet6 2001:123:4567:890::19/128"		# squid.pa-us.mydomain.name
 route_dmzfibnetwork="-net 192.168.102.0/24 -interface em0 -fib 2"
 route_dmzfibdefault="default 192.168.102.1 -fib 2"
 ipv6_route_dmzfibnetwork="-net 2001:123:4567:890::/64 -interface em0 -fib 2"
@@ -137,8 +137,8 @@ ifconfig_em1_alias12="inet 10.100.102.17/32 fib 1"		# pdbi.pa-us.mydomain.name
 ifconfig_em1_alias13="inet6 2001:123:4:5678::17/128 fib 1"	# pdbi.pa-us.mydomain.name
 ifconfig_em1_alias14="inet 10.100.102.18/32 fib 1"		# mdbi.pa-us.mydomain.name
 ifconfig_em1_alias15="inet6 2001:123:4:5678::18/128 fib 1"	# mdbi.pa-us.mydomain.name
-ifconfig_em1_alias16="inet 10.100.102.19/32"			# vpn.pa-us.mydomain.name
-ifconfig_em1_alias17="inet6 2001:123:4:5678::19/128"		# vpn.pa-us.mydomain.name
+ifconfig_em1_alias16="inet 10.100.102.19/32"			# squid.pa-us.mydomain.name
+ifconfig_em1_alias17="inet6 2001:123:4:5678::19/128"		# squid.pa-us.mydomain.name
 route_internal="-net 10.100.0.0/16 10.100.102.1"
 route_lanfibnetwork="-net 10.100.102.0/24 -interface em1 -fib 1"
 route_lanfibdefault="default 10.100.102.1 -fib 1"
@@ -371,7 +371,6 @@ bash
 ./clean-all
 ./build-dh
 export KEY_CN=xts-bsd && export KEY_NAME=xts-bsd && ./build-ca
-export KEY_CN=vpn && export KEY_NAME=vpn && ./build-key-server vpn
 export KEY_CN=xts-rtr-server && export KEY_NAME=xts-rtr-server && ./build-key-server xts-rtr-server
 export KEY_CN=xju-rtr-server && export KEY_NAME=xju-rtr-server && ./build-key-server xju-rtr-server
 export KEY_CN=xts-rtr-client && export KEY_NAME=xts-rtr-client && ./build-key xts-rtr-client
@@ -681,7 +680,7 @@ patch -l /usr/local/etc/monitorix.conf << 'EOF'
 55c55
 < squid_log	= /var/log/squid/access.log
 ---
-> squid_log	= /usr/jails/vpn.pa-us.mydomain.name/var/log/squid/access.log
+> squid_log	= /usr/jails/squid.pa-us.mydomain.name/var/log/squid/access.log
 82c82
 < 	squid		= n
 ---
@@ -689,7 +688,7 @@ patch -l /usr/local/etc/monitorix.conf << 'EOF'
 346c347
 < 	cmd = squidclient -h 127.0.0.1
 ---
-> 	cmd = /usr/jails/vpn.pa-us.mydomain.name/usr/local/sbin/squidclient -h 10.100.102.19
+> 	cmd = /usr/jails/squid.pa-us.mydomain.name/usr/local/sbin/squidclient -h 10.100.102.19
 'EOF'
 
 # Correct location of CLAMAV log
@@ -2153,111 +2152,23 @@ apachectl start
 
 ################################################################################
 ##----------------------------------------------------------------------------##
-##                        OpenVPN Jail Configuration                          ##
+##                         Squid Jail Configuration                           ##
 ##----------------------------------------------------------------------------##
 ################################################################################
-# References:
-# http://forums.freebsd.org/showthread.php?t=22143
-################################################################################
 
-# Prep work on host
-# Create tunnel and enable routing
-ifconfig tun create
-sysctl net.inet.ip.forwarding=1
-
-# Make tunnel and routing persistent
-echo '' >> /etc/rc.conf
-echo '# OpenVPN server' >> /etc/rc.conf
-echo 'cloned_interfaces="tun"' >> /etc/rc.conf
-echo 'gateway_enable="YES"' >> /etc/rc.conf
-
-# Enable devfs ruleset similar to ezjail default but allowing access to tun0
-cat >> /etc/devfs.rules << 'EOF'
-
-# Rules for VPN jail
-#
-[devfsrules_jail_with_vpn=5]
-add include $devfsrules_hide_all
-add include $devfsrules_unhide_basic
-add include $devfsrules_unhide_login
-add path tun0 unhide
-add path zfs unhide
-'EOF'
-
-# Finally, create vpn jail
-ezjail-admin create -f dmz vpn.pa-us.mydomain.name 192.168.102.19,10.100.102.19,2001:123:4567:890::19,2001:123:4:5678::19
-
-# Provide access to nullfs mounted pkg repo
-echo '/zfs/poudriere/data/packages /usr/jails/vpn.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.vpn_pa_us_mydomain_name
-
-# Set to use devfs rules and assign interface IP on jail start
-sed -i '' -e 's/devfs_ruleset="4"/devfs_ruleset="5"/' /usr/local/etc/ezjail/vpn_pa_us_mydomain_name
-echo 'export jail_vpn_pa_us_mydomain_name_exec_prestart0="/sbin/ifconfig tun0 inet 10.100.103.1/32 10.100.103.2"' >> /usr/local/etc/ezjail/vpn_pa_us_mydomain_name
-echo 'export jail_vpn_pa_us_mydomain_name_exec_prestart1="/sbin/route add -net 10.100.103.0/24 10.100.103.2"' >> /usr/local/etc/ezjail/vpn_pa_us_mydomain_name
-
-# Place keys from host's CA into jail
-mkdir -p /usr/jails/vpn.pa-us.mydomain.name/usr/local/etc/openvpn/keys/
-cp /usr/local/etc/openvpn-ca/keys/vpn.* /usr/jails/vpn.pa-us.mydomain.name/usr/local/etc/openvpn/keys/
-cp /usr/local/etc/openvpn-ca/keys/ta.key /usr/jails/vpn.pa-us.mydomain.name/usr/local/etc/openvpn/keys/
-cp /usr/local/etc/openvpn-ca/keys/ca.crt /usr/jails/vpn.pa-us.mydomain.name/usr/local/etc/openvpn/keys/
-cp /usr/local/etc/openvpn-ca/keys/dh2048.pem /usr/jails/vpn.pa-us.mydomain.name/usr/local/etc/openvpn/keys/
-
-# Start vpn jail and handle initial configuration
-ezjail-admin console -f vpn.pa-us.mydomain.name
+ezjail-admin create -f dmz squid.pa-us.mydomain.name 192.168.102.19,10.100.102.19,2001:123:4567:890::19,2001:123:4:5678::19
+echo '/zfs/poudriere/data/packages /usr/jails/squid.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.squid_pa_us_mydomain_name
+ezjail-admin console -f squid.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
-# OpenVPN installation and configuration 
-pkg install openvpn
-
-pw groupadd -n _openvpn -g 1194
-pw useradd -n _openvpn -c "OpenVPN daemon,,," -d "/var/empty" -u 1194 -g _openvpn -s /usr/sbin/nologin
-
-cat > /usr/local/etc/openvpn/unovpnsvr.conf << 'EOF'
-port 1194
-proto udp
-dev tun0
-ifconfig-noexec
-route-noexec
-
-server 10.100.103.0 255.255.255.0
-push "route 192.168.102.0 255.255.255.0"
-push "route 10.100.102.0 255.255.255.0"
-push "route 10.100.82.0 255.255.255.0"
-push "dhcp-option DNS 192.168.102.1"
-push "dhcp-option DOMAIN pa-us.mydomain.name"
-push "dhcp-option DOMAIN nc-us.mydomain.name"
-#push "redirect-gateway def1"
-
-ca /usr/local/etc/openvpn/keys/ca.crt
-cert /usr/local/etc/openvpn/keys/vpn.pa-us.mydomain.name.crt
-key /usr/local/etc/openvpn/keys/vpn.pa-us.mydomain.name.key
-dh /usr/local/etc/openvpn/keys/dh2048.pem
-tls-auth /usr/local/etc/openvpn/keys/ta.key 0
-ifconfig-pool-persist /var/tmp/openvpn-pool.txt
-
-user _openvpn
-group _openvpn
-comp-lzo
-persist-key
-persist-tun
-keepalive 20 60
-cipher AES-256-CBC
-verb 3
-mute 20
-'EOF'
-
-echo 'openvpn_enable="YES"' >> /etc/rc.conf.local
-echo 'openvpn_configfile="/usr/local/etc/openvpn/unovpnsvr.conf"' >> /etc/rc.conf.local
-service openvpn start
-
-# Also install squid for VPN clients to use
+# Install Squid
 pkg install www/squid33
 
-# Patch configure to allow monitorix to monitor, enable cache dir, and
+# Patch configs to allow monitorix to monitor, enable cache dir, and
 # munge internal LAN info sent out to servers
 # Squid/apt-get cache reference 1:  http://itkia.com/using-squid-to-cache-apt-updates-for-debian-and-ubuntu/
 # Squid/apt-get cache reference 2:  http://shadow-file.blogspot.com/2008/12/ditching-apt-cacher-ng-for-squid.html 
@@ -2330,7 +2241,7 @@ printf "0\t8\t*\t*\t*\t/usr/local/sbin/squid -k rotate\n" >> /var/cron/tabs/root
 chgrp squid /usr/local/etc/squid/squid.conf
 echo 'squid_enable="YES"' >> /etc/rc.conf.local
 
-# Initialize
+# Initialize cache directory
 squid -z
 
 # Start Squid

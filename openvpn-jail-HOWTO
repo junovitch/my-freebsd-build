@@ -1,0 +1,113 @@
+################################################################################
+##                        OpenVPN Jail Configuration                          ##
+################################################################################
+#
+# OpenVPN works fine once running in a jail. However, I've opted not to continue
+# using it like this as there are a few gotchas. I'm using OpenVPN on my LAN's
+# router/firewall as things are just easier to manage doing it that way and just
+# running as a dedicated user with TLS auth is good enough for me security wise.
+#
+# Issues to keep in mind:
+#  - Stopping OpenVPN from inside the jail relinquishes the tunnel's IP. This
+#    means you have to restart the whole jail from the outside anytime you need
+#    to restart OpenVPN.
+#  - Clients have difficulty talking to jails on other FIBs on the same host.
+#    The traffic leaves the jail to it's gateway only to come right back at the
+#    host to route to the VPN client. Generally things don't work well.
+#  - While not bad, it's some extra effort to deal with routes and interface
+#    configs from the host.
+#
+# References:
+# http://forums.freebsd.org/showthread.php?t=22143
+################################################################################
+
+# Prep work on host
+# Create tunnel and enable routing
+ifconfig tun create
+sysctl net.inet.ip.forwarding=1
+
+# Make tunnel and routing configuration persistent
+echo '' >> /etc/rc.conf
+echo '# OpenVPN server' >> /etc/rc.conf
+echo 'cloned_interfaces="tun"' >> /etc/rc.conf
+echo 'gateway_enable="YES"' >> /etc/rc.conf
+
+# Enable devfs ruleset similar to ezjail default but allowing access to tun0
+cat >> /etc/devfs.rules << 'EOF'
+
+# Rules for VPN jail
+#
+[devfsrules_jail_with_vpn=5]
+add include $devfsrules_hide_all
+add include $devfsrules_unhide_basic
+add include $devfsrules_unhide_login
+add path tun0 unhide
+add path zfs unhide
+'EOF'
+
+# Finally, create vpn jail
+ezjail-admin create -f dmz vpn.mydomain.name 192.168.102.19
+
+# Set to use devfs rules and assign interface IP on jail start
+sed -i '' -e 's/devfs_ruleset="4"/devfs_ruleset="5"/' /usr/local/etc/ezjail/vpn_mydomain_name
+echo 'export jail_vpn_mydomain_name_exec_prestart0="/sbin/ifconfig tun0 inet 10.100.103.1/32 10.100.103.2"' >> /usr/local/etc/ezjail/vpn_mydomain_name
+echo 'export jail_vpn_mydomain_name_exec_prestart1="/sbin/route add -net 10.100.103.0/24 10.100.103.2"' >> /usr/local/etc/ezjail/vpn_mydomain_name
+
+# Certificate Authority should not be in the jail for security reasons.
+# In the case that it's on the host system, copy keys from the host into
+# the new jail now.
+mkdir -p /usr/jails/vpn.mydomain.name/usr/local/etc/openvpn/keys/
+cp /usr/local/etc/openvpn-ca/keys/vpn.* /usr/jails/vpn.mydomain.name/usr/local/etc/openvpn/keys/
+cp /usr/local/etc/openvpn-ca/keys/ta.key /usr/jails/vpn.mydomain.name/usr/local/etc/openvpn/keys/
+cp /usr/local/etc/openvpn-ca/keys/ca.crt /usr/jails/vpn.mydomain.name/usr/local/etc/openvpn/keys/
+cp /usr/local/etc/openvpn-ca/keys/dh2048.pem /usr/jails/vpn.mydomain.name/usr/local/etc/openvpn/keys/
+
+# Finally, actually start the VPN jail to handle configuration there.
+ezjail-admin console -f vpn.mydomain.name
+passwd
+
+pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
+echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
+echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
+
+# OpenVPN installation and configuration 
+pkg install openvpn
+
+pw groupadd -n _openvpn -g 1194
+pw useradd -n _openvpn -c "OpenVPN daemon,,," -d "/var/empty" -u 1194 -g _openvpn -s /usr/sbin/nologin
+
+cat > /usr/local/etc/openvpn/openvpn.conf << 'EOF'
+port 1194
+proto udp
+dev tun0
+ifconfig-noexec
+route-noexec
+
+server 10.100.103.0 255.255.255.0
+push "route 192.168.102.0 255.255.255.0"
+push "route 10.100.102.0 255.255.255.0"
+# FOR ALL TRAFFIC # push "redirect-gateway def1"
+push "dhcp-option DNS 10.100.102.15"
+push "dhcp-option DOMAIN mydomain.name"
+
+ca /usr/local/etc/openvpn/keys/ca.crt
+cert /usr/local/etc/openvpn/keys/vpn.mydomain.name.crt
+key /usr/local/etc/openvpn/keys/vpn.mydomain.name.key
+dh /usr/local/etc/openvpn/keys/dh2048.pem
+tls-auth /usr/local/etc/openvpn/keys/ta.key 0
+ifconfig-pool-persist /var/tmp/openvpn-pool.txt
+
+user _openvpn
+group _openvpn
+comp-lzo
+persist-key
+persist-tun
+keepalive 20 60
+cipher AES-256-CBC
+verb 3
+mute 20
+'EOF'
+
+# Enable and Start OpenVPN
+echo 'openvpn_enable="YES"' >> /etc/rc.conf.local
+service openvpn start
