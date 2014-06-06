@@ -1713,7 +1713,7 @@ chown -R puppet:puppet /usr/local/etc/puppet/rack
 
 # Installing Foreman from Git
 cd /usr/local/share
-git clone https://github.com/theforeman/foreman.git -b 1.4-stable
+git clone https://github.com/theforeman/foreman.git -b 1.5-stable
 cd foreman
 cp config/settings.yaml.example config/settings.yaml
 
@@ -1775,6 +1775,8 @@ cat > settings.yaml << 'EOF'
 :require_ssl: true
 :locations_enabled: false
 :organizations_enabled: false
+:support_jsonp: false
+:mark_translated: false
 :puppetconfdir: /usr/local/etc/puppet
 :puppetvardir: /var/puppet
 :ssl_ca_file: /var/puppet/ssl/certs/ca.pem
@@ -1792,10 +1794,12 @@ puppet cert generate apps2.pa-us.mydomain.name --dns_alt_names puppet,puppet.pa-
 
 # Setup production database
 env RAILS_ENV=production bundle exec rake db:migrate
+env RAILS_ENV=production bundle exec rake db:seed
 
 # Before going into a production environment, Foreman must precompile
 # assets for production.
-env RAILS_ENV=production bundle exec rake db:seed assets:precompile locale:pack
+env RAILS_ENV=production bundle exec rake assets:precompile
+env RAILS_ENV=production bundle exec rake locale:pack
 
 # Testing That Foreman is Working
 # Run Foreman using Ruby's built-in WEBrick server to validate functionality.
