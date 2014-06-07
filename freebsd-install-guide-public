@@ -1878,7 +1878,7 @@ events {
 }
 
 http {
-    passenger_root           /usr/local/lib/ruby/gems/1.9/gems/passenger-4.0.41;
+    passenger_root           /usr/local/lib/ruby/gems/1.9/gems/passenger-4.0.44;
     passenger_ruby           /usr/local/bin/ruby;
     passenger_max_pool_size  10;
     passenger_pool_idle_time 300;
@@ -1889,6 +1889,14 @@ http {
     tcp_nopush         on;
     keepalive_timeout  65;
     tcp_nodelay        on;
+
+    ssl_session_cache          shared:SSL:10m;
+    ssl_session_timeout        35m;
+    ssl_protocols              SSLv3 TLSv1 TLSv1.1 TLSv1.2;
+    ssl_ciphers                ALL:!aNULL:!eNULL:!DES:!3DES:!IDEA:!SEED:!DSS:!PSK:!RC4:!MD5:+HIGH:+MEDIUM:!LOW:!SSLv2:!EXP;
+    ssl_prefer_server_ciphers  on;
+    ssl_verify_client          optional;
+    ssl_verify_depth           1;
 
     server {
         listen       80 default_server;
@@ -1917,8 +1925,6 @@ http {
         ssl_certificate_key        /var/puppet/ssl/private_keys/apps1.pa-us.mydomain.name.pem;
         ssl_crl                    /var/puppet/ssl/ca/ca_crl.pem;
         ssl_client_certificate     /var/puppet/ssl/certs/ca.pem;
-        ssl_verify_client          optional;
-        ssl_verify_depth           1;
     }
     server {
         listen       80;
@@ -1954,12 +1960,6 @@ http {
         # copy ca certificates from apps1 -> apps2
         ssl_crl                    /var/puppet/ssl/ca/ca_crl.pem;
         ssl_client_certificate     /var/puppet/ssl/certs/ca.pem;
-        ssl_ciphers                SSLv2:-LOW:-EXPORT:RC4+RSA;
-        ssl_prefer_server_ciphers  on;
-        ssl_verify_client          optional;
-        ssl_verify_depth           1;
-        ssl_session_cache          shared:SSL:128m;
-        ssl_session_timeout        5m;
     }
 }
 'EOF'
