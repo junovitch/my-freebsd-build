@@ -691,6 +691,38 @@ patch -l /usr/local/etc/monitorix.conf << 'EOF'
 > 	cmd = /usr/jails/squid.pa-us.mydomain.name/usr/local/sbin/squidclient -h 10.100.102.19
 'EOF'
 
+# Allow monitoring bind in lan service jail
+patch -l /usr/local/etc/monitorix.conf << 'EOF'
+85c85
+< 	bind		= n
+---
+> 	bind		= y
+384c384
+< 	list = http://localhost:8053/
+---
+> 	list = http://10.100.102.15:8053/
+386c386
+< 		http://localhost:8053/ = A, AAAA, ANY, DS, MX, NS, PTR, SOA, SRV, TXT, NAPTR, A6, CNAME, SPF, KEY, DNSKEY, HINFO, WKS, PX, NSAP
+---
+> 		http://10.100.102.15:8053/ = A, AAAA, ANY, DS, MX, NS, PTR, SOA, SRV, TXT, NAPTR, A6, CNAME, SPF, KEY, DNSKEY, HINFO, WKS, PX, NSAP
+389c389
+< 		http://localhost:8053/ = A, AAAA, ANY, DS, MX, NS, PTR, SOA, SRV, TXT, NAPTR, A6, CNAME, SPF, KEY, DNSKEY, HINFO, WKS, PX, NSAP
+---
+> 		http://10.100.102.15:8053/ = A, AAAA, ANY, DS, MX, NS, PTR, SOA, SRV, TXT, NAPTR, A6, CNAME, SPF, KEY, DNSKEY, HINFO, WKS, PX, NSAP
+392c392
+< 		http://localhost:8053/ = Requestv4, Requestv6, ReqEdns0, ReqBadEDNSVer, ReqTSIG, ReqSIG0, ReqBadSIG, ReqTCP, Response, QrySuccess, QryAuthAns, QryNoauthAns, QryReferral, QryNxrrset, QrySERVFAIL, QryNXDOMAIN, QryRecursion, QryDuplicate, QryDropped, QryFailure
+---
+> 		http://10.100.102.15:8053/ = Requestv4, Requestv6, ReqEdns0, ReqBadEDNSVer, ReqTSIG, ReqSIG0, ReqBadSIG, ReqTCP, Response, QrySuccess, QryAuthAns, QryNoauthAns, QryReferral, QryNxrrset, QrySERVFAIL, QryNXDOMAIN, QryRecursion, QryDuplicate, QryDropped, QryFailure
+395c395
+< 		http://localhost:8053/ = Queryv4, Queryv6, Responsev4, Responsev6, NXDOMAIN, SERVFAIL, FORMERR, OtherError, EDNS0Fail, Truncated, Lame, Retry, QueryTimeout, GlueFetchv4, GlueFetchv6, GlueFetchv4Fail, GlueFetchv6Fail, ValAttempt, ValOk, ValNegOk
+---
+> 		http://10.100.102.15:8053/ = Queryv4, Queryv6, Responsev4, Responsev6, NXDOMAIN, SERVFAIL, FORMERR, OtherError, EDNS0Fail, Truncated, Lame, Retry, QueryTimeout, GlueFetchv4, GlueFetchv6, GlueFetchv4Fail, GlueFetchv6Fail, ValAttempt, ValOk, ValNegOk
+398c398
+< 		http://localhost:8053/ = A, !A, AAAA, !AAAA, DLV, !DLV, DS, !DS, MX, NS, CNAME, !CNAME, SOA, !SOA, !ANY, PTR, RRSIG, NSEC, DNSKEY, NXDOMAIN
+---
+> 		http://10.100.102.15:8053/ = A, !A, AAAA, !AAAA, DLV, !DLV, DS, !DS, MX, NS, CNAME, !CNAME, SOA, !SOA, !ANY, PTR, RRSIG, NSEC, DNSKEY, NXDOMAIN
+'EOF'
+
 # Correct location of CLAMAV log
 patch -l /usr/local/etc/monitorix.conf << 'EOF'
 53c53
@@ -1217,6 +1249,7 @@ ca_root_nss_SET+=ETCSYMLINK
 DEFAULT_VERSIONS= ruby=1.9 perl5=5.16
 rubygem-passenger_UNSET+=APACHE22
 rubygem-passenger_SET+=NGINX
+dns_bind910+=NEWSTATS
 nginx_SET+=PASSENGER HTTP_FANCYINDEX
 'EOF'
 
