@@ -523,7 +523,7 @@ cd /usr/local/etc/nut
 cp ups.conf.sample ups.conf
 printf "[UPS]\n" >> ups.conf
 printf "\tdriver = snmp-ups\n" >> ups.conf
-printf "\tport = xts-ups\n" >> ups.conf
+printf "\tport = 10.100.102.254\n" >> ups.conf
 printf "\tcommunity = Uno4snmp\n" >> ups.conf
 printf "\tpollfreq = 15\n" >> ups.conf
 
