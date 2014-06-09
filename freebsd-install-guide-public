@@ -1246,7 +1246,7 @@ WITH_SSP_PORTS=yes
 php5_SET+=FPM
 ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 ca_root_nss_SET+=ETCSYMLINK
-DEFAULT_VERSIONS= ruby=1.9 perl5=5.16
+DEFAULT_VERSIONS= ruby=1.9 perl5=5.16 mysql=5.5m pgsql=9.3
 rubygem-passenger_UNSET+=APACHE22
 rubygem-passenger_SET+=NGINX
 dns_bind910+=NEWSTATS
