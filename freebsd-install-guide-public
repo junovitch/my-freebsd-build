@@ -266,6 +266,85 @@ pkg install shells/bash
 pkg install lang/perl5.16
 
 ################################################################################
+# Unbound - DNS for the host, each jail, and the local LAN.
+# - DNS resolution should always work for host even if jailed BIND isn't ready.
+# - Forward authoritative requests for LAN domain to jailed BIND.
+################################################################################
+
+pkg install dns/unbound
+
+cat > /usr/local/etc/unbound/unbound.conf << 'EOF'
+server:
+	# USER AND DIRECTORIES
+	username: unbound
+	directory: /usr/local/etc/unbound
+	chroot: /usr/local/etc/unbound
+	auto-trust-anchor-file: root.key
+	# LISTEN INTERFACES
+	interface: 10.100.102.2
+	interface: 192.168.102.2
+	interface: 2001:123:4:5678::2
+	# ACCESS CONTROL
+	access-control: 10.100.0.0/16 allow
+	access-control: 192.168.102.0/24 allow
+	access-control: 2001:123:4567:890::/64 allow
+	access-control: 2001:123:4:5678::/64 allow
+	access-control: 2001:987:6:543::/64 allow
+	# LOGGING
+	verbosity: 1
+	# LOCAL DOMAINS
+	private-domain: "mydomain.name"
+	private-domain: "100.10.in-addr.arpa."
+	private-domain: "168.192.in-addr.arpa."
+	domain-insecure: "100.10.in-addr.arpa."
+	domain-insecure: "168.192.in-addr.arpa."
+	private-address: 10.100.0.0/16
+	private-address: 192.168.0.0/16
+
+remote-control:
+	control-enable: yes
+
+include: /usr/local/etc/unbound/forward.conf
+include: /usr/local/etc/unbound/reverse.conf
+'EOF'
+
+cat > /usr/local/etc/unbound/forward.conf << 'EOF'
+stub-zone:
+	name: "pa-us.mydomain.name."
+	stub-addr: 10.100.102.15@5353
+
+stub-zone:
+	name: "nc-us.mydomain.name."
+	stub-addr: 10.100.102.15@5353
+
+forward-zone:
+	name: "."
+	forward-addr: 8.8.8.8        # Google Public DNS
+	forward-addr: 74.82.42.42    # Hurricane Electric
+	forward-addr: 4.2.2.4        # Level3 Verizon
+'EOF'
+
+cat > /usr/local/etc/unbound/reverse.conf << 'EOF'
+stub-zone:
+	name: "100.10.in-addr.arpa."
+	stub-addr: 10.100.102.15@5353
+
+stub-zone:
+	name: "168.192.in-addr.arpa."
+	stub-addr: 10.100.102.15@5353
+'EOF'
+
+/usr/local/sbin/unbound-control-setup
+/usr/local/sbin/unbound-anchor
+chown unbound /usr/local/etc/unbound /usr/local/etc/unbound/root.key
+chgrp unbound /usr/local/etc/unbound/*
+
+echo '' >> /etc/rc.conf
+echo '# DNS' >> /etc/rc.conf
+echo 'unbound_enable="YES"' >> /etc/rc.conf
+service unbound start
+
+################################################################################
 # OpenNTPD - Used for upkeep of time
 #
 # Perl in-place edits are used to change from the default pool.ntp.org servers
@@ -1281,6 +1360,7 @@ devel/rclint
 sysutils/tmux
 shells/bash
 lang/perl5.16
+dns/unbound
 net/openntpd
 mail/opensmtpd
 sysutils/pstree
@@ -1546,7 +1626,8 @@ cp -Rp example lan
 
 echo 'search pa-us.mydomain.name. nc-us.mydomain.name.' >> /usr/jails/flavours/dmz/etc/resolv.conf
 echo 'nameserver 192.168.102.1' >> /usr/jails/flavours/dmz/etc/resolv.conf
-echo 'nameserver 10.100.102.15' >> /usr/jails/flavours/dmz/etc/resolv.conf
+echo 'nameserver 192.168.102.2' >> /usr/jails/flavours/dmz/etc/resolv.conf
+echo 'options edns0' >> /usr/jails/flavours/dmz/etc/resolv.conf
 
 ################################################################################
 # LAN-specific segment config 
@@ -1554,7 +1635,8 @@ echo 'nameserver 10.100.102.15' >> /usr/jails/flavours/dmz/etc/resolv.conf
 
 echo 'search pa-us.mydomain.name. nc-us.mydomain.name.' >> /usr/jails/flavours/lan/etc/resolv.conf
 echo 'nameserver 10.100.102.1' >> /usr/jails/flavours/lan/etc/resolv.conf
-echo 'nameserver 10.100.102.15' >> /usr/jails/flavours/lan/etc/resolv.conf
+echo 'nameserver 10.100.102.2' >> /usr/jails/flavours/lan/etc/resolv.conf
+echo 'options edns0' >> /usr/jails/flavours/lan/etc/resolv.conf
 
 ################################################################################
 #  WWW jail prerequisite - self signed keys used for testing
