@@ -280,6 +280,8 @@ server:
 	directory: /usr/local/etc/unbound
 	chroot: /usr/local/etc/unbound
 	auto-trust-anchor-file: root.key
+	# QUERY OPTIONS
+	rrset-roundrobin: yes
 	# LISTEN INTERFACES
 	interface: 10.100.102.2
 	interface: 192.168.102.2
