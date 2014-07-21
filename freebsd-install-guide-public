@@ -1845,7 +1845,8 @@ run Puppet::Util::CommandLine.new.execute
 chown -R puppet:puppet /usr/local/etc/puppet/rack
 
 # Installing Foreman from Git
-cd /usr/local/share
+mkdir /opt
+cd /opt
 git clone https://github.com/theforeman/foreman.git -b 1.5-stable
 cd foreman
 cp config/settings.yaml.example config/settings.yaml
@@ -1857,7 +1858,7 @@ bundle install --path vendor/bundle --without console libvirt ovirt test vmware
 rm /usr/local/bin/g++
 
 # database.yml:  Copy the example database YAML file. Update with database information.
-cd /usr/local/share/foreman/config
+cd /opt/foreman/config
 cat > database.yml << 'EOF'
 # Warning: The database defined as "test" will be erased and
 # re-generated from your development database when you run "rake".
@@ -1941,7 +1942,7 @@ env RAILS_ENV=production bundle exec rails server
 
 # Manually create the 'foreman' user
 pw groupadd -n foreman -g 813
-pw useradd -n foreman -c "The Foreman,,," -u 813 -g foreman -d /usr/local/share/foreman -s /usr/sbin/nologin
+pw useradd -n foreman -c "The Foreman,,," -u 813 -g foreman -d /opt/foreman -s /usr/sbin/nologin
 
 # Add Puppet group access to Foreman so it can read what it needs to read
 pw usermod foreman_proxy -G puppet
@@ -1949,12 +1950,12 @@ pw usermod foreman -G puppet
 chmod g+r /var/puppet/ssl/private_keys/*
 
 # Fix permissions on everything so far
-mkdir /usr/local/share/foreman/tmp
-chgrp -R foreman /usr/local/share/foreman
-find /usr/local/share/foreman/tmp -type d -exec chmod g+rw {} \;
-find /usr/local/share/foreman/tmp -type f -exec chmod g+rw {} \;
-find /usr/local/share/foreman/log -type d -exec chmod g+rw {} \;
-find /usr/local/share/foreman/log -type f -exec chmod g+rw {} \;
+mkdir /opt/foreman/tmp
+chgrp -R foreman /opt/foreman
+find /opt/foreman/tmp -type d -exec chmod g+rw {} \;
+find /opt/foreman/tmp -type f -exec chmod g+rw {} \;
+find /opt/foreman/log -type d -exec chmod g+rw {} \;
+find /opt/foreman/log -type f -exec chmod g+rw {} \;
 
 # Configuring Puppet
 # All agent nodes have to be configured to submit reports to the master.
@@ -2011,7 +2012,7 @@ events {
 }
 
 http {
-    passenger_root           /usr/local/lib/ruby/gems/1.9/gems/passenger-4.0.44;
+    passenger_root           /usr/local/lib/ruby/gems/1.9/gems/passenger-4.0.45;
     passenger_ruby           /usr/local/bin/ruby;
     passenger_max_pool_size  10;
     passenger_pool_idle_time 300;
@@ -2039,8 +2040,8 @@ http {
         passenger_user             foreman;
         passenger_group            foreman;
 
-        access_log   /var/log/nginx/foreman_http_access.log;
-        root         /usr/local/share/foreman/public;
+        access_log                 /var/log/nginx/foreman_http_access.log;
+        root                       /opt/foreman/public;
     }
     server {
         listen       443 ssl;
@@ -2053,7 +2054,7 @@ http {
         passenger_group            foreman;
 
         access_log                 /var/log/nginx/foreman_https_access.log;
-        root                       /usr/local/share/foreman/public;
+        root                       /opt/foreman/public;
         ssl_certificate            /var/puppet/ssl/certs/apps1.pa-us.mydomain.name.pem;
         ssl_certificate_key        /var/puppet/ssl/private_keys/apps1.pa-us.mydomain.name.pem;
         ssl_crl                    /var/puppet/ssl/ca/ca_crl.pem;
@@ -2147,7 +2148,7 @@ cat > /var/cron/tabs/foreman << 'EOF'
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 RAILS_ENV=production
-FOREMAN_HOME=/usr/local/share/foreman
+FOREMAN_HOME=/opt/foreman
 # Clean up the session entries in the database
 15 23 * * *     bundle exec rake db:sessions:clear >/var/log/foreman-cron.log 2>&1
 # Send out daily summary
