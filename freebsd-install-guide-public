@@ -671,6 +671,178 @@ smtpctl update table aliases
 pkg install benchmarks/iperf
 
 ################################################################################
+# Sudo
+################################################################################
+
+pkg install security/sudo
+
+################################################################################
+# Collectd
+################################################################################
+
+pkg install net-mgmt/collectd5
+
+cat > /usr/local/etc/collectd.conf << 'EOF'
+Hostname    "xts-bsd"
+FQDNLookup  false
+BaseDir     "/var/db/collectd"
+PIDFile     "/var/run/collectd.pid"
+PluginDir   "/usr/local/lib/collectd"
+TypesDB     "/usr/local/share/collectd/types.db"
+
+Interval    60
+
+LoadPlugin cpu
+LoadPlugin df
+LoadPlugin disk
+LoadPlugin exec
+LoadPlugin interface
+LoadPlugin load
+LoadPlugin memory
+LoadPlugin network
+LoadPlugin nut
+LoadPlugin processes
+LoadPlugin uptime
+LoadPlugin write_graphite
+
+<Plugin disk>
+    Disk "/^gptid/"
+    Disk "/^md/"
+    Disk "/^pass/"
+    IgnoreSelected true
+</Plugin>
+
+<Plugin df>
+    MountPoint "/^/usr/jails//"
+    MountPoint "/^/usr/obj//"
+    MountPoint "/^/zfs/poudriere/data//"
+    FSType "devfs"
+    FSType "procfs"
+    FSType "fdescfs"
+    IgnoreSelected true
+</Plugin>
+
+<Plugin exec>
+    Exec "_collectd:_collectd" "/usr/local/sbin/exec-hwsensors.sh"
+    Exec "_collectd:_collectd" "/usr/local/sbin/exec-unbound.sh"
+</Plugin>
+
+<Plugin interface>
+    Interface "lo0"
+    Interface "pflog0"
+    Interface "plip0"
+    Interface "/^usbus/"
+    IgnoreSelected true
+</Plugin>
+
+<Plugin nut>
+  UPS "UPS@localhost:3493"
+</Plugin>
+
+<Plugin write_graphite>
+  <Node "xts-bsd">
+    Host "graphite.pa-us.mydomain.name"
+    Port "2013"
+    Prefix "collectd."
+    EscapeCharacter "_"
+    StoreRates true
+    AlwaysAppendDS false
+    Protocol "tcp"
+    LogSendErrors true
+  </Node>
+</Plugin>
+'EOF'
+
+cat > /usr/local/sbin/exec-unbound.sh << 'EOF'
+#!/bin/sh
+# Exec script for collectd to read Unbound stats
+# Requires that user running the script has permissions to the Unbound key
+
+HOSTNAME="${COLLECTD_HOSTNAME:-`hostname -s`}"
+INTERVAL="${COLLECTD_INTERVAL:-60}"
+
+while sleep "$INTERVAL"
+do
+	/usr/local/sbin/unbound-control stats \
+	    | egrep '^(total|num|mem)\.' \
+	    | sed -e 's/=/ /' -e 's/\./_/g' \
+	    | awk -v HOSTNAME=$HOSTNAME -v INTERVAL=$INTERVAL \
+	    '{ print "PUTVAL", HOSTNAME"/exec-unbound/gauge-unbound/"$1, "interval="INTERVAL, "N:"$2 }'
+done
+'EOF'
+
+cat > /usr/local/sbin/exec-hwsensors.sh << 'EOF'
+#!/bin/sh
+# Exec script for collectd to read IPMI and SMART stats
+# Requires sudo configuration to gather hardware statistics
+
+HOSTNAME="${COLLECTD_HOSTNAME:-`hostname -s`}"
+INTERVAL="${COLLECTD_INTERVAL:-60}"
+
+while sleep "$INTERVAL"
+do
+	for disk in ada0 ada1 ada2 ada3; do
+	  /usr/local/bin/sudo /usr/local/sbin/smartctl -A /dev/$disk \
+	    | egrep "Reallocated_Sector_Ct|Temperature_Celsius|Current_Pending_Sector" \
+	    | awk -v HOSTNAME=$HOSTNAME -v INTERVAL=$INTERVAL -v DISK=$disk \
+	    '{ print "PUTVAL", HOSTNAME"/exec-hwsensors/gauge-smart/"$2"-"DISK, "interval="INTERVAL, "N:"$10 }'
+	done
+
+	/usr/local/bin/sudo /usr/local/sbin/ipmi-sensors \
+	    --no-header-output --interpret-oem-data --comma-separated-output \
+	    | sed -e 's/ //' \
+	    | grep -v "N/A" \
+	    | awk -F',' -v HOSTNAME=$HOSTNAME -v INTERVAL=$INTERVAL \
+	    '{ print "PUTVAL", HOSTNAME"/exec-hwsensors/gauge-ipmi/"$2, "interval="INTERVAL, "N:"$4 }'
+done
+'EOF'
+
+# Turn off syslog for _collectd user sudo commands
+echo 'Defaults:_collectd \!syslog' >> /usr/local/etc/sudoers.d/_collectd
+echo '_collectd ALL=(ALL) NOPASSWD: /usr/local/sbin/smartctl' >> /usr/local/etc/sudoers.d/_collectd
+echo '_collectd ALL=(ALL) NOPASSWD: /usr/local/sbin/ipmi-sensors' >> /usr/local/etc/sudoers.d/_collectd
+
+# Enable Collectdmon
+echo '' >> /etc/rc.conf
+echo '# Enable Collectd via collectdmon' >> /etc/rc.conf
+echo 'collectdmon_enable="YES"' >> /etc/rc.conf
+echo 'collectdmon_user="_collectd"' >> /etc/rc.conf
+
+# patch both rc scripts to allow precmd routines to make PID files
+patch /usr/local/etc/rc.d/collectd << 'EOF'
+25a26,34
+> pidfile=/var/run/collectd.pid
+> start_precmd=collectd_precmd
+> collectd_precmd() {
+>     # If collectd_user is not blank, make pidfile and chown to collectd_user
+>     if [ ! -z ${collectd_user} ]; then
+>         touch ${pidfile}; chown ${collectd_user} ${pidfile}
+>     fi
+> }
+>
+'EOF'
+patch /usr/local/etc/rc.d/collectdmon << 'EOF'
+26a27,35
+> pidfile=/var/run/collectdmon.pid
+> start_precmd=collectdmon_precmd
+> collectdmon_precmd() {
+>     # If collectdmon_user is not blank, make pidfile and chown to collectdmon_user
+>     if [ ! -z ${collectdmon_user} ]; then
+>        touch ${pidfile}; chown ${collectdmon_user} ${pidfile}
+>     fi
+> }
+>
+'EOF'
+
+# Create _collectd user, assign to extra unbound group to run unbound stats,
+# and fix permissions
+pw useradd _collectd -c "Collectd daemon,,," -d "/var/db/collectd" -G unbound -s /usr/sbin/nologin
+chgrp _collectd /usr/local/etc/collectd.conf
+chown -R _collectd /var/db/collectd
+
+service collectdmon start
+
+################################################################################
 # Panicmail - Report kernel panics.
 ################################################################################
 
@@ -1189,6 +1361,7 @@ DEFAULT_VERSIONS= ruby=1.9 perl5=5.16 mysql=5.5m pgsql=9.3
 rubygem-passenger_UNSET+=APACHE22
 rubygem-passenger_SET+=NGINX
 dns_bind910+=NEWSTATS
+net-mgmt_collectd5_SET+=CURL MYSQL NUTUPS PING PGSQL STATGRAB XML
 nginx_SET+=PASSENGER HTTP_FANCYINDEX
 'EOF'
 
@@ -1228,6 +1401,8 @@ net/rsync
 net/unison-nox11
 sysutils/zfs-stats
 sysutils/ezjail
+security/sudo
+net-mgmt/collectd5
 benchmarks/iperf
 ########## VPN/Proxy Jail ##########
 security/openvpn
@@ -1263,7 +1438,6 @@ databases/sqlite3
 databases/mariadb55-client
 databases/postgresql93-client
 net/foreman-proxy
-security/sudo
 www/py-graphite-web
 databases/py-psycopg2
 www/uwsgi
@@ -1310,7 +1484,6 @@ FreeBSD: {
 pkg install sysutils/ezjail
 ezjail-admin install
 ezjail-admin update -P
-chmod 700 /usr/jails
 
 ################################################################################
 # Make SSH jail friendly by not allowing it to listen to all IP aliases
