@@ -2672,6 +2672,7 @@ dd if=/dev/urandom bs=32 count=1 | openssl base64 | cut -b -32
 
 # Create /etc/security/auditdistd.conf configuration file
 cat > /etc/security/auditdistd.conf << 'EOF'
+timeout 300
 receiver {
 	listen "10.100.102.2:7878"
 	host "xju-rtr" {
@@ -2689,6 +2690,7 @@ receiver {
 sed -i '' -e 's/dist:off/dist:on/g' /etc/security/audit_control
 
 cat > /etc/security/auditdistd.conf << 'EOF'
+timeout 300
 sender {
 	source "10.100.82.1"
 	host "xju-rtr" {
@@ -2699,6 +2701,7 @@ sender {
 }
 'EOF'
 cat > /etc/security/auditdistd.conf << 'EOF'
+timeout 300
 sender {
 	source "10.100.102.1"
 	host "xts-rtr" {
