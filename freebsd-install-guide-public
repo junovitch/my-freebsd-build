@@ -1264,6 +1264,9 @@ databases/mariadb55-client
 databases/postgresql93-client
 net/foreman-proxy
 security/sudo
+www/py-graphite-web
+databases/py-psycopg2
+www/uwsgi
 ########## MariaDB Jail ##########
 databases/mariadb55-server
 ########## PostgreSQL Jail ##########
@@ -1547,9 +1550,18 @@ echo 'daily_pgsql_vacuum_enable="YES"' >> /etc/periodic.conf.local
 # Create users and databases
 su - pgsql
 createuser -sdrP admin
+
+# Generate random passwords for each database
+dd if=/dev/urandom bs=32 count=1 | openssl base64 | cut -b -32
+
+# Foreman
 createuser foreman
 createdb -O foreman -e foreman
 psql -c "ALTER USER foreman WITH ENCRYPTED PASSWORD 'foreman_password'"
+# Graphite
+createuser graphite
+createdb -O graphite -e graphite
+psql -c "ALTER USER graphite WITH ENCRYPTED PASSWORD 'graphite_password'"
 
 echo "host all all 10.100.102.11/32 md5" >> /usr/local/pgsql/data/pg_hba.conf
 echo "host all all 10.100.102.12/32 md5" >> /usr/local/pgsql/data/pg_hba.conf
@@ -2005,6 +2017,158 @@ FOREMAN_HOME=/opt/foreman
 # Remove duplicate trends data
 0 8 * * *       bundle exec rake trends:clean >/var/log/foreman-cron.log 2>&1
 'EOF'
+
+################################################################################
+##                  APPS Jail: Graphite Application Servers                   ##
+################################################################################
+# References:
+# www.flagword.net/2014/01/installing-and-configuring-graphite-with-collectd-on-freebsd/
+# forums.freebsd.org/viewtopic.php?f=39&t=45652
+
+pkg install www/py-graphite-web www/uwsgi databases/py-psycopg2
+
+# Create carbon and carbon relay users
+pw groupadd -n carbon -g 2003
+pw useradd -n carbon -c "Carbon Daemon,,," -u 2003 -g carbon -d /nonexistent -s /sbin/nologin
+pw groupadd -n carbon_relay -g 2013
+pw useradd -n carbon_relay -c "Carbon Relay Daemon,,," -u 2013 -g carbon_relay -d /nonexistent -s /sbin/nologin
+
+# Configure Carbon and Carbon Relay
+cd /usr/local/etc/carbon
+patch /usr/local/etc/carbon/carbon.conf << 'EOF'
+40c40
+< USER =
+---
+> USER = carbon
+218a219,222
+> # Specify the user to drop privileges to
+> # If this is blank carbon runs as the user that invokes it
+> USER = carbon_relay
+> 
+245c249
+< REPLICATION_FACTOR = 1
+---
+> REPLICATION_FACTOR = 2
+263c267
+< DESTINATIONS = 127.0.0.1:2004
+---
+> DESTINATIONS = 10.100.102.11:2004, 10.100.102.12:2004
+'EOF'
+
+patch /usr/local/etc/carbon/relay-rules.conf << 'EOF'
+21c21
+< destinations = 127.0.0.1:2004:a, 127.0.0.1:2104:b
+---
+> destinations = 10.100.102.11:2004, 10.100.102.12:2004
+'EOF'
+
+patch /usr/local/etc/carbon/storage-schemas.conf << 'EOF'
+14c14
+< [default_1min_for_1day]
+---
+> [default]
+16c16
+< retentions = 60s:1d
+---
+> retentions = 1m:7d,2m:15d,4m:30d,16m:60d,64m:120d,320m:730d
+'EOF'
+
+# How to Resize Later
+# su -m carbon -c 'find /var/db/carbon/whisper -type f -exec whisper-resize.py {} 1m:7d 2m:15d 4m:30d 16m:60d 64m:120d 320m:730d \;'
+
+# Enable carbon services
+echo 'carbon_enable="YES"' >> /etc/rc.conf.local
+echo 'carbon_relay_enable="YES"' >> /etc/rc.conf.local
+
+# Update permissions so carbon user can write to it's database directory
+chown -R carbon:carbon /var/db/carbon
+
+# Create carbon_relay runcom script
+cd /usr/local/etc/rc.d
+cp carbon carbon_relay
+# Copy carbon rc.d script and change carbon lines to carbon_relay
+# Also change:
+# required_files="${carbon_relay_conf} /usr/local/etc/carbon/relay-rules.conf"
+# command="/usr/local/bin/carbon-relay.py"
+
+# Start Carbon services
+service carbon start
+service carbon_relay start
+
+# Generate Secret Key for Graphite
+dd if=/dev/urandom bs=32 count=1 | openssl base64 | cut -b -32
+
+# Configure Graphite
+patch /usr/local/etc/graphite/local_settings.py << 'EOF'
+13c13
+< #SECRET_KEY = 'UNSAFE_DEFAULT'
+---
+> SECRET_KEY = '4FE3cLxA3MtvN1G2KBSSUXxKFLk5KS7w'
+23c23
+< #TIME_ZONE = 'America/Los_Angeles'
+---
+> TIME_ZONE = 'America/New_York'
+172,173c172,177
+<                'NAME': '/var/db/graphite/graphite.db',
+<                'ENGINE': 'django.db.backends.sqlite3',
+---
+>                'NAME': 'graphite',
+>                'ENGINE': 'django.db.backends.postgresql_psycopg2',
+>                'USER': 'graphite',
+>                'PASSWORD': 'graphite_password',
+>                'HOST': '10.100.102.17',
+>                'PORT': '5432',
+209,210c213,214
+< #CARBONLINK_HOSTS = ["127.0.0.1:7002:a", "127.0.0.1:7102:b", "127.0.0.1:7202:c"]
+< #CARBONLINK_TIMEOUT = 1.0
+---
+> CARBONLINK_HOSTS = ["10.100.102.11:7002", "10.100.102.12:7002"]
+> CARBONLINK_TIMEOUT = 1.0
+'EOF'
+
+patch /usr/local/etc/graphite/graphite.wsgi << 'EOF'
+2c2
+< sys.path.append('/usr/local/graphite/webapp')
+---
+> sys.path.append('/usr/local/lib/python2.7/site-packages')
+'EOF'
+
+# Initialize user database and create the admin user:
+python2 /usr/local/lib/python2.7/site-packages/graphite/manage.py syncdb
+
+# Then build the index:
+/usr/local/bin/build-index.sh
+
+# Change the ownership of the user database so the webapp can write to it:
+chown -R www:www /var/db/graphite/ /var/log/graphite/
+
+echo 'uwsgi_enable="YES"' >> /etc/rc.conf.local
+echo 'uwsgi_profiles="graphite"' >> /etc/rc.conf.local
+echo 'uwsgi_graphite_enable="YES"' >> /etc/rc.conf.local
+echo 'uwsgi_graphite_flags="-L -M -p 2 --socket /tmp/uwsgi_graphite.sock --gid 80 --uid 80 --python-path /usr/local/lib/python2.7/site-packages/ --file /usr/local/etc/graphite/graphite.wsgi"' >> /etc/rc.conf.local
+
+## add to nginx.conf
+    upstream graphite {
+        server       unix:/tmp/uwsgi_graphite.sock;
+    }
+    server {
+        listen       80;
+        server_name  graphite.pa-us.mydomain.name graphite;
+
+        access_log   /var/log/nginx/graphite_access.log;
+        root         /usr/local/share/graphite-web;
+
+        location / {
+            uwsgi_pass             graphite;
+            uwsgi_param            UWSGI_SCRIPT graphite;
+            include                uwsgi_params;
+        }
+    }
+## end
+
+# Start UWSGI application server and reload Nginx
+service uwsgi start
+service nginx reload
 
 ################################################################################
 ##                       Serviio Jail Configuration                           ##
