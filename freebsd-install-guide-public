@@ -671,166 +671,6 @@ smtpctl update table aliases
 pkg install benchmarks/iperf
 
 ################################################################################
-# Monitorix for basic system monitoring and Perl SQL module for monitoring DB.
-################################################################################
-
-pkg install sysutils/monitorix databases/p5-DBD-mysql
-echo '' >> /etc/rc.conf
-echo '# Monitorix' >> /etc/rc.conf
-echo 'monitorix_enable="YES"' >> /etc/rc.conf
-
-# Bare Minimum Configuration:
-# - Run as www user to write graphs to /usr/local/www/monitorix/imgs
-# - Bind to LAN Internal IP to be jail friendly
-patch -l /usr/local/etc/monitorix.conf << 'EOF'
-26c26
-< 	host =
----
-> 	host = 10.100.102.2
-28,29c28,29
-< 	user = nobody
-< 	group = nobody
----
-> 	user = www
-> 	group = www
-'EOF'
-
-# Update NICs from Linux names to FreeBSD driver names
-patch -l /usr/local/etc/monitorix.conf << 'EOF'
-225c225
-< 	list = eth0
----
-> 	list = em0, em1
-227c227,228
-< 		eth0 = FastEthernet LAN, 0, 10000000
----
-> 		em0 = GigabitEthernet DMZ, 0, 10000000
-> 		em1 = GigabitEthernet LAN, 0, 10000000
-229c230
-< 	gateway = eth0
----
-> 	gateway = 
-'EOF'
-
-# Enable disk monitoring using sysutils/smartmontools and update disk names
-patch -l /usr/local/etc/monitorix.conf << 'EOF'
-70c70
-< 	disk		= n
----
-> 	disk		= y
-186c186
-< 		0 = /dev/sda, /dev/sdb, /dev/sdc
----
-> 		0 = /dev/ada0, /dev/ada1, /dev/ada2, /dev/ada3
-'EOF'
-
-# General personal preference configuration:
-# - Give it a title
-# - Turn on show gaps so things like reboots or outages have no data
-# - Also change the coloring on those gaps to a light gray rather than white
-# - Make detailed graphs bigger
-patch -l /usr/local/etc/monitorix.conf << 'EOF'
-6c6
-< title = Place a title here
----
-> title = xts-bsd-lan Monitorix
-15c15
-< show_gaps = n
----
-> show_gaps = y
-73c73
-< 	serv		= y
----
-> 	serv		= n
-606c607
-< 		gap		= FFFFFF
----
-> 		gap		= 202020
-617c618
-< 	zoom	= 800x300
----
-> 	zoom	= 1200x450
-'EOF'
-
-# Enable monitoring MySQL database jail
-# - The following will need to be done in the jail to allow this:
-# CREATE USER 'monitorix'@'10.100.102.18' IDENTIFIED BY 'MY_MONITORIX_PASSWORD';
-patch -l /usr/local/etc/monitorix.conf << 'EOF'
-81c81
-< 	mysql		= n
----
-> 	mysql		= y
-333,334c334,335
-< 	list = localhost
-< #	list = /var/lib/mysql/mysql.sock
----
-> 	list = 10.100.102.18
-> #	list = /tmp/mysql.sock
-336c337
-< 		localhost = 3306, user, secret
----
-> 		10.100.102.18 = 3306, monitorix, MY_MONITORIX_PASSWORD
-'EOF'
-
-# Allow monitoring squid in VPN jail
-patch -l /usr/local/etc/monitorix.conf << 'EOF'
-55c55
-< squid_log	= /var/log/squid/access.log
----
-> squid_log	= /usr/jails/squid.pa-us.mydomain.name/var/log/squid/access.log
-82c82
-< 	squid		= n
----
-> 	squid		= y
-346c347
-< 	cmd = squidclient -h 127.0.0.1
----
-> 	cmd = /usr/jails/squid.pa-us.mydomain.name/usr/local/sbin/squidclient -h 10.100.102.19
-'EOF'
-
-# Allow monitoring bind in lan service jail
-patch -l /usr/local/etc/monitorix.conf << 'EOF'
-85c85
-< 	bind		= n
----
-> 	bind		= y
-384c384
-< 	list = http://localhost:8053/
----
-> 	list = http://10.100.102.15:8053/
-386c386
-< 		http://localhost:8053/ = A, AAAA, ANY, DS, MX, NS, PTR, SOA, SRV, TXT, NAPTR, A6, CNAME, SPF, KEY, DNSKEY, HINFO, WKS, PX, NSAP
----
-> 		http://10.100.102.15:8053/ = A, AAAA, ANY, DS, MX, NS, PTR, SOA, SRV, TXT, NAPTR, A6, CNAME, SPF, KEY, DNSKEY, HINFO, WKS, PX, NSAP
-389c389
-< 		http://localhost:8053/ = A, AAAA, ANY, DS, MX, NS, PTR, SOA, SRV, TXT, NAPTR, A6, CNAME, SPF, KEY, DNSKEY, HINFO, WKS, PX, NSAP
----
-> 		http://10.100.102.15:8053/ = A, AAAA, ANY, DS, MX, NS, PTR, SOA, SRV, TXT, NAPTR, A6, CNAME, SPF, KEY, DNSKEY, HINFO, WKS, PX, NSAP
-392c392
-< 		http://localhost:8053/ = Requestv4, Requestv6, ReqEdns0, ReqBadEDNSVer, ReqTSIG, ReqSIG0, ReqBadSIG, ReqTCP, Response, QrySuccess, QryAuthAns, QryNoauthAns, QryReferral, QryNxrrset, QrySERVFAIL, QryNXDOMAIN, QryRecursion, QryDuplicate, QryDropped, QryFailure
----
-> 		http://10.100.102.15:8053/ = Requestv4, Requestv6, ReqEdns0, ReqBadEDNSVer, ReqTSIG, ReqSIG0, ReqBadSIG, ReqTCP, Response, QrySuccess, QryAuthAns, QryNoauthAns, QryReferral, QryNxrrset, QrySERVFAIL, QryNXDOMAIN, QryRecursion, QryDuplicate, QryDropped, QryFailure
-395c395
-< 		http://localhost:8053/ = Queryv4, Queryv6, Responsev4, Responsev6, NXDOMAIN, SERVFAIL, FORMERR, OtherError, EDNS0Fail, Truncated, Lame, Retry, QueryTimeout, GlueFetchv4, GlueFetchv6, GlueFetchv4Fail, GlueFetchv6Fail, ValAttempt, ValOk, ValNegOk
----
-> 		http://10.100.102.15:8053/ = Queryv4, Queryv6, Responsev4, Responsev6, NXDOMAIN, SERVFAIL, FORMERR, OtherError, EDNS0Fail, Truncated, Lame, Retry, QueryTimeout, GlueFetchv4, GlueFetchv6, GlueFetchv4Fail, GlueFetchv6Fail, ValAttempt, ValOk, ValNegOk
-398c398
-< 		http://localhost:8053/ = A, !A, AAAA, !AAAA, DLV, !DLV, DS, !DS, MX, NS, CNAME, !CNAME, SOA, !SOA, !ANY, PTR, RRSIG, NSEC, DNSKEY, NXDOMAIN
----
-> 		http://10.100.102.15:8053/ = A, !A, AAAA, !AAAA, DLV, !DLV, DS, !DS, MX, NS, CNAME, !CNAME, SOA, !SOA, !ANY, PTR, RRSIG, NSEC, DNSKEY, NXDOMAIN
-'EOF'
-
-# Correct location of CLAMAV log
-patch -l /usr/local/etc/monitorix.conf << 'EOF'
-53c53
-< clamav_log	= /var/log/clamav/clamav.log
----
-> clamav_log	= /var/log/clamav/clamd.log
-'EOF'
-
-service monitorix start
-
-################################################################################
 # Panicmail - Report kernel panics.
 ################################################################################
 
@@ -1388,8 +1228,6 @@ net/rsync
 net/unison-nox11
 sysutils/zfs-stats
 sysutils/ezjail
-sysutils/monitorix
-databases/p5-DBD-mysql
 benchmarks/iperf
 ########## VPN/Proxy Jail ##########
 security/openvpn
@@ -1747,7 +1585,7 @@ service mysql-server start
 # Choose a root password and answer yes to all questions.
 mysql_secure_installation
 
-# Login to MariaDB and create appropriate tables for Foreman devel/test databases and Monitorix
+# Login to MariaDB and create appropriate tables
 # Sub with random passwords:  dd if=/dev/urandom bs=32 count=1 | openssl base64 | cut -b -32
 mysql -u root -p
 CREATE DATABASE foreman CHARACTER SET utf8;
@@ -1758,7 +1596,6 @@ GRANT ALL PRIVILEGES ON foreman.* TO 'foreman'@'10.100.102.11';
 GRANT ALL PRIVILEGES ON foreman.* TO 'foreman'@'10.100.102.12';
 GRANT ALL PRIVILEGES ON foreman_test.* TO 'foreman'@'10.100.102.11';
 GRANT ALL PRIVILEGES ON foreman_test.* TO 'foreman'@'10.100.102.12';
-CREATE USER 'monitorix'@'10.100.102.18' IDENTIFIED BY 'monitorix_password';
 flush privileges;
 quit;
 
@@ -2314,8 +2151,7 @@ echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 # Install Squid
 pkg install www/squid33
 
-# Patch configs to allow monitorix to monitor, enable cache dir, and
-# munge internal LAN info sent out to servers
+# Patch configs to enable cache dir and hide LAN info sent out to to the net
 # Squid/apt-get cache reference 1:  http://itkia.com/using-squid-to-cache-apt-updates-for-debian-and-ubuntu/
 # Squid/apt-get cache reference 2:  http://shadow-file.blogspot.com/2008/12/ditching-apt-cacher-ng-for-squid.html 
 # Squid/apt-get cache reference 3:  https://tails.boum.org/contribute/build/squid-deb-proxy/squid-deb-proxy.conf

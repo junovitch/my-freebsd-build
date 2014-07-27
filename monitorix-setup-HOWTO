@@ -1,0 +1,220 @@
+################################################################################
+##                        Monitorix Configuration                             ##
+################################################################################
+#
+# Monitorix is a great tool for monitoring system activity on small servers.
+# After coming across a good Carbon/Graphite guide I went that route as it's
+# easier to see everything in one place rather than going to a web server
+# running on each system.
+#
+# In these example:
+# 10.100.102.2 is the LAN address of the host
+# 10.100.102.15 is the address of a jail running BIND
+# 10.100.102.18 is the address of a jail running MySQL
+# 10.100.102.19 is the address of a jail running Squid
+#
+# Monitorix is configured to monitor services running in those jails and listen
+# on the host address only.
+#
+# Written 2014 by Jason Unovitch
+#   jason.unovitch@gmail.com
+#   https://github.com/junovitch
+################################################################################
+
+# Install Monitorix
+pkg install sysutils/monitorix databases/p5-DBD-mysql
+
+# Change Monitorix user from 'nobody' to 'www' which can write graphs in the
+# image directory ( /usr/local/www/monitorix/imgs )
+patch -l /usr/local/etc/monitorix.conf << 'EOF'
+28,29c28,29
+<       user = nobody
+<       group = nobody
+---
+>       user = www
+>       group = www
+'EOF'
+
+# Enable Monitorix
+sysrc monitorix_enable=YES
+
+# Start Monitorix
+service monitorix start
+
+# Monitorix is already useful and will start collecting data. It can be found at
+# http://your-host:8080/monitorix
+#
+# However, there are a few Linux specific paths and device names that should be
+# fixed along with some other services to monitor and preferences to change.
+
+################################################################################
+# Force listening on the LAN Internal IP only to be jail friendly
+################################################################################
+
+patch -l /usr/local/etc/monitorix.conf << 'EOF'
+26c26
+< 	host =
+---
+> 	host = 10.100.102.2
+'EOF'
+
+################################################################################
+# Update NICs from Linux names to FreeBSD driver names
+################################################################################
+
+patch -l /usr/local/etc/monitorix.conf << 'EOF'
+225c225
+< 	list = eth0
+---
+> 	list = em0, em1
+227c227,228
+< 		eth0 = FastEthernet LAN, 0, 10000000
+---
+> 		em0 = GigabitEthernet DMZ, 0, 10000000
+> 		em1 = GigabitEthernet LAN, 0, 10000000
+229c230
+< 	gateway = eth0
+---
+> 	gateway = 
+'EOF'
+
+################################################################################
+# Configure disk monitoring using sysutils/smartmontools and update disk names
+################################################################################
+
+pkg install sysutils/smartmontools
+
+patch -l /usr/local/etc/monitorix.conf << 'EOF'
+70c70
+< 	disk		= n
+---
+> 	disk		= y
+186c186
+< 		0 = /dev/sda, /dev/sdb, /dev/sdc
+---
+> 		0 = /dev/ada0, /dev/ada1, /dev/ada2, /dev/ada3
+'EOF'
+
+################################################################################
+# Configure monitoring MySQL database jail
+# - The following will need to be done in the jail to allow this:
+# CREATE USER 'monitorix'@'10.100.102.18' IDENTIFIED BY 'MY_MONITORIX_PASSWORD';
+################################################################################
+
+patch -l /usr/local/etc/monitorix.conf << 'EOF'
+81c81
+< 	mysql		= n
+---
+> 	mysql		= y
+333,334c334,335
+< 	list = localhost
+< #	list = /var/lib/mysql/mysql.sock
+---
+> 	list = 10.100.102.18
+> #	list = /tmp/mysql.sock
+336c337
+< 		localhost = 3306, user, secret
+---
+> 		10.100.102.18 = 3306, monitorix, MY_MONITORIX_PASSWORD
+'EOF'
+
+################################################################################
+# Configure monitoring Squid jail
+# - Fix log file path
+# - Enable monitoring
+# - Fix path for 'squidclient' command
+#
+# Note: Add the following lines to squid.conf inside that jail followed by a
+# `service squid reload` . Normally, this access is only allowed for localhost
+# so the IP of the jail must be allowed.
+#
+# acl jailhost src 10.100.102.19
+# acl jailhost src 192.168.102.19
+# http_access allow jailhost manager
+################################################################################
+
+patch -l /usr/local/etc/monitorix.conf << 'EOF'
+55c55
+< squid_log	= /var/log/squid/access.log
+---
+> squid_log	= /usr/jails/squid-jail.mydomain.name/var/log/squid/access.log
+82c82
+< 	squid		= n
+---
+> 	squid		= y
+346c347
+< 	cmd = squidclient -h 127.0.0.1
+---
+> 	cmd = /usr/jails/squid-jail.mydomain.name/usr/local/sbin/squidclient -h 10.100.102.19
+'EOF'
+
+################################################################################
+# Configure monitoring BIND
+# - Enable monitoring
+# - Patch all paths from localhost to the jail's IP address
+#
+# Note: BIND must be built with the NEWSTATS option and the following config
+# must be in the named.conf followed up with a `service named reload`.
+#
+# statistics-channels {
+# 	inet 127.0.0.1 port 8053;
+# };
+################################################################################
+
+patch -l /usr/local/etc/monitorix.conf << 'EOF'
+85c85
+< 	bind		= n
+---
+> 	bind		= y
+383c383
+< 	list = http://localhost:8053/
+---
+> 	list = http://10.100.102.15:8053/
+385c385
+< 		http://localhost:8053/ = A, AAAA, ANY, DS, MX, NS, PTR, SOA, SRV, TXT, NAPTR, A6, CNAME, SPF, KEY, DNSKEY, HINFO, WKS, PX, NSAP
+---
+> 		http://10.100.102.15:8053/ = A, AAAA, ANY, DS, MX, NS, PTR, SOA, SRV, TXT, NAPTR, A6, CNAME, SPF, KEY, DNSKEY, HINFO, WKS, PX, NSAP
+388c388
+< 		http://localhost:8053/ = A, AAAA, ANY, DS, MX, NS, PTR, SOA, SRV, TXT, NAPTR, A6, CNAME, SPF, KEY, DNSKEY, HINFO, WKS, PX, NSAP
+---
+> 		http://10.100.102.15:8053/ = A, AAAA, ANY, DS, MX, NS, PTR, SOA, SRV, TXT, NAPTR, A6, CNAME, SPF, KEY, DNSKEY, HINFO, WKS, PX, NSAP
+391c391
+< 		http://localhost:8053/ = Requestv4, Requestv6, ReqEdns0, ReqBadEDNSVer, ReqTSIG, ReqSIG0, ReqBadSIG, ReqTCP, Response, QrySuccess, QryAuthAns, QryNoauthAns, QryReferral, QryNxrrset, QrySERVFAIL, QryNXDOMAIN, QryRecursion, QryDuplicate, QryDropped, QryFailure
+---
+> 		http://10.100.102.15:8053/ = Requestv4, Requestv6, ReqEdns0, ReqBadEDNSVer, ReqTSIG, ReqSIG0, ReqBadSIG, ReqTCP, Response, QrySuccess, QryAuthAns, QryNoauthAns, QryReferral, QryNxrrset, QrySERVFAIL, QryNXDOMAIN, QryRecursion, QryDuplicate, QryDropped, QryFailure
+394c394
+< 		http://localhost:8053/ = Queryv4, Queryv6, Responsev4, Responsev6, NXDOMAIN, SERVFAIL, FORMERR, OtherError, EDNS0Fail, Truncated, Lame, Retry, QueryTimeout, GlueFetchv4, GlueFetchv6, GlueFetchv4Fail, GlueFetchv6Fail, ValAttempt, ValOk, ValNegOk
+---
+> 		http://10.100.102.15:8053/ = Queryv4, Queryv6, Responsev4, Responsev6, NXDOMAIN, SERVFAIL, FORMERR, OtherError, EDNS0Fail, Truncated, Lame, Retry, QueryTimeout, GlueFetchv4, GlueFetchv6, GlueFetchv4Fail, GlueFetchv6Fail, ValAttempt, ValOk, ValNegOk
+397c397
+< 		http://localhost:8053/ = A, !A, AAAA, !AAAA, DLV, !DLV, DS, !DS, MX, NS, CNAME, !CNAME, SOA, !SOA, !ANY, PTR, RRSIG, NSEC, DNSKEY, NXDOMAIN
+---
+> 		http://10.100.102.15:8053/ = A, !A, AAAA, !AAAA, DLV, !DLV, DS, !DS, MX, NS, CNAME, !CNAME, SOA, !SOA, !ANY, PTR, RRSIG, NSEC, DNSKEY, NXDOMAIN
+'EOF'
+
+################################################################################
+# Other personal preferences:
+# - Give it a title
+# - Turn on show gaps so things like reboots or outages have no data
+# - Also change the coloring on those gaps to a light gray rather than white
+# - Make detailed graphs bigger
+################################################################################
+
+patch -l /usr/local/etc/monitorix.conf << 'EOF'
+6c6
+< title = Place a title here
+---
+> title = My Monitorix
+15c15
+< show_gaps = n
+---
+> show_gaps = y
+606c607
+< 		gap		= FFFFFF
+---
+> 		gap		= 202020
+617c618
+< 	zoom	= 800x300
+---
+> 	zoom	= 1200x450
+'EOF'
