@@ -1153,6 +1153,8 @@ zfs set compression=lz4 zfs/homedirs/common_assorted
 zfs create zfs/homedirs/family_albums
 zfs set dedup=on zfs/homedirs/family_albums
 zfs create zfs/local
+zfs create zfs/local/pgsql_backups
+chown 70:70 /zfs/local/pgsql_backups; chmod 700 /zfs/local/pgsql_backups
 zfs create zfs/local/jails
 zfs create zfs/local/jails/archive
 
@@ -1678,7 +1680,9 @@ cd /root && ./make-quicksha256-key.sh www.mydomain.name
 
 ezjail-admin create -f lan pdbi.pa-us.mydomain.name 10.100.102.17,2001:123:4:5678::17
 ezjail-admin config -f 1 pdbi.pa-us.mydomain.name
+mkdir -p /usr/jails/pdbi.pa-us.mydomain.name/zfs/local/pgsql_backups
 echo '/zfs/poudriere/data/packages /usr/jails/pdbi.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.pdbi_pa_us_mydomain_name
+echo '/zfs/local/pgsql_backups /usr/jails/pdbi.pa-us.mydomain.name/zfs/local/pgsql_backups nullfs rw 0 0' >> /etc/fstab.pdbi_pa_us_mydomain_name
 perl -pwi -e 's/parameters=""/parameters="allow.sysvipc=1"/g' /usr/local/etc/ezjail/pdbi_pa_us_mydomain_name
 ezjail-admin console -f pdbi.pa-us.mydomain.name
 passwd
@@ -1696,6 +1700,7 @@ service postgresql initdb
 service postgresql start
 
 echo 'daily_pgsql_backup_enable="YES"' >> /etc/periodic.conf.local
+echo 'daily_pgsql_backupdir="/zfs/local/pgsql_backups"' >> /etc/periodic.conf.local
 echo 'daily_pgsql_vacuum_enable="YES"' >> /etc/periodic.conf.local
 
 # Create users and databases
