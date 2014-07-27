@@ -1496,6 +1496,9 @@ echo '#security.jail.allow_raw_sockets=1' >> /etc/sysctl.conf
 # FreeBSD 10+ devfs handling (rules must be numbers not names)
 sed -i '' -e 's/# ezjail_devfs_ruleset="devfsrules_jail"/ezjail_devfs_ruleset="4"/' /usr/local/etc/ezjail.conf
 
+# Backup to zfs
+sed -i '' -e 's^# ezjail_archivedir="${ezjail_jaildir}/ezjail_archives"^ezjail_archivedir=/zfs/local/jails/archive^' /usr/local/etc/ezjail.conf
+
 # Define default jail stop command to ensure graceful shutdown of jails
 echo 'ezjail_exec_stop="/bin/sh /etc/rc.shutdown"' >> /usr/local/etc/ezjail.conf
 
