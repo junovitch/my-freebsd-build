@@ -355,8 +355,18 @@ service unbound start
 
 pkg install net/openntpd
 
-perl -pwi -e 's^servers pool.ntp.org^servers us.pool.ntp.org^' /usr/local/etc/ntpd.conf
-perl -pwi -e 's^#listen on \*^listen on 10.100.102.2\nlisten on 2001:123:4:5678::2^' /usr/local/etc/ntpd.conf
+cat > /usr/local/etc/ntpd.conf << 'EOF'
+# Addresses to listen on (ntpd does not listen by default)
+listen on 10.100.102.2
+listen on 2001:123:4:5678::2
+
+# sync to a single server
+#server ntp.example.org
+
+# use a random selection of NTP Pool Time Servers
+# see http://support.ntp.org/bin/view/Servers/NTPPoolServers
+servers us.pool.ntp.org
+'EOF'
 
 echo '' >> /etc/rc.conf
 echo '# OpenNTPD Support for upkeep of time' >> /etc/rc.conf
