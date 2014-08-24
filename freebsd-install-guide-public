@@ -714,6 +714,7 @@ LoadPlugin nut
 LoadPlugin processes
 LoadPlugin uptime
 LoadPlugin write_graphite
+LoadPlugin zfs_arc
 
 <Plugin disk>
     Disk "/^gptid/"
