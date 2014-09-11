@@ -2067,6 +2067,9 @@ vim foreman_enc.rb.apps2.pa-us.mydomain.name.rb
 # http://z0mbix.github.io/blog/2012/03/01/use-nginx-and-passenger-to-power-your-puppet-master/
 # http://www.watters.ws/mediawiki/index.php/Configure_puppet_master_using_nginx_and_mod_passenger
 
+mkdir /usr/local/etc/nginx/sites-enabled
+mkdir /usr/local/etc/nginx/sites-available
+
 cat > /usr/local/etc/nginx/nginx.conf << 'EOF'
 user              www www;
 worker_processes  2;
@@ -2078,6 +2081,8 @@ events {
 }
 
 http {
+    include                  /usr/local/etc/nginx/sites-enabled/*;
+
     passenger_root           /usr/local/lib/ruby/gems/1.9/gems/passenger-4.0.45;
     passenger_ruby           /usr/local/bin/ruby;
     passenger_max_pool_size  10;
@@ -2097,7 +2102,11 @@ http {
     ssl_prefer_server_ciphers  on;
     ssl_verify_client          optional;
     ssl_verify_depth           1;
+}
+'EOF'
 
+# Create sites-available config file and follow up with sites-enabled symlink
+cat > /usr/local/etc/nginx/sites-available/foreman << 'EOF'
     server {
         listen       80 default_server;
         server_name  foreman.pa-us.mydomain.name foreman;
@@ -2126,22 +2135,11 @@ http {
         ssl_crl                    /var/puppet/ssl/ca/ca_crl.pem;
         ssl_client_certificate     /var/puppet/ssl/certs/ca.pem;
     }
-    server {
-        listen       80;
-        server_name  poudriere.pa-us.mydomain.name poudriere;
+'EOF'
+cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/foreman foreman
 
-        access_log   /var/log/nginx/poudriere_access.log;
-        root         /usr/local/www/poudriere/bulk;
-        fancyindex   on;
-    }
-    server {
-        listen       80;
-        server_name  pkg.pa-us.mydomain.name pkg;
-
-        access_log   /var/log/nginx/pkg_access.log;
-        root         /usr/local/www/pkg;
-        fancyindex   on;
-    }
+# Create sites-available config file and follow up with sites-enabled symlink
+cat > /usr/local/etc/nginx/sites-available/puppet << 'EOF'
     server {
         listen       8140 ssl;
         server_name  puppet.pa-us.mydomain.name puppet;
@@ -2161,8 +2159,47 @@ http {
         ssl_crl                    /var/puppet/ssl/ca/ca_crl.pem;
         ssl_client_certificate     /var/puppet/ssl/certs/ca.pem;
     }
-}
 'EOF'
+cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/puppet puppet
+
+# Create sites-available config file and follow up with sites-enabled symlink
+cat > /usr/local/etc/nginx/sites-available/poudriere << 'EOF'
+    server {
+        listen       80;
+        server_name  poudriere.pa-us.mydomain.name poudriere;
+
+        access_log   /var/log/nginx/poudriere_access.log;
+        root         /usr/local/www/poudriere/bulk;
+        fancyindex   on;
+    }
+'EOF'
+cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/poudriere poudriere
+
+# Create sites-available config file and follow up with sites-enabled symlink
+cat > /usr/local/etc/nginx/sites-available/pkg << 'EOF'
+    server {
+        listen       80;
+        server_name  pkg.pa-us.mydomain.name pkg;
+
+        access_log   /var/log/nginx/pkg_access.log;
+        root         /usr/local/www/pkg;
+        fancyindex   on;
+    }
+'EOF'
+cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/pkg pkg
+
+# Create sites-available config file and follow up with sites-enabled symlink
+cat > /usr/local/etc/nginx/sites-available/kickstart << 'EOF'
+    server {
+        listen       80;
+        server_name  kickstart.pa-us.mydomain.name kickstart;
+
+        access_log   /var/log/nginx/kickstart_access.log;
+        root         /zfs/data/kickstart;
+        fancyindex   on;
+    }
+'EOF'
+cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/kickstart kickstart
 
 # Create the log directory to prevent issues on startup.
 mkdir /var/log/nginx
@@ -2356,7 +2393,8 @@ echo 'uwsgi_profiles="graphite"' >> /etc/rc.conf.local
 echo 'uwsgi_graphite_enable="YES"' >> /etc/rc.conf.local
 echo 'uwsgi_graphite_flags="-L -M -p 2 --socket /tmp/uwsgi_graphite.sock --gid 80 --uid 80 --python-path /usr/local/lib/python2.7/site-packages/ --file /usr/local/etc/graphite/graphite.wsgi"' >> /etc/rc.conf.local
 
-## add to nginx.conf
+# Create sites-available config file and follow up with sites-enabled symlink
+cat > /usr/local/etc/nginx/sites-available/graphite << 'EOF'
     upstream graphite {
         server       unix:/tmp/uwsgi_graphite.sock;
     }
@@ -2373,7 +2411,8 @@ echo 'uwsgi_graphite_flags="-L -M -p 2 --socket /tmp/uwsgi_graphite.sock --gid 8
             include                uwsgi_params;
         }
     }
-## end
+'EOF'
+cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/graphite graphite
 
 # Start UWSGI application server and reload Nginx
 service uwsgi start
@@ -2428,6 +2467,8 @@ unzip -d /usr/local/www Serviio-1.3.zip
 # rsync the entire /usr/local/www/Web-UI-for-Serviio-Serviio-1.3 directory
 # to both apps servers and add this to their nginx.conf
 
+# Create sites-available config file and follow up with sites-enabled symlink
+cat > /usr/local/etc/nginx/sites-available/serviio-console << 'EOF'
     server {
         listen       80;
         server_name  serviio-console.pa-us.mydomain.name serviio-console;
@@ -2448,6 +2489,8 @@ unzip -d /usr/local/www Serviio-1.3.zip
             deny all;
         }
     }
+'EOF'
+cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/serviio-console serviio-console
 
 echo 'php_fpm_enable="YES"' >> /etc/rc.conf.local
 service php-fpm start
