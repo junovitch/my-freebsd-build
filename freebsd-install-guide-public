@@ -1442,7 +1442,7 @@ security/sudo
 net-mgmt/collectd5
 benchmarks/iperf
 ########## Proxy Jail ##########
-www/squid33
+www/squid
 ########## Serviio Jail ##########
 net/serviio
 graphics/dcraw
@@ -2565,7 +2565,7 @@ echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/mak
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Install Squid
-pkg install www/squid33
+pkg install www/squid
 
 # Patch configs to enable cache dir and hide LAN info sent out to to the net
 # Squid/apt-get cache reference 1:  http://itkia.com/using-squid-to-cache-apt-updates-for-debian-and-ubuntu/
