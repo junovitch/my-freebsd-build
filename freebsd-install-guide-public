@@ -1394,6 +1394,7 @@ cat > /usr/local/etc/poudriere.d/10_0amd64-make.conf << 'EOF'
 WITH_SSP_PORTS=yes
 #WITH_PKGNG=yes #only uncommented on earlier releases than 10
 ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
+gnutls_UNSET+=TPM
 ca_root_nss_SET+=ETCSYMLINK
 DEFAULT_VERSIONS= ruby=1.9 perl5=5.18 mysql=5.5m pgsql=9.3
 rubygem-passenger_UNSET+=APACHE22
