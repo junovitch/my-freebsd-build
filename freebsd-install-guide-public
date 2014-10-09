@@ -295,6 +295,10 @@ server:
 	domain-insecure: "168.192.in-addr.arpa."
 	private-address: 10.100.0.0/16
 	private-address: 192.168.0.0/16
+	# ENABLE STATISTICS
+	statistics-interval: 0
+	extended-statistics: yes
+	statistics-cumulative: no
 
 remote-control:
 	control-enable: yes
