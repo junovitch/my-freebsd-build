@@ -1468,6 +1468,7 @@ devel/rubygem-rake
 devel/gmake
 lang/gcc
 converters/ruby-iconv
+lang/gcc47
 www/rubygem-passenger
 www/nginx
 sysutils/rubygem-bundler
@@ -1872,7 +1873,7 @@ echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Installing Dependencies:  Install Puppet, Git, Nginx, and Ruby Components
 
-pkg install puppet rubygem-puppet-lint git nginx rubygem-rake ruby19-iconv rubygem-passenger rubygem-bundler mariadb55-client libxslt node sqlite3 postgresql93-client gcc gmake sudo foreman-proxy
+pkg install puppet rubygem-puppet-lint git nginx rubygem-rake ruby19-iconv rubygem-passenger rubygem-bundler mariadb55-client libxslt node sqlite3 postgresql93-client gcc47 gmake sudo foreman-proxy
 
 # At this point, Puppet needs to be started so that all its SSL keys can be 
 # generated. This gives the chance to test that Puppet does work before anything
