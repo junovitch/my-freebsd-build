@@ -1396,7 +1396,7 @@ WITH_SSP_PORTS=yes
 ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 gnutls_UNSET+=TPM
 ca_root_nss_SET+=ETCSYMLINK
-DEFAULT_VERSIONS= ruby=1.9 perl5=5.18 mysql=5.5m pgsql=9.3
+DEFAULT_VERSIONS= ruby=2.0 perl5=5.18 mysql=5.5m pgsql=9.3
 rubygem-passenger_UNSET+=APACHE22
 rubygem-passenger_SET+=NGINX
 dns_bind910+=NEWSTATS
@@ -1467,7 +1467,6 @@ devel/ruby-gems
 devel/rubygem-rake
 devel/gmake
 lang/gcc
-converters/ruby-iconv
 lang/gcc47
 www/rubygem-passenger
 www/nginx
@@ -1873,7 +1872,7 @@ echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Installing Dependencies:  Install Puppet, Git, Nginx, and Ruby Components
 
-pkg install puppet rubygem-puppet-lint git nginx rubygem-rake ruby19-iconv rubygem-passenger rubygem-bundler mariadb55-client libxslt node sqlite3 postgresql93-client gcc47 gmake sudo foreman-proxy
+pkg install puppet rubygem-puppet-lint git nginx rubygem-rake rubygem-passenger rubygem-bundler mariadb55-client libxslt node sqlite3 postgresql93-client gcc47 gmake sudo foreman-proxy
 
 # At this point, Puppet needs to be started so that all its SSL keys can be 
 # generated. This gives the chance to test that Puppet does work before anything
@@ -2036,7 +2035,7 @@ find /opt/foreman/log -type f -exec chmod g+rw {} \;
 # $foreman_ssl_ca = "/var/puppet/ssl/certs/ca.pem"
 # $foreman_ssl_cert = "/var/puppet/ssl/certs/apps2.pa-us.mydomain.name.pem"
 # $foreman_ssl_key = "/var/puppet/ssl/private_keys/apps2.pa-us.mydomain.name.pem"
-cd /usr/local/lib/ruby/site_ruby/1.9/puppet/reports
+cd /usr/local/lib/ruby/site_ruby/2.0/puppet/reports
 fetch https://raw.github.com/theforeman/puppet-foreman/master/templates/foreman-report_v2.rb.erb
 mv foreman-report_v2.rb.erb foreman.rb
 vim foreman.rb
@@ -2087,7 +2086,7 @@ events {
 http {
     include                  /usr/local/etc/nginx/sites-enabled/*;
 
-    passenger_root           /usr/local/lib/ruby/gems/1.9/gems/passenger-4.0.45;
+    passenger_root           /usr/local/lib/ruby/gems/2.0/gems/passenger-4.0.53;
     passenger_ruby           /usr/local/bin/ruby;
     passenger_max_pool_size  10;
     passenger_pool_idle_time 300;
