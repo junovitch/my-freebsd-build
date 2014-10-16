@@ -1406,8 +1406,6 @@ rubygem-passenger_SET+=NGINX
 dns_bind910+=NEWSTATS
 net-mgmt_collectd5_SET+=CURL MYSQL NUTUPS PING PGSQL STATGRAB XML
 nginx_SET+=PASSENGER HTTP_FANCYINDEX
-# Must compile Squid with --disable-arch-native to run binary on Soekris system
-SQUID_CONFIGURE_ARGS="--disable-arch-native"
 'EOF'
 
 # Setup a package list of all ports used on host and in jails
