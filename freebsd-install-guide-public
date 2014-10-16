@@ -189,27 +189,17 @@ passwd jason
 portsnap fetch extract
 
 ################################################################################
-# PKG support per instructions in the official package announcement.
+# Initial FreeBSD-Update for the latest security patches and to make sure
+# PKG repos are enabled with PKG public key in place.
 #
-# http://lists.freebsd.org/pipermail/freebsd-pkg/2013-October/000107.html
-# http://www5.us.freebsd.org/doc/en_US.ISO8859-1/books/handbook/pkgng-intro.html
+# http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/pkgng-intro.html
 ################################################################################
+
+freebsd-update fetch
+freebsd-update install
 
 pkg
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
-pkg2ng
-
-# FreeBSD 9 only, this is done on 10
-echo 'WITH_PKGNG=yes' >> /etc/make.conf
-rm /usr/local/etc/pkg.conf
-mkdir -p /usr/local/etc/pkg/repos
-cat > /usr/local/etc/pkg/repos/FreeBSD.conf << 'EOF'
-FreeBSD: {
-  url: "http://pkg.FreeBSD.org/${ABI}/latest",
-  mirror_type: "srv",
-  enabled: yes
-}
-'EOF'
 
 cat >> /etc/periodic.conf << 'EOF'
 ##### Package related checks
@@ -1396,7 +1386,6 @@ poudriere jail -u -j 10_0amd64
 # Setup make.conf variables for build jail
 cat > /usr/local/etc/poudriere.d/10_0amd64-make.conf << 'EOF'
 WITH_SSP_PORTS=yes
-#WITH_PKGNG=yes #only uncommented on earlier releases than 10
 ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 gnutls_UNSET+=TPM
 ca_root_nss_SET+=ETCSYMLINK
@@ -1746,7 +1735,6 @@ ezjail-admin console -f pdbi.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Install PostgreSQL with default options
@@ -1796,7 +1784,6 @@ ezjail-admin console -f mdbi.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Install MariaDB 5.5
@@ -1869,7 +1856,6 @@ passwd
 # between each other.
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Installing Dependencies:  Install Puppet, Git, Nginx, and Ruby Components
@@ -2443,7 +2429,6 @@ ezjail-admin console -f serviio.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Setup FFMPEG options per guidance in the helpful links then start Serviio build.
@@ -2566,7 +2551,6 @@ ezjail-admin console -f squid.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Install Squid
@@ -2685,7 +2669,6 @@ ezjail-admin console -f lanser.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Install BIND
@@ -2781,7 +2764,6 @@ ezjail-admin console -f www1.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Assign Apache module build to the PHP5 config then start the full build.
@@ -2875,7 +2857,6 @@ ezjail-admin console -f ms1.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo '#WITH_PKGNG=yes #only uncommented on earlier releases than 10' >> /etc/make.conf
 echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 fetch https://bitbucket.org/zhb/iredmail/downloads/iRedMail-0.8.5.tar.bz2
