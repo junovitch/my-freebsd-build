@@ -698,6 +698,7 @@ LoadPlugin load
 LoadPlugin memory
 LoadPlugin network
 LoadPlugin nut
+LoadPlugin postgresql
 LoadPlugin processes
 LoadPlugin uptime
 LoadPlugin write_graphite
@@ -736,6 +737,31 @@ LoadPlugin zfs_arc
 
 <Plugin nut>
   UPS "UPS@localhost:3493"
+</Plugin>
+
+<Plugin postgresql>
+  <Database foreman>
+    Host "pdbi.pa-us.mydomain.name"
+    Port "5432"
+    User "collectd"
+    Password "collectd_password"
+    Query transactions
+    Query queries
+    Query table_states
+    Query disk_io
+    Query disk_usage
+  </Database>
+  <Database graphite>
+    Host "pdbi.pa-us.mydomain.name"
+    Port "5432"
+    User "collectd"
+    Password "collectd_password"
+    Query transactions
+    Query queries
+    Query table_states
+    Query disk_io
+    Query disk_usage
+  </Database>
 </Plugin>
 
 <Plugin write_graphite>
@@ -1764,11 +1790,23 @@ psql -c "ALTER USER foreman WITH ENCRYPTED PASSWORD 'foreman_password'"
 createuser graphite
 createdb -O graphite -e graphite
 psql -c "ALTER USER graphite WITH ENCRYPTED PASSWORD 'graphite_password'"
+# Collectd
+createuser collectd
+psql -c "ALTER USER collectd WITH ENCRYPTED PASSWORD 'collectd_password'"
+exit
 
+# Back as root user, enable tracking statistics then enable access control for designated hosts
+sed -i '' -e 's/#track_activities = on/track_activities = on/g' /usr/local/pgsql/data/postgresql.conf
+sed -i '' -e 's/#track_counts = on/track_counts = on/g' /usr/local/pgsql/data/postgresql.conf
+sed -i '' -e 's/#track_functions = none/track_functions = all/g' /usr/local/pgsql/data/postgresql.conf
 echo "host all all 10.100.102.11/32 md5" >> /usr/local/pgsql/data/pg_hba.conf
 echo "host all all 10.100.102.12/32 md5" >> /usr/local/pgsql/data/pg_hba.conf
+echo "host all all 10.100.102.17/32 md5" >> /usr/local/pgsql/data/pg_hba.conf
 echo "host all all 2001:123:4:5678::11/128 md5" >> /usr/local/pgsql/data/pg_hba.conf
 echo "host all all 2001:123:4:5678::12/128 md5" >> /usr/local/pgsql/data/pg_hba.conf
+echo "host all all 2001:123:4:5678::17/128 md5" >> /usr/local/pgsql/data/pg_hba.conf
+
+# Reload service to apply postgresql.conf and pg_hba.conf changes
 service postgresql reload
 
 ################################################################################
