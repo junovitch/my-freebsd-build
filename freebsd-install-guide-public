@@ -687,7 +687,7 @@ PIDFile     "/var/run/collectd.pid"
 PluginDir   "/usr/local/lib/collectd"
 TypesDB     "/usr/local/share/collectd/types.db"
 
-Interval    60
+Interval    120
 
 LoadPlugin cpu
 LoadPlugin df
@@ -708,17 +708,14 @@ LoadPlugin zfs_arc
     Disk "/^gptid/"
     Disk "/^md/"
     Disk "/^pass/"
+    Disk "/^cd/"
     IgnoreSelected true
 </Plugin>
 
 <Plugin df>
-    MountPoint "/^/usr/jails//"
-    MountPoint "/^/usr/obj//"
-    MountPoint "/^/zfs/poudriere/data//"
-    FSType "devfs"
-    FSType "procfs"
-    FSType "fdescfs"
-    IgnoreSelected true
+    MountPoint "/^/$/"
+    MountPoint "/^/zfs$/"
+    IgnoreSelected false
 </Plugin>
 
 <Plugin exec>
