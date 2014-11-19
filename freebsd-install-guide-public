@@ -796,6 +796,7 @@ done
 cat > /usr/local/sbin/exec-hwsensors.sh << 'EOF'
 #!/bin/sh
 # Exec script for collectd to read IPMI and SMART stats
+# Keep an eye on the top 5 per https://www.backblaze.com/blog/hard-drive-smart-stats/
 # Requires sudo configuration to gather hardware statistics
 
 HOSTNAME="${COLLECTD_HOSTNAME:-`hostname -s`}"
@@ -805,17 +806,17 @@ while sleep "$INTERVAL"
 do
 	for disk in ada0 ada1 ada2 ada3; do
 	  /usr/local/bin/sudo /usr/local/sbin/smartctl -A /dev/$disk \
-	    | egrep "Reallocated_Sector_Ct|Temperature_Celsius|Current_Pending_Sector" \
 	    | awk -v HOSTNAME=$HOSTNAME -v INTERVAL=$INTERVAL -v DISK=$disk \
-	    '{ print "PUTVAL", HOSTNAME"/exec-hwsensors/gauge-smart/"$2"-"DISK, "interval="INTERVAL, "N:"$10 }'
+	    '/Reallocated_Sector_Ct|Reported_Uncorrect|Command_Timeout|Temperature_Celsius|Current_Pending_Sector/ \
+	    { print "PUTVAL", HOSTNAME"/exec-hwsensors/gauge-smart/"$2"-"DISK, "interval="INTERVAL, "N:"$10 }'
 	done
 
 	/usr/local/bin/sudo /usr/local/sbin/ipmi-sensors \
 	    --no-header-output --interpret-oem-data --comma-separated-output \
-	    | sed -e 's/ //' \
-	    | grep -v "N/A" \
 	    | awk -F',' -v HOSTNAME=$HOSTNAME -v INTERVAL=$INTERVAL \
-	    '{ print "PUTVAL", HOSTNAME"/exec-hwsensors/gauge-ipmi/"$2, "interval="INTERVAL, "N:"$4 }'
+	    '/(Temperature|Voltage|Fan)/ \
+	    { gsub (/ /, "");
+	      print "PUTVAL", HOSTNAME"/exec-hwsensors/gauge-ipmi/"$2, "interval="INTERVAL, "N:"$4 }'
 done
 'EOF'
 
