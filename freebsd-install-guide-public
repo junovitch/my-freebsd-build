@@ -2342,11 +2342,13 @@ patch /usr/local/etc/carbon/storage-schemas.conf << 'EOF'
 16c16
 < retentions = 60s:1d
 ---
-> retentions = 1m:7d,2m:15d,4m:30d,16m:60d,64m:120d,320m:730d
+> retentions = 2m:7d,10m:30d,60m:120d,300m:730d
 'EOF'
 
 # How to Resize Later
-# su -m carbon -c 'find /var/db/carbon/whisper -type f -exec whisper-resize.py {} 1m:7d 2m:15d 4m:30d 16m:60d 64m:120d 320m:730d \;'
+# su -m carbon -c 'find /var/db/carbon/whisper -type f -exec whisper-resize.py {} 2m:7d 10m:30d 60m:120d 300m:730d \;'
+# Cleanup:
+# find /var/db/carbon/whisper -name "*.bak" -exec rm '{}' \;
 
 # Enable carbon services
 echo 'carbon_enable="YES"' >> /etc/rc.conf.local
