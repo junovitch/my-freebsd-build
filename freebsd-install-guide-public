@@ -834,22 +834,21 @@ INTERVAL="${COLLECTD_INTERVAL:-60}"
 while sleep "$INTERVAL"
 do
 	squidclient -h "$SQUID_HOST" cache_object://localhost/counters \
-	    | egrep "requests|^(server|client)" \
 	    | awk -F ' = ' -v HOSTNAME=$HOSTNAME -v INTERVAL=$INTERVAL \
-	    '{ print "PUTVAL", HOSTNAME"/exec-squid/counter-squid/"$1, "interval="INTERVAL, "N:"$2 }'
+	    '/requests|^(server|client)/ \
+	    { print "PUTVAL", HOSTNAME"/exec-squid/counter-squid/"$1, "interval="INTERVAL, "N:"$2 }'
 
 	squidclient -h "$SQUID_HOST" cache_object://localhost/ipcache \
-	    | egrep "IPcache (Requests|Hits|Misses)" \
 	    | awk -F ':' -v HOSTNAME=$HOSTNAME -v INTERVAL=$INTERVAL \
-	    '{ gsub(/ /, "", $1); gsub(/ /, "", $2);
-	       print "PUTVAL", HOSTNAME"/exec-squid/counter-squid/"$1, "interval="INTERVAL, "N:"$2 }'
+	    '/IPcache (Requests|Hits|Misses)/ \
+	    { gsub(/ /, "", $1); gsub(/ /, "", $2);
+	      print "PUTVAL", HOSTNAME"/exec-squid/counter-squid/"$1, "interval="INTERVAL, "N:"$2 }'
 
 	squidclient -h "$SQUID_HOST" cache_object://localhost/storedir \
-	    | egrep "(Maximum Swap Size|Current Store Swap Size)" \
-	    | sed -e 's/KB//g' \
 	    | awk -F ':' -v HOSTNAME=$HOSTNAME -v INTERVAL=$INTERVAL \
-	    '{ gsub(/ /, "", $1); gsub(/ /, "", $2);
-	       print "PUTVAL", HOSTNAME"/exec-squid/gauge-squid/"$1,   "interval="INTERVAL, "N:"$2 }'
+	    '/(Maximum Swap Size|Current Store Swap Size)/ \
+	    { gsub(/KB/, ""); gsub(/ /, "", $1); gsub(/ /, "", $2);
+	      print "PUTVAL", HOSTNAME"/exec-squid/gauge-squid/"$1,   "interval="INTERVAL, "N:"$2 }'
 done
 'EOF'
 
