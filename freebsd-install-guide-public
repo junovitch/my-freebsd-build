@@ -786,10 +786,10 @@ INTERVAL="${COLLECTD_INTERVAL:-60}"
 while sleep "$INTERVAL"
 do
 	/usr/local/sbin/unbound-control stats \
-	    | egrep '^(total|num|mem)\.' \
-	    | sed -e 's/=/ /' -e 's/\./_/g' \
 	    | awk -v HOSTNAME=$HOSTNAME -v INTERVAL=$INTERVAL \
-	    '{ print "PUTVAL", HOSTNAME"/exec-unbound/gauge-unbound/"$1, "interval="INTERVAL, "N:"$2 }'
+	    '/^(total|num|mem)\./ \
+	    { gsub(/\./, "_"); gsub(/=/, " "); \
+	      print "PUTVAL", HOSTNAME"/exec-unbound/gauge-unbound/"$1, "interval="INTERVAL, "N:"$2 }'
 done
 'EOF'
 
