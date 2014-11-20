@@ -156,6 +156,17 @@ ntpdate_hosts="192.168.102.1"
 'EOF'
 
 ################################################################################
+# Encrypted Swap Setup
+# https://www.freebsd.org/doc/handbook/swap-encrypting.html
+################################################################################
+
+# Update /dev/ada0p3 as needed
+swapoff /dev/ada0p3
+dd if=/dev/random of=/dev/ada0p3 bs=1m
+sed -i '' -e 's/ada0p3/ada0p3.eli/' /etc/fstab
+swapon /dev/ada0p3.eli
+
+################################################################################
 # Without the changes to using multiple routing fibs, the following would be
 # enough. However, a reboot will be required at this point.
 #
