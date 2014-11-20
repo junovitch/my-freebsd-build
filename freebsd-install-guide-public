@@ -1483,6 +1483,7 @@ lang/gcc47
 www/rubygem-passenger
 www/nginx
 sysutils/rubygem-bundler
+devel/libvirt
 textproc/libxslt
 www/node
 databases/sqlite3
@@ -1890,7 +1891,7 @@ pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 
 # Installing Dependencies:  Install Puppet, Git, Nginx, and Ruby Components
 
-pkg install puppet rubygem-puppet-lint git nginx rubygem-rake rubygem-passenger rubygem-bundler mariadb55-client libxslt node sqlite3 postgresql93-client gcc47 gmake sudo foreman-proxy
+pkg install puppet rubygem-puppet-lint git nginx rubygem-rake rubygem-passenger rubygem-bundler libvirt mariadb55-client libxslt node sqlite3 postgresql93-client gcc47 gmake sudo foreman-proxy
 
 # At this point, Puppet needs to be started so that all its SSL keys can be 
 # generated. This gives the chance to test that Puppet does work before anything
@@ -1941,7 +1942,8 @@ cp config/settings.yaml.example config/settings.yaml
 # Note: rubygem-libv8 doesn't recognize current gcc47 and requires a link
 # GCC and gmake are required to successfully build and install
 cd /usr/local/bin && ln g++47 g++ && cd -
-bundle install --path vendor/bundle --without console libvirt ovirt test vmware
+bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
+bundle install --path vendor/bundle
 rm /usr/local/bin/g++
 
 # database.yml:  Copy the example database YAML file. Update with database information.
