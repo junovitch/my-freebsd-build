@@ -199,7 +199,6 @@ freebsd-update fetch
 freebsd-update install
 
 pkg
-echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 cat >> /etc/periodic.conf << 'EOF'
 ##### Package related checks
@@ -1408,7 +1407,6 @@ poudriere jail -u -j 10_0amd64
 
 # Setup make.conf variables for build jail
 cat > /usr/local/etc/poudriere.d/10_0amd64-make.conf << 'EOF'
-WITH_SSP_PORTS=yes
 ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 gnutls_UNSET+=TPM
 ca_root_nss_SET+=ETCSYMLINK
@@ -1758,7 +1756,6 @@ ezjail-admin console -f pdbi.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Install PostgreSQL with default options
 pkg install postgresql93-server
@@ -1819,7 +1816,6 @@ ezjail-admin console -f mdbi.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Install MariaDB 5.5
 pkg install mariadb55-server
@@ -1891,7 +1887,6 @@ passwd
 # between each other.
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Installing Dependencies:  Install Puppet, Git, Nginx, and Ruby Components
 
@@ -2466,7 +2461,6 @@ ezjail-admin console -f serviio.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Setup FFMPEG options per guidance in the helpful links then start Serviio build.
 # cd /usr/ports/multimedia/ffmpeg && make config WITH_RTMP=YES WITH_X11GRAB=YES WITH_FAAC=YES WITH_LAME=YES WITH_AMR_NB=YES WITH_AMR_WB=YES WITH_ASS=YES
@@ -2588,7 +2582,6 @@ ezjail-admin console -f squid.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Install Squid
 pkg install www/squid
@@ -2706,7 +2699,6 @@ ezjail-admin console -f lanser.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Install BIND
 pkg install dns/bind910
@@ -2801,7 +2793,6 @@ ezjail-admin console -f www1.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 # Assign Apache module build to the PHP5 config then start the full build.
 # cd /usr/ports/lang/php5 && make config WITH_APACHE=YES
@@ -2894,7 +2885,6 @@ ezjail-admin console -f ms1.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-echo 'WITH_SSP_PORTS=yes' >> /etc/make.conf
 
 fetch https://bitbucket.org/zhb/iredmail/downloads/iRedMail-0.8.5.tar.bz2
 tar xjf iRedMail-0.8.5.tar.bz2
