@@ -1401,12 +1401,12 @@ service nfsd start
 ################################################################################
 
 # Install Poudriere
-pkg install ports-mgmt/poudriere
+pkg install ports-mgmt/poudriere-devel
 
 # Backup and change default configuration variables
 cd /usr/local/etc && cp poudriere.conf.sample poudriere.conf
 perl -pwi -e 's^#ZPOOL=tank^ZPOOL=zfs^g' poudriere.conf
-perl -pwi -e 's^_PROTO_://_CHANGE_THIS_^ftp://ftp.freebsd.org^g' poudriere.conf
+perl -pwi -e 's^_PROTO_://_CHANGE_THIS_^http://ftp.freebsd.org^g' poudriere.conf
 perl -pwi -e 's^BASEFS=/usr/local/poudriere^BASEFS=/zfs/poudriere^g' poudriere.conf
 
 # Setup Poudriere to use the current host /usr/ports as the default
@@ -1418,13 +1418,12 @@ poudriere jail -u -j 10_0amd64
 
 # Setup make.conf variables for build jail
 cat > /usr/local/etc/poudriere.d/10_0amd64-make.conf << 'EOF'
+DEFAULT_VERSIONS= php=5.4 ruby=2.0 perl5=5.18 mysql=5.5m pgsql=9.3
 ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 gnutls_UNSET+=TPM
 ca_root_nss_SET+=ETCSYMLINK
-DEFAULT_VERSIONS= ruby=2.0 perl5=5.18 mysql=5.5m pgsql=9.3
 rubygem-passenger_UNSET+=APACHE22
 rubygem-passenger_SET+=NGINX
-dns_bind910+=NEWSTATS
 net-mgmt_collectd5_SET+=CURL MYSQL NUTUPS PING PGSQL STATGRAB XML
 nginx_SET+=PASSENGER HTTP_FANCYINDEX
 'EOF'
@@ -1433,7 +1432,7 @@ nginx_SET+=PASSENGER HTTP_FANCYINDEX
 cat > /zfs/poudriere/pkg_list << 'EOF'
 ########## Host and Jail programs ##########
 ports-mgmt/portmaster
-ports-mgmt/poudriere
+ports-mgmt/poudriere-devel
 ports-mgmt/dialog4ports
 ports-mgmt/portlint
 devel/rclint
@@ -1533,6 +1532,21 @@ FreeBSD: {
 # - To upgrade to a newer version of FreeBSD, let's say from 9.0 to 9.1:
 # poudriere jail -u -t 9.1-RELEASE -j jailname
 
+# Optional Patch to add link to local package repo on Poudriere index page
+cat > /home/jason/poudriere-index.patch << 'EOF'
+--- /usr/local/share/poudriere/html/index.html	2014-09-27 01:12:10.000000000 +0000
++++ /usr/local/share/poudriere/html/index.html	2014-09-27 01:18:53.000000000 +0000
+@@ -28,6 +28,7 @@
+ 							<ul class="nav navbar-nav nav-pills pull-left">
+ 								<li><a title="top" href="#top"><span class="glyphicon glyphicon-chevron-up"></span></a></li>
+ 								<li><a href="#latest_builds">Latest Builds</a></li>
++								<li><a href="pkgrepo/"><span class="glyphicon glyphicon-share-alt"></span>Local Package Repository</a></li>
+ 								<li class="dropdown">
+ 									<a href="#" class="dropdown-toggle" data-toggle="dropdown">Logs <b class="caret"></b></a>
+ 									<ul class="dropdown-menu">
+'EOF'
+patch < /home/jason/poudriere-index.patch
+pkg check -r poudriere-devel
 ################################################################################
 ##----------------------------------------------------------------------------##
 ##                    Host System Initial Jail Configuration                  ##
@@ -1877,9 +1891,11 @@ quit;
 ezjail-admin create -f lan apps1.pa-us.mydomain.name 10.100.102.11,2001:123:4:5678::11
 ezjail-admin config -f 1 apps1.pa-us.mydomain.name
 mkdir -p /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere
+mkdir -p /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere_logs
 mkdir -p /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/pkg
 mkdir -p /usr/jails/apps1.pa-us.mydomain.name/zfs/data
-echo '/zfs/poudriere/data/logs /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
+echo '/usr/local/share/poudriere/html /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
+echo '/zfs/poudriere/data/logs/bulk /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere_logs nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/pkg nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/apps1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
 echo '/zfs/data /usr/jails/apps1.pa-us.mydomain.name/zfs/data nullfs rw 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
@@ -1892,9 +1908,11 @@ passwd
 ezjail-admin create -f lan apps2.pa-us.mydomain.name 10.100.102.12,2001:123:4:5678::12
 ezjail-admin config -f 1 apps2.pa-us.mydomain.name
 mkdir -p /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere
+mkdir -p /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere_logs
 mkdir -p /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/pkg
 mkdir -p /usr/jails/apps2.pa-us.mydomain.name/zfs/data
-echo '/zfs/poudriere/data/logs /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
+echo '/usr/local/share/poudriere/html /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
+echo '/zfs/poudriere/data/logs/bulk /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere_logs nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/pkg nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/apps2.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
 echo '/zfs/data /usr/jails/apps2.pa-us.mydomain.name/zfs/data nullfs rw 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
@@ -2135,6 +2153,19 @@ http {
     keepalive_timeout  65;
     tcp_nodelay        on;
 
+    # Allow gzipping js, css, log, svg and json files.
+    gzip on;
+    gzip_http_version 1.0;
+    gzip_comp_level 6;
+    gzip_proxied any;
+    gzip_min_length  1100;
+    gzip_buffers 16 8k;
+    gzip_types text/plain text/css application/x-javascript text/xml application/xml application/xml+rss text/javascript image/gif image/jpeg image/png application/json image/svg+xml;
+
+    types {
+        text/plain                            log;
+    }
+
     ssl_session_cache          shared:SSL:10m;
     ssl_session_timeout        35m;
     ssl_protocols              SSLv3 TLSv1 TLSv1.1 TLSv1.2;
@@ -2205,28 +2236,48 @@ cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/puppet puppet
 # Create sites-available config file and follow up with sites-enabled symlink
 cat > /usr/local/etc/nginx/sites-available/poudriere << 'EOF'
     server {
-        listen       80;
-        server_name  poudriere.pa-us.mydomain.name poudriere;
-
+        listen       80 accept_filter=httpready;
+        server_name  poudriere.pa-us.mydomain.name poudriere accept_filter=httpready;
+        root         /usr/local/www/poudriere;
         access_log   /var/log/nginx/poudriere_access.log;
-        root         /usr/local/www/poudriere/bulk;
-        fancyindex   on;
+
+        # Allow caching static resources
+        location ~* ^.+\.(jpg|jpeg|gif|png|ico|svg|woff|css|js|html)$ {
+            add_header Cache-Control "public";
+            expires 2d;
+        }
+
+        location /pkgrepo {
+            alias        /usr/local/www/pkg;
+            fancyindex   on;
+        }
+
+        location /data {
+            alias /usr/local/www/poudriere_logs;
+
+            # Allow caching dynamic files but ensure they get rechecked
+            location ~* ^.+\.(log|txz|tbz|bz2|gz)$ {
+                add_header Cache-Control "public, must-revalidate, proxy-revalidate";
+            }
+
+            # Don't log json requests as they come in frequently and ensure
+            # caching works as expected
+            location ~* ^.+\.(json)$ {
+                add_header Cache-Control "public, must-revalidate, proxy-revalidate";
+                access_log off;
+                log_not_found off;
+            }
+
+            # Allow indexing only in log dirs
+            location ~ /data/?.*/(logs|latest-per-pkg)/ {
+                fancyindex   on;
+            }
+
+            break;
+        }
     }
 'EOF'
 cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/poudriere poudriere
-
-# Create sites-available config file and follow up with sites-enabled symlink
-cat > /usr/local/etc/nginx/sites-available/pkg << 'EOF'
-    server {
-        listen       80;
-        server_name  pkg.pa-us.mydomain.name pkg;
-
-        access_log   /var/log/nginx/pkg_access.log;
-        root         /usr/local/www/pkg;
-        fancyindex   on;
-    }
-'EOF'
-cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/pkg pkg
 
 # Create sites-available config file and follow up with sites-enabled symlink
 cat > /usr/local/etc/nginx/sites-available/kickstart << 'EOF'
