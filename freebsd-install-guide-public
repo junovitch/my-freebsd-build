@@ -1565,6 +1565,12 @@ echo '' >> /etc/rc.conf
 echo '# Ezjail Configuration' >> /etc/rc.conf
 echo 'ezjail_enable="YES"' >> /etc/rc.conf
 
+# Enable HTTP and DATA Accept filters for some of the jails to use
+echo 'accf_http_load="YES"' >> /boot/loader.conf
+echo 'accf_data_load="YES"' >> /boot/loader.conf
+kldload accf_http
+kldload accf_data
+
 # Put commented block for enabling raw sockets in sysctl.conf if needed later on
 echo '' >> /etc/sysctl.conf
 echo '# Uncomment to allow pings within a jail on upon reboot' >> /etc/sysctl.conf
