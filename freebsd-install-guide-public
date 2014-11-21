@@ -2159,8 +2159,8 @@ cat > /usr/local/etc/nginx/sites-available/foreman << 'EOF'
         root                       /opt/foreman/public;
     }
     server {
-        listen       443 ssl;
-        server_name  foreman.pa-us.mydomain.name foreman;
+        listen       443 ssl accept_filter=dataready;
+        server_name  foreman.pa-us.mydomain.name foreman accept_filter=dataready;
 
         passenger_enabled          on;
         passenger_set_cgi_param    HTTP_X_CLIENT_DN $ssl_client_s_dn;
@@ -2181,8 +2181,8 @@ cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/foreman forema
 # Create sites-available config file and follow up with sites-enabled symlink
 cat > /usr/local/etc/nginx/sites-available/puppet << 'EOF'
     server {
-        listen       8140 ssl;
-        server_name  puppet.pa-us.mydomain.name puppet;
+        listen       8140 ssl accept_filter=dataready;
+        server_name  puppet.pa-us.mydomain.name puppet accept_filter=dataready;
 
         passenger_enabled          on;
         passenger_set_cgi_param    HTTP_X_CLIENT_DN $ssl_client_s_dn;
