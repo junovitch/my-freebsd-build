@@ -275,16 +275,19 @@ server:
 	auto-trust-anchor-file: root.key
 	# QUERY OPTIONS
 	rrset-roundrobin: yes
+	use-caps-for-id: yes
 	# LISTEN INTERFACES
 	interface: 10.100.102.2
 	interface: 192.168.102.2
 	interface: 2001:123:4:5678::2
-	# ACCESS CONTROL
+	# ACCESS CONTROL/SECURITY
 	access-control: 10.100.0.0/16 allow
 	access-control: 192.168.0.0/16 allow
 	access-control: 2001:123:4567:890::/64 allow
 	access-control: 2001:123:4:5678::/64 allow
 	access-control: 2001:987:6:543::/64 allow
+	hide-identity: yes
+	hide-version: yes
 	# LOGGING
 	verbosity: 1
 	# LOCAL DOMAINS
