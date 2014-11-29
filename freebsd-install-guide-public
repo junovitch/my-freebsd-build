@@ -1450,6 +1450,8 @@ ln 101amd64-make.conf 84i386-make.conf
 # Setup a package list of all ports used on host and in jails
 cat > /zfs/poudriere/pkg_list << 'EOF'
 ########## Host and Jail programs ##########
+ports-mgmt/pkg
+ports-mgmt/pkg-devel
 ports-mgmt/portmaster
 ports-mgmt/poudriere-devel
 ports-mgmt/dialog4ports
