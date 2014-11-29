@@ -76,6 +76,11 @@
 ################################################################################
 
 # First enable multiple routing tables (FIBs) 
+# WARNING: FIB behavior changed quite a bit in 10.1-RELEASE. The old way worked
+# with 9.2 and 10.0 RELEASES while the config below was changed to work with
+# 10.1. Chances are this works on the old releases as well and the way it was
+# configured before was "broken" and only worked because there were issues
+# underneath that were fixed in 10.1.
 echo 'net.fibs=4' >> /boot/loader.conf
 echo 'net.add_addr_allfibs=0' >> /boot/loader.conf
 
@@ -89,62 +94,57 @@ powerd_enable="YES"
 # General Network Configuration
 hostname="xts-bsd.pa-us.mydomain.name"
 sshd_enable="YES"
-static_routes="dmzfibnetwork dmzfibdefault internal lanfibnetwork lanfibdefault"
-ipv6_static_routes="dmzfibnetwork dmzfibdefault internal lanfibnetwork lanfibdefault"
+defaultrouter="10.100.102.1"
+static_routes="dmzfibnetwork dmzfibdefault"
+ipv6_static_routes="dmzfibnetwork dmzfibdefault"
 
 # DMZ/External Interface Configuration
-ifconfig_em0="DHCP"
-ifconfig_em0_ipv6="inet6 accept_rtadv"
-ifconfig_em0_alias0="inet 192.168.102.11/32 fib 2"		# ms1.pa-us.mydomain.name
-ifconfig_em0_alias1="inet6 2001:123:4567:890::11/128 fib 2"	# ms1.pa-us.mydomain.name
-ifconfig_em0_alias2="inet 192.168.102.12/32 fib 2"		# ms2.pa-us.mydomain.name
-ifconfig_em0_alias3="inet6 2001:123:4567:890::12/128 fib 2"	# ms2.pa-us.mydomain.name
-ifconfig_em0_alias4="inet 192.168.102.13/32 fib 2"		# www1.pa-us.mydomain.name
-ifconfig_em0_alias5="inet6 2001:123:4567:890::13/128 fib 2"	# www1.pa-us.mydomain.name
-ifconfig_em0_alias6="inet 192.168.102.14/32 fib 2"		# www2.pa-us.mydomain.name
-ifconfig_em0_alias7="inet6 2001:123:4567:890::14/128 fib 2"	# www2.pa-us.mydomain.name
-ifconfig_em0_alias8="inet 192.168.102.15/32 fib 2"		# unused
-ifconfig_em0_alias9="inet6 2001:123:4567:890::15/128 fib 2"	# unused
-ifconfig_em0_alias10="inet 192.168.102.16/32 fib 2"		# unused
-ifconfig_em0_alias11="inet6 2001:123:4567:890::16/128 fib 2"	# unused
-ifconfig_em0_alias12="inet 192.168.102.17/32 fib 2"		# unused
-ifconfig_em0_alias13="inet6 2001:123:4567:890::17/128 fib 2"	# unused
-ifconfig_em0_alias14="inet 192.168.102.18/32 fib 2"		# unused
-ifconfig_em0_alias15="inet6 2001:123:4567:890::18/128 fib 2"	# unused
-ifconfig_em0_alias16="inet 192.168.102.19/32"			# squid.pa-us.mydomain.name
-ifconfig_em0_alias17="inet6 2001:123:4567:890::19/128"		# squid.pa-us.mydomain.name
-route_dmzfibnetwork="-net 192.168.102.0/24 -interface em0 -fib 2"
-route_dmzfibdefault="default 192.168.102.1 -fib 2"
-ipv6_route_dmzfibnetwork="-net 2001:123:4567:890::/64 -interface em0 -fib 2"
-ipv6_route_dmzfibdefault="default 2001:123:4567:890::1 -fib 2"
+ifconfig_em0="inet 192.168.102.2/24 fib 1"
+ifconfig_em0_ipv6="inet6 2001:123:4567:890::2/128 fib 1"
+ifconfig_em0_alias0="inet 192.168.102.11/32 fib 1"		# ms1.pa-us.mydomain.name
+ifconfig_em0_alias1="inet6 2001:123:4567:890::11/128 fib 1"	# ms1.pa-us.mydomain.name
+ifconfig_em0_alias2="inet 192.168.102.12/32 fib 1"		# ms2.pa-us.mydomain.name
+ifconfig_em0_alias3="inet6 2001:123:4567:890::12/128 fib 1"	# ms2.pa-us.mydomain.name
+ifconfig_em0_alias4="inet 192.168.102.13/32 fib 1"		# www1.pa-us.mydomain.name
+ifconfig_em0_alias5="inet6 2001:123:4567:890::13/128 fib 1"	# www1.pa-us.mydomain.name
+ifconfig_em0_alias6="inet 192.168.102.14/32 fib 1"		# www2.pa-us.mydomain.name
+ifconfig_em0_alias7="inet6 2001:123:4567:890::14/128 fib 1"	# www2.pa-us.mydomain.name
+ifconfig_em0_alias8="inet 192.168.102.15/32 fib 1"		# unused
+ifconfig_em0_alias9="inet6 2001:123:4567:890::15/128 fib 1"	# unused
+ifconfig_em0_alias10="inet 192.168.102.16/32 fib 1"		# unused
+ifconfig_em0_alias11="inet6 2001:123:4567:890::16/128 fib 1"	# unused
+ifconfig_em0_alias12="inet 192.168.102.17/32 fib 1"		# unused
+ifconfig_em0_alias13="inet6 2001:123:4567:890::17/128 fib 1"	# unused
+ifconfig_em0_alias14="inet 192.168.102.18/32 fib 1"		# unused
+ifconfig_em0_alias15="inet6 2001:123:4567:890::18/128 fib 1"	# unused
+ifconfig_em0_alias16="inet 192.168.102.19/32 fib 1"		# squid.pa-us.mydomain.name
+ifconfig_em0_alias17="inet6 2001:123:4567:890::19/128 fib 1"	# squid.pa-us.mydomain.name
+route_dmzfibnetwork="-net 192.168.102.0/24 -interface em0 -fib 1"
+route_dmzfibdefault="default 192.168.102.1 -fib 1"
+ipv6_route_dmzfibnetwork="-net 2001:123:4567:890::/64 -interface em0 -fib 1"
+ipv6_route_dmzfibdefault="default 2001:123:4567:890::1 -fib 1"
 
 # LAN/Internal Interface Configuration
 ifconfig_em1="inet 10.100.102.2/24"
 ifconfig_em1_ipv6="inet6 2001:123:4:5678::2/64"
-ifconfig_em1_alias0="inet 10.100.102.11/32 fib 1"		# apps1.pa-us.mydomain.name
-ifconfig_em1_alias1="inet6 2001:123:4:5678::11/128 fib 1"	# apps1.pa-us.mydomain.name
-ifconfig_em1_alias2="inet 10.100.102.12/32 fib 1"		# apps2.pa-us.mydomain.name
-ifconfig_em1_alias3="inet6 2001:123:4:5678::12/128 fib 1"	# apps2.pa-us.mydomain.name
-ifconfig_em1_alias4="inet 10.100.102.13/32 fib 1"		# unused
-ifconfig_em1_alias5="inet6 2001:123:4:5678::13/128 fib 1"	# unused
-ifconfig_em1_alias6="inet 10.100.102.14/32 fib 1"		# serviio.pa-us.mydomain.name
-ifconfig_em1_alias7="inet6 2001:123:4:5678::14/128 fib 1"	# serviio.pa-us.mydomain.name
-ifconfig_em1_alias8="inet 10.100.102.15/32 fib 1"		# lanser.pa-us.mydomain.name
-ifconfig_em1_alias9="inet6 2001:123:4:5678::15/128 fib 1"	# lanser.pa-us.mydomain.name
-ifconfig_em1_alias10="inet 10.100.102.16/32 fib 1"		# unused
-ifconfig_em1_alias11="inet6 2001:123:4:5678::16/128 fib 1"	# unused
-ifconfig_em1_alias12="inet 10.100.102.17/32 fib 1"		# pdbi.pa-us.mydomain.name
-ifconfig_em1_alias13="inet6 2001:123:4:5678::17/128 fib 1"	# pdbi.pa-us.mydomain.name
-ifconfig_em1_alias14="inet 10.100.102.18/32 fib 1"		# mdbi.pa-us.mydomain.name
-ifconfig_em1_alias15="inet6 2001:123:4:5678::18/128 fib 1"	# mdbi.pa-us.mydomain.name
+ifconfig_em1_alias0="inet 10.100.102.11/32"			# apps1.pa-us.mydomain.name
+ifconfig_em1_alias1="inet6 2001:123:4:5678::11/128"		# apps1.pa-us.mydomain.name
+ifconfig_em1_alias2="inet 10.100.102.12/32"			# apps2.pa-us.mydomain.name
+ifconfig_em1_alias3="inet6 2001:123:4:5678::12/128"		# apps2.pa-us.mydomain.name
+ifconfig_em1_alias4="inet 10.100.102.13/32"			# unused
+ifconfig_em1_alias5="inet6 2001:123:4:5678::13/128"		# unused
+ifconfig_em1_alias6="inet 10.100.102.14/32"			# serviio.pa-us.mydomain.name
+ifconfig_em1_alias7="inet6 2001:123:4:5678::14/128"		# serviio.pa-us.mydomain.name
+ifconfig_em1_alias8="inet 10.100.102.15/32"			# lanser.pa-us.mydomain.name
+ifconfig_em1_alias9="inet6 2001:123:4:5678::15/128"		# lanser.pa-us.mydomain.name
+ifconfig_em1_alias10="inet 10.100.102.16/32"			# unused
+ifconfig_em1_alias11="inet6 2001:123:4:5678::16/128"		# unused
+ifconfig_em1_alias12="inet 10.100.102.17/32"			# pdbi.pa-us.mydomain.name
+ifconfig_em1_alias13="inet6 2001:123:4:5678::17/128"		# pdbi.pa-us.mydomain.name
+ifconfig_em1_alias14="inet 10.100.102.18/32"			# mdbi.pa-us.mydomain.name
+ifconfig_em1_alias15="inet6 2001:123:4:5678::18/128"		# mdbi.pa-us.mydomain.name
 ifconfig_em1_alias16="inet 10.100.102.19/32"			# squid.pa-us.mydomain.name
 ifconfig_em1_alias17="inet6 2001:123:4:5678::19/128"		# squid.pa-us.mydomain.name
-route_internal="-net 10.100.0.0/16 10.100.102.1"
-route_lanfibnetwork="-net 10.100.102.0/24 -interface em1 -fib 1"
-route_lanfibdefault="default 10.100.102.1 -fib 1"
-ipv6_route_internal="-net 2001:987:6:543::/64 2001:123:4:5678::1"
-ipv6_route_lanfibnetwork="-net 2001:123:4:5678::/64 -interface em1 -fib 1"
-ipv6_route_lanfibdefault="default 2001:123:4:5678::1 -fib 1"
 
 # Syslog Configuration, bind (-b) to LAN Internal address
 syslogd_enable="YES"
@@ -1795,7 +1795,6 @@ cd /root && ./make-quicksha256-key.sh www.mydomain.name
 # http://daemon-notes.com/articles/network/postgresql
 
 ezjail-admin create -f lan pdbi.pa-us.mydomain.name 10.100.102.17,2001:123:4:5678::17
-ezjail-admin config -f 1 pdbi.pa-us.mydomain.name
 mkdir -p /usr/jails/pdbi.pa-us.mydomain.name/zfs/local/pgsql_backups
 echo '/zfs/poudriere/data/packages /usr/jails/pdbi.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.pdbi_pa_us_mydomain_name
 echo '/zfs/local/pgsql_backups /usr/jails/pdbi.pa-us.mydomain.name/zfs/local/pgsql_backups nullfs rw 0 0' >> /etc/fstab.pdbi_pa_us_mydomain_name
@@ -1858,7 +1857,6 @@ service postgresql reload
 ################################################################################
 
 ezjail-admin create -f lan mdbi.pa-us.mydomain.name 10.100.102.18,2001:123:4:5678::18
-ezjail-admin config -f 1 mdbi.pa-us.mydomain.name
 echo '/zfs/poudriere/data/packages /usr/jails/mdbi.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.mdbi_pa_us_mydomain_name
 ezjail-admin console -f mdbi.pa-us.mydomain.name
 passwd
@@ -1905,7 +1903,6 @@ quit;
 ################################################################################
 
 ezjail-admin create -f lan apps1.pa-us.mydomain.name 10.100.102.11,2001:123:4:5678::11
-ezjail-admin config -f 1 apps1.pa-us.mydomain.name
 mkdir -p /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere
 mkdir -p /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere_logs
 mkdir -p /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/pkg
@@ -1922,7 +1919,6 @@ passwd
 # and testing purposes.
 
 ezjail-admin create -f lan apps2.pa-us.mydomain.name 10.100.102.12,2001:123:4:5678::12
-ezjail-admin config -f 1 apps2.pa-us.mydomain.name
 mkdir -p /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere
 mkdir -p /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere_logs
 mkdir -p /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/pkg
@@ -2578,7 +2574,6 @@ service nginx reload
 ################################################################################
 
 ezjail-admin create -f lan serviio.pa-us.mydomain.name 10.100.102.14,2001:123:4:5678::14
-ezjail-admin config -f 1 serviio.pa-us.mydomain.name
 mkdir -p /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_media
 mkdir -p /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_photo_albums
 echo '/zfs/homedirs/common_media /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_media nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
@@ -2816,7 +2811,6 @@ add path zfs unhide
 'EOF'
 
 ezjail-admin create -f lan lanser.pa-us.mydomain.name 10.100.102.15,2001:123:4:5678::15
-ezjail-admin config -f 1 lanser.pa-us.mydomain.name
 mkdir -p /usr/jails/lanser.pa-us.mydomain.name/zfs/data
 perl -pwi -e 's/parameters=""/parameters="allow.raw_sockets=1"/g' /usr/local/etc/ezjail/lanser_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/lanser.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.lanser_pa_us_mydomain_name
@@ -2912,7 +2906,7 @@ service tftpd start
 #############################################################################
 
 ezjail-admin create -f dmz www1.pa-us.mydomain.name 192.168.102.13,2001:123:4567:890::13
-ezjail-admin config -f 2 www1.pa-us.mydomain.name
+ezjail-admin config -f 1 www1.pa-us.mydomain.name
 echo '/zfs/poudriere/data/packages /usr/jails/www1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.www1_pa_us_mydomain_name
 mkdir /usr/jails/www1.pa-us.mydomain.name/usr/local/etc/apache24/
 cp /root/mycert/www.mydomain.name.* /usr/jails/www1.pa-us.mydomain.name/usr/local/etc/apache24/
@@ -3006,7 +3000,7 @@ apachectl start
 ################################################################################
 
 ezjail-admin create -f dmz ms1.pa-us.mydomain.name 192.168.102.11,2001:123:4567:890::11
-ezjail-admin config -f 2 ms1.pa-us.mydomain.name
+ezjail-admin config -f 1 ms1.pa-us.mydomain.name
 echo '/zfs/poudriere/data/packages /usr/jails/ms1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.ms1_pa_us_mydomain_name
 ezjail-admin console -f ms1.pa-us.mydomain.name
 passwd
