@@ -1361,7 +1361,11 @@ zfs set sharenfs='-network 10.100.0.0 -mask 255.255.0.0 -maproot=root' zfs/homed
 echo '' >> /etc/sysctl.conf
 echo '# NFSv4 Support Only' >> /etc/sysctl.conf
 echo 'vfs.nfsd.server_min_nfsvers=4' >> /etc/sysctl.conf
+echo '' >> /etc/sysctl.conf
+echo '# Enable Linux clients using UID instead of name (10.1-RELEASE and up only)' >> /etc/sysctl.conf
+echo 'vfs.nfsd.enable_stringtouid=1' >> /etc/sysctl.conf
 sysctl vfs.nfsd.server_min_nfsvers=4
+sysctl vfs.nfsd.enable_stringtouid=1
 
 ################################################################################
 # Start & control NFS servers
