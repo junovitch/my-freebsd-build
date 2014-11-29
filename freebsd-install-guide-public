@@ -1415,12 +1415,17 @@ perl -pwi -e 's^BASEFS=/usr/local/poudriere^BASEFS=/zfs/poudriere^g' poudriere.c
 # Setup Poudriere to use the current host /usr/ports as the default
 poudriere ports -c -F -f none -M /usr/ports -p default
 
-# Setup 10.0-RELEASE build environment and update to the current patch level
-poudriere jails -c -j 10_0amd64 -v 10.0-RELEASE -a amd64
-poudriere jail -u -j 10_0amd64
+# Setup 10.1-RELEASE build environments
+poudriere jails -c -j 101amd64 -v 10.1-RELEASE -a amd64
+poudriere jails -c -j 101i386 -v 10.1-RELEASE -a i386
+# Setup alternate build environments for testing ports
+poudriere jails -c -j 93amd64 -v 9.3-RELEASE -a amd64
+poudriere jails -c -j 93i386 -v 9.3-RELEASE -a i386
+poudriere jails -c -j 84amd64 -v 8.4-RELEASE -a amd64
+poudriere jails -c -j 84i386 -v 8.4-RELEASE -a i386
 
 # Setup make.conf variables for build jail
-cat > /usr/local/etc/poudriere.d/10_0amd64-make.conf << 'EOF'
+cat > /usr/local/etc/poudriere.d/101amd64-make.conf << 'EOF'
 DEFAULT_VERSIONS= php=5.4 ruby=2.0 perl5=5.18 mysql=5.5m pgsql=9.3
 ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 gnutls_UNSET+=TPM
@@ -1430,6 +1435,13 @@ rubygem-passenger_SET+=NGINX
 net-mgmt_collectd5_SET+=CURL MYSQL NUTUPS PING PGSQL STATGRAB XML
 nginx_SET+=PASSENGER HTTP_FANCYINDEX
 'EOF'
+
+# Do hard links to make this the default for all build jails
+ln 101amd64-make.conf 101i386-make.conf
+ln 101amd64-make.conf 93amd64-make.conf
+ln 101amd64-make.conf 93i386-make.conf
+ln 101amd64-make.conf 84amd64-make.conf
+ln 101amd64-make.conf 84i386-make.conf
 
 # Setup a package list of all ports used on host and in jails
 cat > /zfs/poudriere/pkg_list << 'EOF'
@@ -1517,13 +1529,14 @@ ftp/tftp-hpa
 'EOF'
 
 # Start a bulk build of all ports in that list
-poudriere bulk -f /zfs/poudriere/pkg_list -j 10_0amd64
+poudriere bulk -f /zfs/poudriere/pkg_list -j 101amd64
+poudriere bulk -f /zfs/poudriere/pkg_list -j 101i386
 
 # Allow host to install from Poudriere Repo
 mkdir -p /usr/local/etc/pkg/repos
 cat >> /usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
 myrepo: {
-  url: "file:///zfs/poudriere/data/packages/10_0amd64-default",
+  url: "file:///zfs/poudriere/data/packages/101amd64-default",
 }
 FreeBSD: {
   enabled: no
@@ -1607,7 +1620,7 @@ mkdir -p /usr/jails/newjail/pkgrepo
 mkdir -p /usr/jails/flavours/example/usr/local/etc/pkg/repos
 cat >> /usr/jails/flavours/example/usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
 myrepo: {
-  url: "file:///pkgrepo/10_0amd64-default",
+  url: "file:///pkgrepo/101amd64-default",
 }
 FreeBSD: {
   enabled: no
@@ -3141,7 +3154,12 @@ sed -i '' -e 's/ezjail_enable/#ezjail_enable/' /etc/rc.conf
 shutdown -r now
 freebsd-update install
 ezjail-admin update -u
-poudriere jail -u -j 91amd64
+poudriere jail -u -j 101amd64
+poudriere jail -u -j 101i386
+poudriere jail -u -j 93amd64
+poudriere jail -u -j 93i386
+poudriere jail -u -j 84amd64
+poudriere jail -u -j 84i386
 sed -i '' -e 's/#kern_securelevel/kern_securelevel/' /etc/rc.conf
 sed -i '' -e 's/#ezjail_enable/ezjail_enable/' /etc/rc.conf
 service ezjail start
@@ -3151,7 +3169,7 @@ sysctl kern.securelevel=1
 ## Backup Old /etc
 cp -Rp /etc /root/etc.old
 ## Run freebsd-update to get the latest patches
-freebsd-update upgrade -r 10.0-RELEASE
+freebsd-update upgrade -r 10.1-RELEASE
 ## If using a heightened securelevel, lower it and reboot
 sed -i '' -e 's/kern_securelevel/#kern_securelevel/' /etc/rc.conf
 shutdown -r now
@@ -3162,15 +3180,12 @@ shutdown -r now
 freebsd-update install
 shutdown -r now
 ## Poudriere start - Fetch new Poudriere build jail for new release - Jump ahead if using public packages
-poudriere jails -c -j 10_0amd64 -v 10.0-RELEASE -a amd64
-## If upgrading within a release, move currently built packages and make.conf
-mv /usr/local/etc/poudriere.d/91amd64-make.conf /usr/local/etc/poudriere.d/92amd64-make.conf
-mv /zfs/poudriere/data/packages/91amd64-default /zfs/poudriere/data/packages/92amd64-default
-## If upgrading to a new major release, copy current make.conf only, rebuild and reinstall all packages
-cp /usr/local/etc/poudriere.d/92amd64-make.conf /usr/local/etc/poudriere.d/10_0amd64-make.conf
-poudriere bulk -f /zfs/poudriere/pkg_list -j 10_0amd64
+poudriere jails -c -j 101amd64 -v 10.1-RELEASE -a amd64
+## Rename current make.conf
+mv /usr/local/etc/poudriere.d/92amd64-make.conf /usr/local/etc/poudriere.d/101amd64-make.conf
+poudriere bulk -f /zfs/poudriere/pkg_list -j 101amd64
 ## Update local repository files to point to the new release
-find / -name myrepo.conf -exec sed -i '' -e 's/92amd64/10_0amd64/' {} \;
+find / -name myrepo.conf -exec sed -i '' -e 's/92amd64/101amd64/' {} \;
 ## Delete old build jail
 poudriere jail -d -j 91amd64
 ## Poudriere end - continue from here if just using public packages
