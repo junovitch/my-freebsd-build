@@ -1,0 +1,79 @@
+################################################################################
+##                   Collectd Squid Monitoring Configuration                  ##
+################################################################################
+# A shell script suitable for Collectd to use with the "Exec" Plugin.
+#
+# Basic monitoring technique is based off what Monitorix does in Perl, rewritten
+# into a standard Bourne shell script with Awk to handle reformatting.
+#
+# Written 2014 by Jason Unovitch
+#   jason.unovitch@gmail.com
+#   https://github.com/junovitch
+################################################################################
+
+# Get the script
+fetch https://raw.githubusercontent.com/junovitch/my-freebsd-build/master/collectd-exec-scripts/exec-squid.sh
+
+# Alternately
+cat > /usr/local/sbin/exec-squid.sh << 'EOF'
+#!/bin/sh
+# Exec script for collectd to read Squid stats
+# Optional: Specify and uncomment to monitor inside a jail from host on FreeBSD
+#HOST_TO_MONITOR="10.100.102.19"
+#PATH=$PATH:/usr/jails/squid.test.com/usr/local/sbin/
+
+SQUID_HOST="${HOST_TO_MONITOR:-localhost}"
+HOSTNAME="${COLLECTD_HOSTNAME:-`hostname -s`}"
+INTERVAL="${COLLECTD_INTERVAL:-60}"
+
+while sleep "$INTERVAL"
+do
+	squidclient -h "$SQUID_HOST" cache_object://localhost/counters \
+	    | awk -F ' = ' -v HOSTNAME=$HOSTNAME -v INTERVAL=$INTERVAL \
+	    '/requests|^(server|client)/ \
+	    { print "PUTVAL", HOSTNAME"/exec-squid/counter-squid/"$1, "interval="INTERVAL, "N:"$2 }'
+
+	squidclient -h "$SQUID_HOST" cache_object://localhost/ipcache \
+	    | awk -F ':' -v HOSTNAME=$HOSTNAME -v INTERVAL=$INTERVAL \
+	    '/IPcache (Requests|Hits|Misses)/ \
+	    { gsub(/ /, "", $1); gsub(/ /, "", $2);
+	      print "PUTVAL", HOSTNAME"/exec-squid/counter-squid/"$1, "interval="INTERVAL, "N:"$2 }'
+
+	squidclient -h "$SQUID_HOST" cache_object://localhost/storedir \
+	    | awk -F ':' -v HOSTNAME=$HOSTNAME -v INTERVAL=$INTERVAL \
+	    '/(Maximum Swap Size|Current Store Swap Size)/ \
+	    { gsub(/KB/, ""); gsub(/ /, "", $1); gsub(/ /, "", $2);
+	      print "PUTVAL", HOSTNAME"/exec-squid/gauge-squid/"$1,   "interval="INTERVAL, "N:"$2 }'
+done
+'EOF'
+
+
+# Exec Plugin config changes for Collectd:
+# collectd.conf
+LoadPlugin exec
+<Plugin exec>
+    Exec "_collectd:_collectd" "/usr/local/sbin/exec-squid.sh"
+</Plugin>
+
+
+# Squid changes if monitoring a FreeBSD jail from the host. Normally, monitoring
+# from 127.0.0.1 is allowed and no changes are needed.
+--- squid.conf	2014-12-03 00:11:44.000000000 +0000
++++ squid.conf	2014-12-03 00:36:02.000000000 +0000
+@@ -5,6 +5,8 @@
+ # Example rule allowing access from your local networks.
+ # Adapt to list your (internal) IP networks from where browsing
+ # should be allowed
++acl jailhost src 10.100.102.2
++acl jailhost src 10.100.102.19
+ acl localnet src 10.0.0.0/8	# RFC1918 possible internal network
+ acl localnet src 172.16.0.0/12	# RFC1918 possible internal network
+ acl localnet src 192.168.0.0/16	# RFC1918 possible internal network
+@@ -35,6 +37,7 @@
+ 
+ # Only allow cachemgr access from localhost
+ http_access allow localhost manager
++http_access allow jailhost manager
+ http_access deny manager
+ 
+ # We strongly recommend the following be uncommented to protect innocent

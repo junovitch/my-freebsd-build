@@ -1,0 +1,113 @@
+################################################################################
+##                       Squid Jail Configuration                             ##
+################################################################################
+# Configuration for Squid in a jail. The default port, 3128, is set up to not
+# cache anything and port 3129 is set up to cache. An apt-get friendly config
+# is in place to cache downloaded packages.
+#
+# This is based off my current Squid config. However, I no longer run Squid in
+# a jail as shown below as I now run the same setup at the edge of my network
+# on a more powerful router that handles all the filtering/proxying/firewalling
+# for my home network.
+#
+# Written 2014 by Jason Unovitch
+#   jason.unovitch@gmail.com
+#   https://github.com/junovitch
+################################################################################
+
+ezjail-admin create -f dmz squid.mydomain.name 10.100.102.19
+ezjail-admin console -f squid.mydomain.name
+passwd
+
+# Install Squid
+pkg install squid
+
+'EOF'
+
+# Patch Squid configuration
+patch /usr/local/etc/squid/squid.conf << 'EOF'
+--- squid.conf	2014-12-03 00:11:44.000000000 +0000
++++ squid.conf	2014-12-03 00:17:27.000000000 +0000
+@@ -24,6 +24,12 @@
+ acl Safe_ports port 777		# multiling http
+ acl CONNECT method CONNECT
+ 
++acl no_cache myport 3128
++acl cache myport 3129
++
++cache deny no_cache
++cache allow cache
++
+ #
+ # Recommended minimum Access Permission configuration:
+ #
+@@ -57,9 +63,12 @@
+ 
+ # Squid normally listens to port 3128
+ http_port 3128
++http_port 3129
+ 
+ # Uncomment and adjust the following to add a disk cache directory.
+-#cache_dir ufs /var/squid/cache/squid 100 16 256
++cache_dir ufs /var/squid/cache/squid 8192 16 256
++cache_replacement_policy heap LFUDA
++maximum_object_size 1024 MB
+ 
+ # Leave coredumps in the first cache dir
+ coredump_dir /var/squid/cache/squid
+@@ -67,7 +76,38 @@
+ #
+ # Add any of your own refresh_pattern entries above these.
+ #
+-refresh_pattern ^ftp:		1440	20%	10080
+-refresh_pattern ^gopher:	1440	0%	1440
+ refresh_pattern -i (/cgi-bin/|\?) 0	0%	0
+-refresh_pattern .		0	20%	4320
++refresh_pattern ^ftp:			1440	20%	10080
++refresh_pattern ^gopher:		1440	0%	1440
++refresh_pattern deb$			525600	100%	1576800
++refresh_pattern udeb$			525600	100%	1576800
++refresh_pattern tar.gz$			525600	100%	1576800
++refresh_pattern DiffIndex$		0	20%	4320 refresh-ims
++refresh_pattern PackagesIndex$		0	20%	4320 refresh-ims
++refresh_pattern Packages\.bz2$		0	20%	4320 refresh-ims
++refresh_pattern Packages\.gz$		0	20%	4320 refresh-ims
++refresh_pattern Packages\.lzma$		0	20%	4320 refresh-ims
++refresh_pattern SourcesIndex$		0	20%	4320 refresh-ims
++refresh_pattern Sources\.bz2$		0	20%	4320 refresh-ims
++refresh_pattern Sources\.gz$		0	20%	4320 refresh-ims
++refresh_pattern Sources\.lzma$		0	20%	4320 refresh-ims
++refresh_pattern Release$		0	20%	4320 refresh-ims
++refresh_pattern Release\.gpg$		0	20%	4320 refresh-ims
++refresh_pattern Translation-en\.bzip2$	0	20%	4320 refresh-ims
++refresh_pattern Translation-en\.bz2$	0	20%	4320 refresh-ims
++refresh_pattern Translation-en\.gz$	0	20%	4320 refresh-ims
++refresh_pattern Translation-en\.lzma$	0	20%	4320 refresh-ims
++refresh_pattern Translation-fr\.bzip2$	0	20%	4320 refresh-ims
++refresh_pattern Translation-fr\.bz2$	0	20%	4320 refresh-ims
++refresh_pattern Translation-fr\.gz$	0	20%	4320 refresh-ims
++refresh_pattern Translation-fr\.lzma$	0	20%	4320 refresh-ims
++refresh_pattern .			0	20%	4320
++refresh_all_ims on
++
++#
++# General administrative or security options.  
++#
++logfile_rotate 5
++httpd_suppress_version_string on
++forwarded_for off
++visible_hostname squid.lan
+'EOF'
+
+# Enable a daily log file rotation via root crontab
+printf "0\t8\t*\t*\t*\t/usr/local/sbin/squid -k rotate\n" >> /var/cron/tabs/root
+
+# Fix permissions and enable
+chgrp squid /usr/local/etc/squid/squid.conf
+echo 'squid_enable="YES"' >> /etc/rc.conf.local
+
+# Initialize cache directory
+squid -z
+
+# Start Squid
+service squid start

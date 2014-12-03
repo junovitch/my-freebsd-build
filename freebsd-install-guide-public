@@ -117,8 +117,8 @@ ifconfig_em0_alias12="inet 192.168.102.17/32 fib 1"		# unused
 ifconfig_em0_alias13="inet6 2001:123:4567:890::17/128 fib 1"	# unused
 ifconfig_em0_alias14="inet 192.168.102.18/32 fib 1"		# unused
 ifconfig_em0_alias15="inet6 2001:123:4567:890::18/128 fib 1"	# unused
-ifconfig_em0_alias16="inet 192.168.102.19/32 fib 1"		# squid.pa-us.mydomain.name
-ifconfig_em0_alias17="inet6 2001:123:4567:890::19/128 fib 1"	# squid.pa-us.mydomain.name
+ifconfig_em0_alias16="inet 192.168.102.19/32 fib 1"		# unused
+ifconfig_em0_alias17="inet6 2001:123:4567:890::19/128 fib 1"	# unused
 route_dmzfibnetwork="-net 192.168.102.0/24 -interface em0 -fib 1"
 route_dmzfibdefault="default 192.168.102.1 -fib 1"
 ipv6_route_dmzfibnetwork="-net 2001:123:4567:890::/64 -interface em0 -fib 1"
@@ -143,8 +143,8 @@ ifconfig_em1_alias12="inet 10.100.102.17/32"			# pdbi.pa-us.mydomain.name
 ifconfig_em1_alias13="inet6 2001:123:4:5678::17/128"		# pdbi.pa-us.mydomain.name
 ifconfig_em1_alias14="inet 10.100.102.18/32"			# mdbi.pa-us.mydomain.name
 ifconfig_em1_alias15="inet6 2001:123:4:5678::18/128"		# mdbi.pa-us.mydomain.name
-ifconfig_em1_alias16="inet 10.100.102.19/32"			# squid.pa-us.mydomain.name
-ifconfig_em1_alias17="inet6 2001:123:4:5678::19/128"		# squid.pa-us.mydomain.name
+ifconfig_em1_alias16="inet 10.100.102.19/32"			# unused
+ifconfig_em1_alias17="inet6 2001:123:4:5678::19/128"		# unused
 
 # Syslog Configuration, bind (-b) to LAN Internal address
 syslogd_enable="YES"
@@ -733,7 +733,6 @@ LoadPlugin zfs_arc
 
 <Plugin exec>
     Exec "_collectd:_collectd" "/usr/local/sbin/exec-hwsensors.sh"
-    Exec "_collectd:_collectd" "/usr/local/sbin/exec-squid.sh"
     Exec "_collectd:_collectd" "/usr/local/sbin/exec-unbound.sh"
 </Plugin>
 
@@ -830,39 +829,6 @@ do
 	    '/(Temperature|Voltage|Fan)/ \
 	    { gsub (/ /, "");
 	      print "PUTVAL", HOSTNAME"/exec-hwsensors/gauge-ipmi/"$2, "interval="INTERVAL, "N:"$4 }'
-done
-'EOF'
-
-cat > /usr/local/sbin/exec-squid.sh << 'EOF'
-#!/bin/sh
-# Exec script for collectd to read Squid stats
-# UNCOMMENT FOR LOCALHOST SQUID
-#SQUID_HOST="localhost"
-# UNCOMMENT FOR JAILED SQUID
-SQUID_HOST="10.100.102.19"
-PATH=$PATH:/usr/jails/squid.pa-us.mydomain.name/usr/local/sbin/
-
-HOSTNAME="${COLLECTD_HOSTNAME:-`hostname -s`}"
-INTERVAL="${COLLECTD_INTERVAL:-60}"
-
-while sleep "$INTERVAL"
-do
-	squidclient -h "$SQUID_HOST" cache_object://localhost/counters \
-	    | awk -F ' = ' -v HOSTNAME=$HOSTNAME -v INTERVAL=$INTERVAL \
-	    '/requests|^(server|client)/ \
-	    { print "PUTVAL", HOSTNAME"/exec-squid/counter-squid/"$1, "interval="INTERVAL, "N:"$2 }'
-
-	squidclient -h "$SQUID_HOST" cache_object://localhost/ipcache \
-	    | awk -F ':' -v HOSTNAME=$HOSTNAME -v INTERVAL=$INTERVAL \
-	    '/IPcache (Requests|Hits|Misses)/ \
-	    { gsub(/ /, "", $1); gsub(/ /, "", $2);
-	      print "PUTVAL", HOSTNAME"/exec-squid/counter-squid/"$1, "interval="INTERVAL, "N:"$2 }'
-
-	squidclient -h "$SQUID_HOST" cache_object://localhost/storedir \
-	    | awk -F ':' -v HOSTNAME=$HOSTNAME -v INTERVAL=$INTERVAL \
-	    '/(Maximum Swap Size|Current Store Swap Size)/ \
-	    { gsub(/KB/, ""); gsub(/ /, "", $1); gsub(/ /, "", $2);
-	      print "PUTVAL", HOSTNAME"/exec-squid/gauge-squid/"$1,   "interval="INTERVAL, "N:"$2 }'
 done
 'EOF'
 
@@ -1487,8 +1453,6 @@ sysutils/ezjail
 security/sudo
 net-mgmt/collectd5
 benchmarks/iperf
-########## Proxy Jail ##########
-www/squid
 ########## Serviio Jail ##########
 net/serviio
 graphics/dcraw
@@ -2697,100 +2661,6 @@ echo 'apache24_enable="YES"' >> /etc/rc.conf.local
 apachectl start
 
 # Now bring up http://serviio/ in a web browser for configuration
-
-################################################################################
-##----------------------------------------------------------------------------##
-##                         Squid Jail Configuration                           ##
-##----------------------------------------------------------------------------##
-################################################################################
-
-ezjail-admin create -f dmz squid.pa-us.mydomain.name 192.168.102.19,10.100.102.19,2001:123:4567:890::19,2001:123:4:5678::19
-echo '/zfs/poudriere/data/packages /usr/jails/squid.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.squid_pa_us_mydomain_name
-ezjail-admin console -f squid.pa-us.mydomain.name
-passwd
-
-pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
-
-# Install Squid
-pkg install www/squid
-
-# Patch configs to enable cache dir and hide LAN info sent out to to the net
-# Squid/apt-get cache reference 1:  http://itkia.com/using-squid-to-cache-apt-updates-for-debian-and-ubuntu/
-# Squid/apt-get cache reference 2:  http://shadow-file.blogspot.com/2008/12/ditching-apt-cacher-ng-for-squid.html 
-# Squid/apt-get cache reference 3:  https://tails.boum.org/contribute/build/squid-deb-proxy/squid-deb-proxy.conf
-patch /usr/local/etc/squid/squid.conf << 'EOF'
-7a8,9
-> acl jailhost src 10.100.102.19
-> acl jailhost src 192.168.102.19
-26a29,34
-> acl no_cache myport 3128
-> acl cache myport 3129
-> 
-> cache deny no_cache
-> cache allow cache
-> 
-37a46
-> http_access allow jailhost manager
-59a69
-> http_port 3129
-62c72,74
-< #cache_dir ufs /var/squid/cache/squid 100 16 256
----
-> cache_dir ufs /var/squid/cache/squid 8192 16 256
-> cache_replacement_policy heap LFUDA
-> maximum_object_size 1024 MB
-70,73c82,113
-< refresh_pattern ^ftp:		1440	20%	10080
-< refresh_pattern ^gopher:	1440	0%	1440
-< refresh_pattern -i (/cgi-bin/|\?) 0	0%	0
-< refresh_pattern .		0	20%	4320
----
-> refresh_pattern -i (/cgi-bin/|\?)	0	0%	0
-> refresh_pattern ^ftp:			1440	20%	10080
-> refresh_pattern ^gopher:		1440	0%	1440
-> refresh_pattern deb$			525600	100%	1576800
-> refresh_pattern udeb$			525600	100%	1576800
-> refresh_pattern tar.gz$			525600	100%	1576800
-> refresh_pattern DiffIndex$		0	20%	4320 refresh-ims
-> refresh_pattern PackagesIndex$		0	20%	4320 refresh-ims
-> refresh_pattern Packages\.bz2$		0	20%	4320 refresh-ims
-> refresh_pattern Packages\.gz$		0	20%	4320 refresh-ims
-> refresh_pattern Packages\.lzma$		0	20%	4320 refresh-ims
-> refresh_pattern SourcesIndex$		0	20%	4320 refresh-ims
-> refresh_pattern Sources\.bz2$		0	20%	4320 refresh-ims
-> refresh_pattern Sources\.gz$		0	20%	4320 refresh-ims
-> refresh_pattern Sources\.lzma$		0	20%	4320 refresh-ims
-> refresh_pattern Release$		0	20%	4320 refresh-ims
-> refresh_pattern Release\.gpg$		0	20%	4320 refresh-ims
-> refresh_pattern Translation-en\.bzip2$	0	20%	4320 refresh-ims
-> refresh_pattern Translation-en\.bz2$	0	20%	4320 refresh-ims
-> refresh_pattern Translation-en\.gz$	0	20%	4320 refresh-ims
-> refresh_pattern Translation-en\.lzma$	0	20%	4320 refresh-ims
-> refresh_pattern Translation-fr\.bzip2$	0	20%	4320 refresh-ims
-> refresh_pattern Translation-fr\.bz2$	0	20%	4320 refresh-ims
-> refresh_pattern Translation-fr\.gz$	0	20%	4320 refresh-ims
-> refresh_pattern Translation-fr\.lzma$	0	20%	4320 refresh-ims
-> refresh_pattern .			0	20%	4320
-> refresh_all_ims on
-> 
-> forwarded_for off
-> dns_defnames on
-> visible_hostname squid.lan
-> httpd_suppress_version_string on
-'EOF'
-
-# Enable a daily log file rotation via root crontab
-printf "0\t8\t*\t*\t*\t/usr/local/sbin/squid -k rotate\n" >> /var/cron/tabs/root
-
-# Fix permissions and enable
-chgrp squid /usr/local/etc/squid/squid.conf
-echo 'squid_enable="YES"' >> /etc/rc.conf.local
-
-# Initialize cache directory
-squid -z
-
-# Start Squid
-service squid start
 
 ################################################################################
 ##----------------------------------------------------------------------------##
