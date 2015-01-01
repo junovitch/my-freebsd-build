@@ -256,7 +256,7 @@ pkg install shells/bash
 # Perl - Used for misc editing tasks and various programs.
 ################################################################################
 
-pkg install lang/perl5.18
+pkg install lang/perl5.20
 
 ################################################################################
 # Unbound - DNS for the host, each jail, and the local LAN.
@@ -1466,7 +1466,7 @@ poudriere jails -c -j 84i386 -v 8.4-RELEASE -a i386
 
 # Setup make.conf variables for build jail
 cat > /usr/local/etc/poudriere.d/101amd64-make.conf << 'EOF'
-DEFAULT_VERSIONS= php=5.4 ruby=2.0 perl5=5.18 mysql=5.5m pgsql=9.3
+DEFAULT_VERSIONS= php=5.4 ruby=2.0 perl5=5.20 mysql=5.5m pgsql=9.3
 ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 gnutls_UNSET+=TPM
 ca_root_nss_SET+=ETCSYMLINK
@@ -1496,7 +1496,7 @@ ports-mgmt/portlint
 devel/rclint
 sysutils/tmux
 shells/bash
-lang/perl5.18
+lang/perl5.20
 dns/unbound
 net/openntpd
 mail/opensmtpd
