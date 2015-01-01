@@ -2806,8 +2806,7 @@ tar xvzf netboot.tar.gz
 mv ubuntu-installer /zfs/data/tftpboot/
 # Get mfsBSD images for testing
 cd /zfs/data/tftpboot/images
-fetch http://mfsbsd.vx.sk/files/images/10/i386/mfsbsd-10.0-RELEASE-i386.img
-fetch http://mfsbsd.vx.sk/files/images/10/amd64/mfsbsd-10.0-RELEASE-amd64.img
+fetch http://mfsbsd.vx.sk/files/images/10/amd64/mfsbsd-10.1-RELEASE-amd64.img
 # Populate default configuration using the above
 cat > /zfs/data/tftpboot/pxelinux.cfg/default << 'EOF'
 ui vesamenu.c32
@@ -2825,14 +2824,9 @@ menu begin ubuntu
 menu end
 
 label mfsbsd64
-  menu label Load mfsBSD 10.0-RELEASE amd64
+  menu label Load mfsBSD 10.1-RELEASE amd64
   kernel memdisk
-  initrd images/mfsbsd-10.0-RELEASE-amd64.img raw
-
-label mfsbsd32
-  menu label Load mfsBSD 10.0-RELEASE i386
-  kernel memdisk
-  initrd images/mfsbsd-10.0-RELEASE-i386.img raw
+  initrd images/mfsbsd-10.1-RELEASE-amd64.img raw
 
 label reboot
   menu label Reboot
