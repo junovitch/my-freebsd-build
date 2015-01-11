@@ -567,15 +567,9 @@ service clamav-clamd start
 
 ################################################################################
 # Vim-lite - Handles most text editing, very useful for syntax highlighting.
-# Also enable "set nomodeline" per the security note.
 ################################################################################
 
 pkg install editors/vim-lite
-
-echo 'set nomodeline' >> /etc/skel/.vimrc
-echo 'syntax on' >> /etc/skel/.vimrc
-cp /etc/skel/.vimrc /root/
-cp /etc/skel/.vimrc /home/jason/
 
 ################################################################################
 # Checkbashisms - Checks for potential Bash specific commands in scripts that
@@ -1668,10 +1662,6 @@ FreeBSD: {
   enabled: no
 }
 'EOF'
-
-# Copy vim dot files into jail
-cp /etc/skel/.vimrc /usr/jails/newjail/etc/skel/
-cp /etc/skel/.vimrc /usr/jails/newjail/root
 
 # Copy .ssh directory for my user to the root user of each jail
 cp -a /usr/home/jason/.ssh /usr/jails/newjail/root/
