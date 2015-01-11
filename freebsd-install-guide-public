@@ -1558,8 +1558,7 @@ www/uwsgi
 databases/mariadb55-server
 ########## PostgreSQL Jail ##########
 databases/postgresql93-server
-########## LAN Service Jail ##########
-net/isc-dhcp43-server
+########## Name Server/TFTP Jail ##########
 dns/bind910
 ftp/tftp-hpa
 'EOF'
@@ -2698,7 +2697,7 @@ apachectl start
 
 ################################################################################
 ##----------------------------------------------------------------------------##
-##            Lan Service Jail Configuration (DHCPD/NAMED/TFTPD)              ##
+##                Lan Service Jail Configuration (NAMED/TFTPD)                ##
 ##----------------------------------------------------------------------------##
 ################################################################################
 # References:
@@ -2706,26 +2705,10 @@ apachectl start
 # http://www.wonkity.com/~wblock/docs/html/pxe.html
 # https://forums.freebsd.org/viewtopic.php?&t=33849
 
-# Enable devfs ruleset similar to ezjail default but allowing access to bpf
-# device required by DHCPD
-cat >> /etc/devfs.rules << 'EOF'
-
-# Rules for DHCP jail
-#
-[devfsrules_jail_with_bpf=6]
-add include $devfsrules_hide_all
-add include $devfsrules_unhide_basic
-add include $devfsrules_unhide_login
-add path 'bpf*' unhide
-add path zfs unhide
-'EOF'
-
 ezjail-admin create -f lan lanser.pa-us.mydomain.name 10.100.102.15,2001:123:4:5678::15
 mkdir -p /usr/jails/lanser.pa-us.mydomain.name/zfs/data
-perl -pwi -e 's/parameters=""/parameters="allow.raw_sockets=1"/g' /usr/local/etc/ezjail/lanser_pa_us_mydomain_name
 echo '/zfs/poudriere/data/packages /usr/jails/lanser.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.lanser_pa_us_mydomain_name
 echo '/zfs/data /usr/jails/lanser.pa-us.mydomain.name/zfs/data nullfs rw 0 0' >> /etc/fstab.lanser_pa_us_mydomain_name
-sed -i '' -e 's/devfs_ruleset="4"/devfs_ruleset="6"/' /usr/local/etc/ezjail/lanser_pa_us_mydomain_name
 ezjail-admin console -f lanser.pa-us.mydomain.name
 passwd
 
