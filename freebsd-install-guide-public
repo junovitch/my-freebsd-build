@@ -1801,34 +1801,6 @@ echo 'nameserver 10.100.102.2' >> /usr/jails/flavours/lan/etc/resolv.conf
 echo 'options edns0' >> /usr/jails/flavours/lan/etc/resolv.conf
 
 ################################################################################
-#  WWW jail prerequisite - self signed keys used for testing
-################################################################################
-
-cat > /root/make-quicksha256-key.sh << 'EOF'
-#!/bin/sh
-mkdir -p /root/mycert
-cd /root/mycert
-
-mkdir -p /usr/local/etc/apache24/ssl.key
-mkdir -p /usr/local/etc/apache24/ssl.crt
-chmod 0400 /usr/local/etc/apache24/ssl.key
-chmod 0400 /usr/local/etc/apache24/ssl.crt
-
-openssl genrsa -des3 -out $1.key 1024
-openssl req -new -x509 -nodes -sha256 -days 365 -key $1.key -out $1.crt
-
-cp $1.key $1.key.orig
-openssl rsa -in $1.key.orig -out $1.key
-
-cp $1.key /usr/local/etc/apache24/
-cp $1.crt /usr/local/etc/apache24/
-chmod 0400 /usr/local/etc/apache24/$1.key
-chmod 0400 /usr/local/etc/apache24/$1.crt
-'EOF'
-chmod u+x /root/make-quicksha256-key.sh
-cd /root && ./make-quicksha256-key.sh www.mydomain.name
-
-################################################################################
 ##----------------------------------------------------------------------------##
 ##                     PostgreSQL Jail Configuration                          ##
 ##----------------------------------------------------------------------------##
