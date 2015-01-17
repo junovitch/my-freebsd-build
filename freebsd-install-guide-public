@@ -90,6 +90,7 @@ cat > /etc/rc.conf << 'EOF'
 dumpdev="AUTO"
 fsck_y_enable="YES"
 powerd_enable="YES"
+zfs_enable="YES"
 
 # General Network Configuration
 hostname="xts-bsd.pa-us.mydomain.name"
@@ -1098,15 +1099,6 @@ pkg install sysutils/zfs-stats
 ##                   Configure Host System ZFS and RAIDZ pool                 ##
 ##----------------------------------------------------------------------------##
 ################################################################################
-# Enable ZFS
-################################################################################
-
-echo '' >> /etc/rc.conf
-echo '# ZFS Support' >> /etc/rc.conf
-echo 'zfs_enable="YES"' >> /etc/rc.conf
-service zfs start
-
-################################################################################
 # Setup RAIDZ pool
 # http://zfsguru.com/doc/bsd/zfs
 # http://savagedlight.me/2012/07/15/freebsd-zfs-advanced-format/
@@ -1195,6 +1187,60 @@ zfs create zfs/local/pgsql_backups
 chown 70:70 /zfs/local/pgsql_backups; chmod 700 /zfs/local/pgsql_backups
 zfs create zfs/local/jails
 zfs create zfs/local/jails/archive
+
+################################################################################
+# Emergency conversion from booting from UFS SSD to booting from existing RAIDZ
+#
+# Note: This may not be 100% ideal. However due to a sporadic hardware failure
+# of the system boot SSD, the system was converted to boot from the ZFS RAID.
+# The gpart partitioning used left a 2MB padding at the start of the disk that
+# allowed setting up a freebsd-boot partition. Combined with ZFS being, well,
+# amazingly flexible and FreeBSD being easily installed manually by untarring
+# its tarballs this was easy to pull off without any loss of data.
+#
+# All steps were done from the installer's Live CD mode
+################################################################################
+
+# Write ZFS bootloader code
+gpart add -t freebsd-boot -l bay2_bootcode -s 128k ada0
+gpart add -t freebsd-boot -l bay3_bootcode -s 128k ada1
+gpart add -t freebsd-boot -l bay4_bootcode -s 128k ada2
+gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 2 ada0
+gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 2 ada1
+gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 2 ada2
+
+# Force import
+zpool import -f -o altroot=/mnt zfs
+
+# Create requisite datasets based off 10.1-RELEASE layout
+zfs create -o compression=lz4 -o atime=off -o mountpoint=none zfs/ROOT
+zfs create -o compression=lz4 -o atime=off -o mountpoint=/ zfs/ROOT/default
+zfs create -o compression=lz4 -o atime=off -o mountpoint=/tmp -o exec=on -o setuid=off zfs/tmp
+zfs create -o compression=lz4 -o atime=off -o mountpoint=/usr -o canmount=off zfs/usr
+zfs create -o compression=lz4 -o atime=off zfs/usr/home
+zfs create -o compression=lz4 -o atime=off zfs/usr/obj
+zfs create -o compression=lz4 -o atime=off -o setuid=off zfs/usr/ports
+zfs create -o compression=lz4 -o atime=off zfs/usr/src
+zfs create -o compression=lz4 -o atime=off -o mountpoint=/var -o canmount=off zfs/var
+zfs create -o compression=lz4 -o atime=off -o exec=off -o setuid=off zfs/var/audit
+zfs create -o compression=lz4 -o atime=off -o exec=off -o setuid=off zfs/var/crash
+zfs create -o compression=lz4 -o atime=off -o exec=off -o setuid=off zfs/var/log
+zfs create -o compression=lz4 -o atime=on zfs/var/mail
+zfs create -o compression=lz4 -o atime=off -o setuid=off zfs/var/tmp
+zfs create -V 16G zfs/swap
+zfs set org.freebsd:swap=on zfs/swap
+
+# Install FreeBSD
+cd /usr/freebsd-dist/
+sh -c 'for file in base.txz lib32.txz kernel.txz doc.txz games.txz; do tar --unlink -xvpJf $file -C /mnt; done'
+zpool set bootfs=zfs/ROOT/default zfs
+
+echo 'zfs_load="YES"' >> /mnt/boot/loader.conf
+echo 'zfs_enable="YES"' >> /mnt/etc/rc.conf
+touch /mnt/etc/fstab
+
+zfs unmount -a
+shutdown -r now
 
 ################################################################################
 # Export the zpool
