@@ -1879,8 +1879,17 @@ pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 # Install PostgreSQL with default options
 pkg install postgresql93-server
 
+cat >> /etc/login.conf << 'EOF'
+postgres:\
+	:lang=en_US.UTF-8:\
+	:setenv=LC_COLLATE=C:\
+	:tc=default:
+'EOF'
+cap_mkdb /etc/login.conf
+
 # Enable and start PostgreSQL
 echo 'postgresql_enable="YES"' >> /etc/rc.conf.local
+echo 'postgresql_class="postgres"' >> /etc/rc.conf.local
 service postgresql initdb
 service postgresql start
 
@@ -1921,6 +1930,17 @@ echo "host all all 2001:123:4:5678::17/128 md5" >> /usr/local/pgsql/data/pg_hba.
 
 # Reload service to apply postgresql.conf and pg_hba.conf changes
 service postgresql reload
+
+# Restoring from a backup
+su - pgsql
+cd /zfs/local/pgsql_backups
+# Restore 1
+pg_restore pgdump_<db>_<date>
+# Restore all (example for backups on 2015-01-10)
+gunzip -c pgglobals_2015-01-10T03:01:34.gz | psql
+dropdb foreman
+createdb -T template0 foreman
+pg_restore --dbname=foreman pgdump_foreman_2015-01-10T03:01:34
 
 ################################################################################
 ##----------------------------------------------------------------------------##
