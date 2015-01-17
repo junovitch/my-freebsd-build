@@ -92,6 +92,9 @@ fsck_y_enable="YES"
 powerd_enable="YES"
 zfs_enable="YES"
 
+# Baseline kernel modules to load after boot
+kld_list="dtraceall"
+
 # General Network Configuration
 hostname="xts-bsd.pa-us.mydomain.name"
 sshd_enable="YES"
@@ -1410,7 +1413,7 @@ service nfsd start
 # Installed with PAM_SMBPASS from local pkg repo
 pkg install net/samba41
 
-echo 'aio_load="YES"' >> /boot/loader.conf
+sysrc kld_list="`sysrc -n kld_list` aio"
 kldload aio
 
 cat > /usr/local/etc/smb4.conf << 'EOF'
@@ -1706,8 +1709,8 @@ echo 'ezjail_enable="YES"' >> /etc/rc.conf
 echo '/usr/local/bin/ezjail-admin snapshot' >> /usr/local/etc/periodic/daily/900.rollingsnap
 
 # Enable HTTP and DATA Accept filters for some of the jails to use
-echo 'accf_http_load="YES"' >> /boot/loader.conf
-echo 'accf_data_load="YES"' >> /boot/loader.conf
+sysrc kld_list="`sysrc -n kld_list` accf_http"
+sysrc kld_list="`sysrc -n kld_list` accf_data"
 kldload accf_http
 kldload accf_data
 
