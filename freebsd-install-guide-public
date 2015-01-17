@@ -543,12 +543,9 @@ service uptimed start
 ################################################################################
 
 echo '' >> /etc/rc.conf
-echo '# Enable BSDStats/FBSDmon' >> /etc/rc.conf
+echo '# Enable BSDStats' >> /etc/rc.conf
 echo '##### Statistics and reporting checks' >> /etc/periodic.conf
 pkg install sysutils/bsdstats
-pkg install ports-mgmt/fbsdmon
-echo 'weekly_fbsdmon_enable="YES"' >> /etc/periodic.conf
-echo 'fbsdmon_enable="YES"' >> /etc/rc.conf
 
 ################################################################################
 # ClamAV - Antivirus
@@ -1500,7 +1497,6 @@ sysutils/cmdwatch
 sysutils/tree
 sysutils/uptimed
 sysutils/bsdstats
-ports-mgmt/fbsdmon
 security/clamav
 editors/vim-lite
 devel/checkbashisms
