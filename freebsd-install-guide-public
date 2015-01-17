@@ -993,7 +993,7 @@ pkg install net/unison-nox11
 #    ssh-keygen -t ecdsa -b 521 -C "`whoami`@`hostname`-`date +%Y%m%d`"
 # 2. Distribute this out to each host to be synced. In my case, I will put this
 #    in my Puppet directory to be automatically distributed.
-#    cp /root/.ssh/id_ecdsa.pub /usr/jails/puppet.pa-us.mydomain.name/usr/local/etc/puppet/mint13lts/common/root/.ssh/authorized_keys
+#    cp /root/.ssh/id_ecdsa.pub /zfs/jails/puppet.pa-us.mydomain.name/usr/local/etc/puppet/mint13lts/common/root/.ssh/authorized_keys
 # 3. Ensure root login enable on all clients. Update sshd_config to show:
 #    PermitRootLogin without-password
 #
@@ -1659,6 +1659,28 @@ pkg check -r poudriere-devel
 ################################################################################
 
 pkg install sysutils/ezjail
+
+# FreeBSD 10+ devfs handling (rules must be numbers not names)
+sed -i '' -e 's/# ezjail_devfs_ruleset="devfsrules_jail"/ezjail_devfs_ruleset="4"/' /usr/local/etc/ezjail.conf
+
+# Backup to zfs
+sed -i '' -e 's^# ezjail_archivedir="${ezjail_jaildir}/ezjail_archives"^ezjail_archivedir=/zfs/local/jails/archive^' /usr/local/etc/ezjail.conf
+
+# Define default jail stop command to ensure graceful shutdown of jails
+echo 'ezjail_exec_stop="/bin/sh /etc/rc.shutdown"' >> /usr/local/etc/ezjail.conf
+
+# Disable ugly Perl hack
+sed -i '' -e 's^# ezjail_uglyperlhack="YES"^ezjail_uglyperlhack="NO"^' /usr/local/etc/ezjail.conf
+
+# Enable Ezjail ZFS
+sed -i '' -e 's^# ezjail_jaildir=/zfs/jails^ezjail_jaildir=/zfs/jails^' /usr/local/etc/ezjail.conf
+sed -i '' -e 's^# ezjail_use_zfs="YES"^ezjail_use_zfs="YES"^' /usr/local/etc/ezjail.conf
+sed -i '' -e 's^# ezjail_use_zfs_for_jails="YES"^ezjail_use_zfs_for_jails="YES"^' /usr/local/etc/ezjail.conf
+sed -i '' -e 's^# ezjail_jailzfs="tank/ezjail"^ezjail_jailzfs="zfs/jails"^' /usr/local/etc/ezjail.conf
+sed -i '' -e 's^# ezjail_zfs_properties="-o compression=lzjb -o atime=off"^ezjail_zfs_properties="-o compression=lz4 -o atime=off"^' /usr/local/etc/ezjail.conf
+sed -i '' -e 's^# ezjail_default_retention_policy^ezjail_default_retention_policy^' /usr/local/etc/ezjail.conf
+
+# Install ezjail
 ezjail-admin install
 ezjail-admin update -P
 
@@ -1679,6 +1701,10 @@ echo '' >> /etc/rc.conf
 echo '# Ezjail Configuration' >> /etc/rc.conf
 echo 'ezjail_enable="YES"' >> /etc/rc.conf
 
+# Do automated jail snapshots only once a day, otherwise 'ezjail-admin snapshot'
+# could be run on the host anytime maintenance is done.
+echo '/usr/local/bin/ezjail-admin snapshot' >> /usr/local/etc/periodic/daily/900.rollingsnap
+
 # Enable HTTP and DATA Accept filters for some of the jails to use
 echo 'accf_http_load="YES"' >> /boot/loader.conf
 echo 'accf_data_load="YES"' >> /boot/loader.conf
@@ -1690,19 +1716,10 @@ echo '' >> /etc/sysctl.conf
 echo '# Uncomment to allow pings within a jail on upon reboot' >> /etc/sysctl.conf
 echo '#security.jail.allow_raw_sockets=1' >> /etc/sysctl.conf
 
-# FreeBSD 10+ devfs handling (rules must be numbers not names)
-sed -i '' -e 's/# ezjail_devfs_ruleset="devfsrules_jail"/ezjail_devfs_ruleset="4"/' /usr/local/etc/ezjail.conf
-
-# Backup to zfs
-sed -i '' -e 's^# ezjail_archivedir="${ezjail_jaildir}/ezjail_archives"^ezjail_archivedir=/zfs/local/jails/archive^' /usr/local/etc/ezjail.conf
-
-# Define default jail stop command to ensure graceful shutdown of jails
-echo 'ezjail_exec_stop="/bin/sh /etc/rc.shutdown"' >> /usr/local/etc/ezjail.conf
-
 # Copy package repo to basejail and map default myrepo.conf to use it
-mkdir -p /usr/jails/newjail/pkgrepo
-mkdir -p /usr/jails/flavours/example/usr/local/etc/pkg/repos
-cat >> /usr/jails/flavours/example/usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
+mkdir -p /zfs/jails/newjail/pkgrepo
+mkdir -p /zfs/jails/flavours/example/usr/local/etc/pkg/repos
+cat >> /zfs/jails/flavours/example/usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
 myrepo: {
   url: "file:///pkgrepo/101amd64-default",
 }
@@ -1712,21 +1729,21 @@ FreeBSD: {
 'EOF'
 
 # Copy .ssh directory for my user to the root user of each jail
-cp -a /usr/home/jason/.ssh /usr/jails/newjail/root/
-chown -R root:wheel /usr/jails/newjail/root/.ssh
+cp -a /usr/home/jason/.ssh /zfs/jails/newjail/root/
+chown -R root:wheel /zfs/jails/newjail/root/.ssh
 
 # Enable logging in as root with SSH keys
-perl -pwi -e 's^#PermitRootLogin no^PermitRootLogin without-password^g' /usr/jails/newjail/etc/ssh/sshd_config
+perl -pwi -e 's^#PermitRootLogin no^PermitRootLogin without-password^g' /zfs/jails/newjail/etc/ssh/sshd_config
 
 # Disable useless cron entries to prevent them spamming syslog
-perl -pwi -e 's^1,31\t0-5\t\*\t\*\t\*\troot\tadjkerntz -a^#1,31\t0-5\t\*\t\*\t\*\troot\tadjkerntz -a^' /usr/jails/newjail/etc/crontab
+perl -pwi -e 's^1,31\t0-5\t\*\t\*\t\*\troot\tadjkerntz -a^#1,31\t0-5\t\*\t\*\t\*\troot\tadjkerntz -a^' /zfs/jails/newjail/etc/crontab
 
 # Set up remaining for all jail's rc.conf
-perl -pwi -e 's^# sshd_enable="YES"^sshd_enable="YES"^g' /usr/jails/flavours/example/etc/rc.conf
-perl -pwi -e 's^syslogd_flags="-ss"^syslogd_flags="-s -v -v"^g' /usr/jails/flavours/example/etc/rc.conf
-perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.100.102.2^g' /usr/jails/newjail/etc/syslog.conf
+perl -pwi -e 's^# sshd_enable="YES"^sshd_enable="YES"^g' /zfs/jails/flavours/example/etc/rc.conf
+perl -pwi -e 's^syslogd_flags="-ss"^syslogd_flags="-s -v -v"^g' /zfs/jails/flavours/example/etc/rc.conf
+perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.100.102.2^g' /zfs/jails/newjail/etc/syslog.conf
 
-cat >> /usr/jails/flavours/example/etc/rc.conf << 'EOF'
+cat >> /zfs/jails/flavours/example/etc/rc.conf << 'EOF'
 
 # Kernel Secure Level
 kern_securelevel_enable="YES"
@@ -1738,7 +1755,7 @@ clear_tmp_enable="YES"
 
 # Configure baseline periodic.conf for all jail templates.
 # periodic.conf.local will be used for any things specific to one jail only.
-cat >> /usr/jails/flavours/example/etc/periodic.conf << 'EOF'
+cat >> /zfs/jails/flavours/example/etc/periodic.conf << 'EOF'
 ##### General formatting for all jails
 daily_show_success="NO"
 security_show_success="NO"
@@ -1816,7 +1833,7 @@ monthly_jail_periodic_enable="YES"
 # Create Jail flavours based on network segment 
 ################################################################################
 
-cd /usr/jails/flavours/
+cd /zfs/jails/flavours/
 cp -Rp example dmz
 cp -Rp example lan
 
@@ -1824,19 +1841,19 @@ cp -Rp example lan
 # DMZ-specific segment config
 ################################################################################
 
-echo 'search pa-us.mydomain.name. nc-us.mydomain.name.' >> /usr/jails/flavours/dmz/etc/resolv.conf
-echo 'nameserver 192.168.102.1' >> /usr/jails/flavours/dmz/etc/resolv.conf
-echo 'nameserver 192.168.102.2' >> /usr/jails/flavours/dmz/etc/resolv.conf
-echo 'options edns0' >> /usr/jails/flavours/dmz/etc/resolv.conf
+echo 'search pa-us.mydomain.name. nc-us.mydomain.name.' >> /zfs/jails/flavours/dmz/etc/resolv.conf
+echo 'nameserver 192.168.102.1' >> /zfs/jails/flavours/dmz/etc/resolv.conf
+echo 'nameserver 192.168.102.2' >> /zfs/jails/flavours/dmz/etc/resolv.conf
+echo 'options edns0' >> /zfs/jails/flavours/dmz/etc/resolv.conf
 
 ################################################################################
 # LAN-specific segment config 
 ################################################################################
 
-echo 'search pa-us.mydomain.name. nc-us.mydomain.name.' >> /usr/jails/flavours/lan/etc/resolv.conf
-echo 'nameserver 10.100.102.1' >> /usr/jails/flavours/lan/etc/resolv.conf
-echo 'nameserver 10.100.102.2' >> /usr/jails/flavours/lan/etc/resolv.conf
-echo 'options edns0' >> /usr/jails/flavours/lan/etc/resolv.conf
+echo 'search pa-us.mydomain.name. nc-us.mydomain.name.' >> /zfs/jails/flavours/lan/etc/resolv.conf
+echo 'nameserver 10.100.102.1' >> /zfs/jails/flavours/lan/etc/resolv.conf
+echo 'nameserver 10.100.102.2' >> /zfs/jails/flavours/lan/etc/resolv.conf
+echo 'options edns0' >> /zfs/jails/flavours/lan/etc/resolv.conf
 
 ################################################################################
 ##----------------------------------------------------------------------------##
@@ -1847,9 +1864,9 @@ echo 'options edns0' >> /usr/jails/flavours/lan/etc/resolv.conf
 # http://daemon-notes.com/articles/network/postgresql
 
 ezjail-admin create -f lan pdbi.pa-us.mydomain.name 10.100.102.17,2001:123:4:5678::17
-mkdir -p /usr/jails/pdbi.pa-us.mydomain.name/zfs/local/pgsql_backups
-echo '/zfs/poudriere/data/packages /usr/jails/pdbi.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.pdbi_pa_us_mydomain_name
-echo '/zfs/local/pgsql_backups /usr/jails/pdbi.pa-us.mydomain.name/zfs/local/pgsql_backups nullfs rw 0 0' >> /etc/fstab.pdbi_pa_us_mydomain_name
+mkdir -p /zfs/jails/pdbi.pa-us.mydomain.name/zfs/local/pgsql_backups
+echo '/zfs/poudriere/data/packages /zfs/jails/pdbi.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.pdbi_pa_us_mydomain_name
+echo '/zfs/local/pgsql_backups /zfs/jails/pdbi.pa-us.mydomain.name/zfs/local/pgsql_backups nullfs rw 0 0' >> /etc/fstab.pdbi_pa_us_mydomain_name
 perl -pwi -e 's/parameters=""/parameters="allow.sysvipc=1"/g' /usr/local/etc/ezjail/pdbi_pa_us_mydomain_name
 ezjail-admin console -f pdbi.pa-us.mydomain.name
 passwd
@@ -1909,7 +1926,7 @@ service postgresql reload
 ################################################################################
 
 ezjail-admin create -f lan mdbi.pa-us.mydomain.name 10.100.102.18,2001:123:4:5678::18
-echo '/zfs/poudriere/data/packages /usr/jails/mdbi.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.mdbi_pa_us_mydomain_name
+echo '/zfs/poudriere/data/packages /zfs/jails/mdbi.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.mdbi_pa_us_mydomain_name
 ezjail-admin console -f mdbi.pa-us.mydomain.name
 passwd
 
@@ -1955,15 +1972,15 @@ quit;
 ################################################################################
 
 ezjail-admin create -f lan apps1.pa-us.mydomain.name 10.100.102.11,2001:123:4:5678::11
-mkdir -p /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere
-mkdir -p /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere_logs
-mkdir -p /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/pkg
-mkdir -p /usr/jails/apps1.pa-us.mydomain.name/zfs/data
-echo '/usr/local/share/poudriere/html /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
-echo '/zfs/poudriere/data/logs/bulk /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere_logs nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
-echo '/zfs/poudriere/data/packages /usr/jails/apps1.pa-us.mydomain.name/usr/local/www/pkg nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
-echo '/zfs/poudriere/data/packages /usr/jails/apps1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
-echo '/zfs/data /usr/jails/apps1.pa-us.mydomain.name/zfs/data nullfs rw 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
+mkdir -p /zfs/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere
+mkdir -p /zfs/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere_logs
+mkdir -p /zfs/jails/apps1.pa-us.mydomain.name/usr/local/www/pkg
+mkdir -p /zfs/jails/apps1.pa-us.mydomain.name/zfs/data
+echo '/usr/local/share/poudriere/html /zfs/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
+echo '/zfs/poudriere/data/logs/bulk /zfs/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere_logs nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
+echo '/zfs/poudriere/data/packages /zfs/jails/apps1.pa-us.mydomain.name/usr/local/www/pkg nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
+echo '/zfs/poudriere/data/packages /zfs/jails/apps1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
+echo '/zfs/data /zfs/jails/apps1.pa-us.mydomain.name/zfs/data nullfs rw 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
 ezjail-admin console -f apps1.pa-us.mydomain.name
 passwd
 
@@ -1971,15 +1988,15 @@ passwd
 # and testing purposes.
 
 ezjail-admin create -f lan apps2.pa-us.mydomain.name 10.100.102.12,2001:123:4:5678::12
-mkdir -p /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere
-mkdir -p /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere_logs
-mkdir -p /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/pkg
-mkdir -p /usr/jails/apps2.pa-us.mydomain.name/zfs/data
-echo '/usr/local/share/poudriere/html /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
-echo '/zfs/poudriere/data/logs/bulk /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere_logs nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
-echo '/zfs/poudriere/data/packages /usr/jails/apps2.pa-us.mydomain.name/usr/local/www/pkg nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
-echo '/zfs/poudriere/data/packages /usr/jails/apps2.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
-echo '/zfs/data /usr/jails/apps2.pa-us.mydomain.name/zfs/data nullfs rw 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
+mkdir -p /zfs/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere
+mkdir -p /zfs/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere_logs
+mkdir -p /zfs/jails/apps2.pa-us.mydomain.name/usr/local/www/pkg
+mkdir -p /zfs/jails/apps2.pa-us.mydomain.name/zfs/data
+echo '/usr/local/share/poudriere/html /zfs/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
+echo '/zfs/poudriere/data/logs/bulk /zfs/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere_logs nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
+echo '/zfs/poudriere/data/packages /zfs/jails/apps2.pa-us.mydomain.name/usr/local/www/pkg nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
+echo '/zfs/poudriere/data/packages /zfs/jails/apps2.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
+echo '/zfs/data /zfs/jails/apps2.pa-us.mydomain.name/zfs/data nullfs rw 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
 ezjail-admin console -f apps2.pa-us.mydomain.name
 passwd
 
@@ -2626,11 +2643,11 @@ service nginx reload
 ################################################################################
 
 ezjail-admin create -f lan serviio.pa-us.mydomain.name 10.100.102.14,2001:123:4:5678::14
-mkdir -p /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_media
-mkdir -p /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_photo_albums
-echo '/zfs/homedirs/common_media /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_media nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
-echo '/zfs/homedirs/common_photo_albums /usr/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_photo_albums nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
-echo '/zfs/poudriere/data/packages /usr/jails/serviio.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
+mkdir -p /zfs/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_media
+mkdir -p /zfs/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_photo_albums
+echo '/zfs/homedirs/common_media /zfs/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_media nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
+echo '/zfs/homedirs/common_photo_albums /zfs/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_photo_albums nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
+echo '/zfs/poudriere/data/packages /zfs/jails/serviio.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
 ezjail-admin console -f serviio.pa-us.mydomain.name
 passwd
 
@@ -2755,9 +2772,9 @@ apachectl start
 # https://forums.freebsd.org/viewtopic.php?&t=33849
 
 ezjail-admin create -f lan lanser.pa-us.mydomain.name 10.100.102.15,2001:123:4:5678::15
-mkdir -p /usr/jails/lanser.pa-us.mydomain.name/zfs/data
-echo '/zfs/poudriere/data/packages /usr/jails/lanser.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.lanser_pa_us_mydomain_name
-echo '/zfs/data /usr/jails/lanser.pa-us.mydomain.name/zfs/data nullfs rw 0 0' >> /etc/fstab.lanser_pa_us_mydomain_name
+mkdir -p /zfs/jails/lanser.pa-us.mydomain.name/zfs/data
+echo '/zfs/poudriere/data/packages /zfs/jails/lanser.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.lanser_pa_us_mydomain_name
+echo '/zfs/data /zfs/jails/lanser.pa-us.mydomain.name/zfs/data nullfs rw 0 0' >> /etc/fstab.lanser_pa_us_mydomain_name
 ezjail-admin console -f lanser.pa-us.mydomain.name
 passwd
 
@@ -2843,9 +2860,9 @@ service tftpd start
 
 ezjail-admin create -f dmz www1.pa-us.mydomain.name 192.168.102.13,2001:123:4567:890::13
 ezjail-admin config -f 1 www1.pa-us.mydomain.name
-echo '/zfs/poudriere/data/packages /usr/jails/www1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.www1_pa_us_mydomain_name
-mkdir /usr/jails/www1.pa-us.mydomain.name/usr/local/etc/apache24/
-cp /root/mycert/www.mydomain.name.* /usr/jails/www1.pa-us.mydomain.name/usr/local/etc/apache24/
+echo '/zfs/poudriere/data/packages /zfs/jails/www1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.www1_pa_us_mydomain_name
+mkdir /zfs/jails/www1.pa-us.mydomain.name/usr/local/etc/apache24/
+cp /root/mycert/www.mydomain.name.* /zfs/jails/www1.pa-us.mydomain.name/usr/local/etc/apache24/
 ezjail-admin console -f www1.pa-us.mydomain.name
 passwd
 
@@ -2937,7 +2954,7 @@ apachectl start
 
 ezjail-admin create -f dmz ms1.pa-us.mydomain.name 192.168.102.11,2001:123:4567:890::11
 ezjail-admin config -f 1 ms1.pa-us.mydomain.name
-echo '/zfs/poudriere/data/packages /usr/jails/ms1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.ms1_pa_us_mydomain_name
+echo '/zfs/poudriere/data/packages /zfs/jails/ms1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.ms1_pa_us_mydomain_name
 ezjail-admin console -f ms1.pa-us.mydomain.name
 passwd
 
@@ -3067,8 +3084,8 @@ cat > /usr/local/sbin/portsup << 'EOF'
 #!/bin/sh
 # Just a short script to quickly put the portsnap cron right into use
 portsnap update
-[ -e "/usr/jails/basejail/usr/ports/.portsnap.INDEX" ] \
-    && portsnap -p "/usr/jails/basejail/usr/ports" update
+[ -e "/zfs/jails/basejail/usr/ports/.portsnap.INDEX" ] \
+    && portsnap -p "/zfs/jails/basejail/usr/ports" update
 'EOF'
 chmod 555 /usr/local/sbin/portsup
 
@@ -3135,16 +3152,16 @@ ezjail-admin update -U -s 9.2-RELEASE-p3
 ## the new auditdistd user
 vipw
 ## For upgrading from 9->10, update deprecated variables to the new format
-find /usr/jails -name periodic.conf -exec sed -i '' -e 's/daily_status_security_ipfwdenied_enable/security_status_ipfwdenied_enable/;s/daily_status_security_ipfwlimit_enable/security_status_ipfwlimit_enable/;s/daily_status_security_kernelmsg_enable/security_status_kernelmsg_enable/' {} \;
+find /zfs/jails -name periodic.conf -exec sed -i '' -e 's/daily_status_security_ipfwdenied_enable/security_status_ipfwdenied_enable/;s/daily_status_security_ipfwlimit_enable/security_status_ipfwlimit_enable/;s/daily_status_security_kernelmsg_enable/security_status_kernelmsg_enable/' {} \;
 ## For upgrading from 9->10, update all jail devfs rules to use integers rather than strings
 sed -i '' -e 's/"devfsrules_jail"/"4"/;s/"devfsrules_jail_with_vpn"/"5"/;s/"devfsrules_jail_with_bpf"/"6"/' /usr/local/etc/ezjail/*
 ## Run mergemaster on each jail
-mergemaster -p /usr/jails/newjail
-mergemaster -UF -D /usr/jails/newjail
-mergemaster -p /usr/jails/jail1
-mergemaster -UF -D /usr/jails/jail1 # and continue on for each jail
+mergemaster -p /zfs/jails/newjail
+mergemaster -UF -D /zfs/jails/newjail
+mergemaster -p /zfs/jails/jail1
+mergemaster -UF -D /zfs/jails/jail1 # and continue on for each jail
 ## Major release upgrades only - disable starting any services dependent on old libraries and start ezjail
-find /usr/jails -name rc.conf.local -exec sed -i '' -e 's/YES/NO/' {} \;
+find /zfs/jails -name rc.conf.local -exec sed -i '' -e 's/YES/NO/' {} \;
 service ezjail start
 ## Log in to each jail and perform full upgrades on each jail for a new major release
 ## ssh or `ezjail-admin console <jail>` for each one
