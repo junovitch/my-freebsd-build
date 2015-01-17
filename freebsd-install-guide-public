@@ -1095,6 +1095,12 @@ echo 'daily_unison_checkup="YES"' >> /etc/periodic.conf
 pkg install sysutils/zfs-stats
 
 ################################################################################
+# Beadm
+################################################################################
+
+pkg install sysutils/beadm
+
+################################################################################
 ##----------------------------------------------------------------------------##
 ##                   Configure Host System ZFS and RAIDZ pool                 ##
 ##----------------------------------------------------------------------------##
@@ -1556,6 +1562,7 @@ sysutils/duff
 net/rsync
 net/unison-nox11
 sysutils/zfs-stats
+sysutils/beadm
 net/samba41
 sysutils/ezjail
 security/sudo
