@@ -1512,7 +1512,7 @@ poudriere jails -c -j 84i386 -v 8.4-RELEASE -a i386
 
 # Setup make.conf variables for build jail
 cat > /usr/local/etc/poudriere.d/101amd64-make.conf << 'EOF'
-DEFAULT_VERSIONS= php=5.4 ruby=2.0 perl5=5.20 mysql=5.5m pgsql=9.3
+DEFAULT_VERSIONS= php=5.4 ruby=2.0 perl5=5.20 mysql=5.5m pgsql=9.4
 ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 gnutls_UNSET+=TPM
 ca_root_nss_SET+=ETCSYMLINK
@@ -1601,7 +1601,7 @@ textproc/libxslt
 www/node
 databases/sqlite3
 databases/mariadb55-client
-databases/postgresql93-client
+databases/postgresql94-client
 net/foreman-proxy
 www/py-graphite-web
 databases/py-psycopg2
@@ -1609,7 +1609,7 @@ www/uwsgi
 ########## MariaDB Jail ##########
 databases/mariadb55-server
 ########## PostgreSQL Jail ##########
-databases/postgresql93-server
+databases/postgresql94-server
 ########## Name Server/TFTP Jail ##########
 dns/bind910
 ftp/tftp-hpa
@@ -1877,7 +1877,7 @@ passwd
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 
 # Install PostgreSQL with default options
-pkg install postgresql93-server
+pkg install postgresql94-server
 
 cat >> /etc/login.conf << 'EOF'
 postgres:\
@@ -2030,7 +2030,7 @@ pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
 
 # Installing Dependencies:  Install Puppet, Git, Nginx, and Ruby Components
 
-pkg install puppet rubygem-puppet-lint git nginx rubygem-rake rubygem-passenger rubygem-bundler libvirt mariadb55-client libxslt node sqlite3 postgresql93-client gcc47 gmake sudo foreman-proxy
+pkg install puppet rubygem-puppet-lint git nginx rubygem-rake rubygem-passenger rubygem-bundler libvirt mariadb55-client libxslt node sqlite3 postgresql94-client gcc47 gmake sudo foreman-proxy
 
 # At this point, Puppet needs to be started so that all its SSL keys can be 
 # generated. This gives the chance to test that Puppet does work before anything
