@@ -945,7 +945,11 @@ perl -pwi -e 's/^15\t4/15\t5/' /etc/crontab
 perl -pwi -e 's/^30\t5/30\t6/' /etc/crontab
 
 printf "5\t4\t*\t*\t*\t/usr/sbin/portsnap cron\n" >> /var/cron/tabs/root
-printf "30\t5\t*\t*\t2,6\t/usr/sbin/freebsd-update cron\n" >> /var/cron/tabs/root
+printf "30\t5\t*\t*\ttue,sat\t/usr/sbin/freebsd-update cron\n" >> /var/cron/tabs/root
+
+# Also, remove 'src' line from Components to prevent freebsd-update from trying
+# to update /usr/src
+sed -i '' -e '/^Components/ s/ src//' /etc/freebsd-update.conf
 
 ################################################################################
 # Make default syslog sizes a bit bigger and keep more of them
