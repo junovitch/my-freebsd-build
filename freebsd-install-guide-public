@@ -1677,6 +1677,14 @@ cat > /home/jason/poudriere-index.patch << 'EOF'
 'EOF'
 patch < /home/jason/poudriere-index.patch
 pkg check -r poudriere-devel
+
+# Cron entries to automate
+echo 'MAILTO=jason' >> /var/cron/tabs/root
+echo 'PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin' >> /var/cron/tabs/root
+printf "30\t5\t*\t*\twed\tportsup; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 84amd64;  nice poudriere bulk -f /zfs/poudriere/pkg_list -j 84i386\n" >> /var/cron/tabs/root
+printf "30\t5\t*\t*\tthu\tportsup; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 93amd64;  nice poudriere bulk -f /zfs/poudriere/pkg_list -j 93i386\n" >> /var/cron/tabs/root
+printf "30\t5\t*\t*\tfri\tportsup; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 101amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 101i386\n" >> /var/cron/tabs/root
+
 ################################################################################
 ##----------------------------------------------------------------------------##
 ##                    Host System Initial Jail Configuration                  ##
