@@ -1303,12 +1303,20 @@ ls -l /zfs
 zdb 
 
 ################################################################################
-# If all is well, enable reporting during daily updates and a weekly scrub.
+# Kick off scrub via cron the first Monday of every month to keep scrubs from
+# slowing down other cron jobs that run throughout the week. If this by some
+# chance fails, the periodic.conf job is enabled in the next lines and the
+# default of 35 days will ensure a scrub gets run routinely.
+################################################################################
+
+printf '0\t4\t*\t*\tmon\t[ $(/bin/date +\\%%d) -le 7 ] && /sbin/zpool scrub zfs\n' >> /var/cron/tabs/root
+
+################################################################################
+# If all is well, enable reporting during daily updates.
 ################################################################################
 
 echo 'daily_status_zfs_enable="YES"' >> /etc/periodic.conf
 echo 'daily_scrub_zfs_enable="YES"' >> /etc/periodic.conf
-echo 'daily_scrub_zfs_default_threshold="14"' >> /etc/periodic.conf
 
 ################################################################################
 # Quick Rolling snapshot scripts for a month's worth of snapshot along with
