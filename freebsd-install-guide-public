@@ -660,14 +660,33 @@ service nut_upsmon start
 # Setup
 pkg install security/logcheck
 
-# Fix permissions
-chown root:logcheck /var/log/auth.log
-chmod 640 /var/log/auth.log
-perl -pwi -e 's^/var/log/auth\.log\t\t\t600  7     100  \@0101T JC^/var/log/auth.log\troot:logcheck\t640  7     100  \@0101T JC^' /etc/newsyslog.conf
+cat > /usr/local/etc/logcheck/logcheck.logfiles << 'EOF'
+/var/log/all.log
+/var/log/auth.log
+'EOF'
 
-# Redirect logcheck alias to root
-perl -pwi -e 's^# General redirections for pseudo accounts^# General redirections for pseudo accounts\nlogcheck:\troot^' /etc/mail/aliases
+# Allow /var/log/all.log to be used
+perl -pwi -e 'if (/all\.log/)  {s/#\*\.\*/\*\.\*/;}' /etc/syslog.conf
+
+# Create /var/log/all.log and restart syslogd
+touch /var/log/all.log
+service syslogd restart
+
+# Add root:logcheck after all.log and change perms on that line from 600 to 640
+perl -pwi -e 'if (/all\.log/)  {s/all\.log\t\t/all.log\troot:logcheck/;   s/600/640/; }' /etc/newsyslog.conf
+perl -pwi -e 'if (/auth\.log/) {s/auth\.log\t\t/auth.log\troot:logcheck/; s/600/640/; }' /etc/newsyslog.conf
+
+# Fix permissions
+chown root:logcheck /var/log/all.log /var/log/auth.log
+chmod 640 /var/log/all.log /var/log/auth.log
+
+# Change alias for mailing
+perl -pwi -e 's^# General redirections for pseudo accounts^# General redirections for pseudo accounts\nlogcheck:\tjason^' /etc/mail/aliases
 smtpctl update table aliases
+
+# Copy logcheck crontab into place and fix permissions
+cp /usr/local/share/examples/logcheck/crontab.in /var/cron/tabs/logcheck
+chmod 600 /var/cron/tabs/logcheck
 
 ################################################################################
 # Iperf
