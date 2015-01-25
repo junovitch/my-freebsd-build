@@ -1023,10 +1023,10 @@ pkg install sysutils/duff
 pkg install net/rsync
 
 ################################################################################
-# Unison
+# Unison 2.40 (compiled without X11 support)
 ################################################################################
 
-pkg install net/unison-nox11
+pkg install net/unison240
 
 ################################################################################
 # Setup of Unison for use
@@ -1051,6 +1051,21 @@ cat > /root/.unison/syncWAN.prf << 'EOF'
 # Unison preferences file for full sync of /zfs/homedirs
 root = /zfs/homedirs
 root = ssh://silverstone//zfs/homedirs
+
+ignore = Path common_media
+prefer=newer
+owner=true
+group=true
+fastcheck=true
+confirmbigdel=true
+auto=true
+batch=true
+logfile=/var/log/unison-syncWAN.log
+'EOF'
+cat > /root/.unison/syncWAN-media.prf << 'EOF'
+# Unison preferences file for full sync of /zfs/homedirs
+root = /zfs/homedirs/common_media
+root = ssh://silverstone//zfs/homedirs/common_media
 
 prefer=newer
 owner=true
@@ -1077,8 +1092,9 @@ printf "/var/log/unison-syncLAN.log\t\t640  9\t   *\t@T00  J\n" >> /etc/newsyslo
 # Unison. All results will be sent to /dev/null.
 ################################################################################
 
-printf "15\t4\t*\t*\t*\t/bin/pgrep -f 'unison syncWAN.prf' || /usr/local/bin/unison syncWAN.prf > /dev/null 2>&1\n" >> /var/cron/tabs/root
-printf "*/10\t*\t*\t*\t*\t/bin/pgrep -f 'unison syncLAN.prf' || /usr/local/bin/unison syncLAN.prf > /dev/null 2>&1\n" >> /var/cron/tabs/root
+printf "15\t4\t*\t*\t*\t/bin/pgrep -f 'unison240 syncWAN.prf' || /usr/local/bin/unison240 syncWAN.prf > /dev/null 2>&1; /bin/pgrep -f 'unison240 syncWAN-media.prf' || /usr/local/bin/unison240 syncWAN-media.prf > /dev/null 2>&1\n" >> /var/cron/tabs/root
+printf "*/10\t*\t*\t*\t*\t/bin/pgrep -f 'unison240 syncLAN.prf' || /usr/local/bin/unison240 syncLAN.prf > /dev/null 2>&1\n" >> /var/cron/tabs/root
+printf "15\t12\t*\t*\t*\t/bin/pkill -f 'unison240 syncWAN.prf'; sleep 60; /bin/pkill -f 'unison240 syncWAN-media.prf'\n" >> /var/cron/tabs/root
 
 ################################################################################
 # Finally, put a quick script into periodic that will grep for "Synchronization"
@@ -1567,6 +1583,7 @@ rubygem-passenger_UNSET+=APACHE22
 rubygem-passenger_SET+=NGINX
 net-mgmt_collectd5_SET+=CURL MYSQL NUTUPS PING PGSQL STATGRAB XML
 net_samba41_SET+=PAM_SMBPASS
+net_unison240_UNSET+=X11
 nginx_SET+=PASSENGER HTTP_FANCYINDEX
 'EOF'
 
@@ -1610,6 +1627,7 @@ sysutils/smartmontools
 sysutils/ncdu
 sysutils/duff
 net/rsync
+net/unison240
 net/unison-nox11
 sysutils/zfs-stats
 sysutils/beadm
