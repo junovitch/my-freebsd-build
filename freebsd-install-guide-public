@@ -618,37 +618,53 @@ pkg install sysutils/nut
 echo '' >> /etc/rc.conf
 echo '## UPS Monitoring Tools' >> /etc/rc.conf
 echo 'nut_enable="YES"' >> /etc/rc.conf
-echo 'nut_upslog_enable="YES"' >> /etc/rc.conf
+echo 'nut_upslog_enable="NO" # Off - Using Collectd monitoring instead' >> /etc/rc.conf
 echo 'nut_upsmon_enable="YES"' >> /etc/rc.conf
 
+# Configure ups.conf for USB monitoring
 cd /usr/local/etc/nut
 cp ups.conf.sample ups.conf
-printf "[UPS]\n" >> ups.conf
-printf "\tdriver = snmp-ups\n" >> ups.conf
-printf "\tport = 10.100.102.254\n" >> ups.conf
-printf "\tcommunity = Uno4snmp\n" >> ups.conf
-printf "\tpollfreq = 15\n" >> ups.conf
+printf '[UPS]\n' >> ups.conf
+printf '\tdriver = usbhid-ups\n' >> ups.conf
+printf '\tport = auto\n' >> ups.conf
 
+# Configure ups.conf for SNMP for monitoring
+# Unused since firmware upgrade on SNMP card bricked the card
+#cd /usr/local/etc/nut
+#cp ups.conf.sample ups.conf
+#printf '[UPS]\n' >> ups.conf
+#printf '\tdriver = usbhid-ups\n' >> ups.conf
+#printf '\tport = auto\n' >> ups.conf
+
+# Copy default upsd.conf
 cp upsd.conf.sample upsd.conf
 
+# Generate random passwords for each user
+dd if=/dev/urandom bs=32 count=1 | openssl base64 | cut -b -32
+
+# Configure upsd.users
 cp upsd.users.sample upsd.users
-printf "# Supervision user\n" >> upsd.users
-printf "[admin]\n" >> upsd.users
-printf "\tpassword = adminpassword\n" >> upsd.users
-printf "\tactions = SET\n" >> upsd.users
-printf "\tactions = FSD\n" >> upsd.users
-printf "\tinstcmds = ALL\n\n" >> upsd.users
-printf "# Protection user\n" >> upsd.users
-printf "[monuser]\n" >> upsd.users
-printf "\tpassword  = userpassword\n" >> upsd.users
-printf "\tupsmon master\n" >> upsd.users
+printf '# Supervision user\n' >> upsd.users
+printf '[admin]\n' >> upsd.users
+printf '\tpassword = adminpassword\n' >> upsd.users
+printf '\tactions = SET\n' >> upsd.users
+printf '\tactions = FSD\n' >> upsd.users
+printf '\tinstcmds = ALL\n\n' >> upsd.users
+printf '# Protection user\n' >> upsd.users
+printf '[monuser]\n' >> upsd.users
+printf '\tpassword  = userpassword\n' >> upsd.users
+printf '\tupsmon master\n' >> upsd.users
 
+# Configure upsmon.conf
 cp upsmon.conf.sample upsmon.conf
-echo "MONITOR UPS@localhost 1 monuser userpassword master" >> upsmon.conf
+echo 'MONITOR UPS@localhost 1 monuser userpassword master' >> upsmon.conf
+echo 'SHUTDOWNCMD "/sbin/shutdown -p now"' >> upsmon.conf
 
+# Fix perms/ownership
 chown uucp /usr/local/etc/nut/*.conf /usr/local/etc/nut/upsd.users
 chmod 440 /usr/local/etc/nut/*.conf /usr/local/etc/nut/upsd.users
 
+# Start NUT
 service nut start
 service nut_upslog start
 service nut_upsmon start
