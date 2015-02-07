@@ -2758,6 +2758,7 @@ pkg install serviio dcraw
 mkdir -p /var/db/serviio/home/plugins
 pw usermod dlna -m -d /var/db/serviio/home
 echo 'serviio_enable="YES"' >> /etc/rc.conf.local
+echo 'serviio_lang="en_US.UTF-8"' >> /etc/rc.conf.local
 echo serviio_args=\'-Dserviio.advertisementDuration=\"15\"\' >> /etc/rc.conf.local
 service serviio start
 
@@ -2768,11 +2769,11 @@ pkg install php5 php5-curl php5-xml php5-mbstring php5-json php5-simplexml php5-
 
 sed -i '' -e 's/;listen.allowed_clients = 127.0.0.1/listen.allowed_clients = 10.100.102.11,10.100.102.12/' /usr/local/etc/php-fpm.conf
 
-cd /tmp && fetch https://github.com/SwoopX/Web-UI-for-Serviio/archive/Serviio-1.3.zip
+cd /tmp && fetch https://github.com/SwoopX/Web-UI-for-Serviio/archive/Serviio-1.5.zip
 mkdir -p /usr/local/www
-unzip -d /usr/local/www Serviio-1.3.zip
+unzip -d /usr/local/www Serviio-1.5.zip
 
-# rsync the entire /usr/local/www/Web-UI-for-Serviio-Serviio-1.3 directory
+# rsync the entire /usr/local/www/Web-UI-for-Serviio-Serviio-1.5 directory
 # to both apps servers and add this to their nginx.conf
 
 # Create sites-available config file and follow up with sites-enabled symlink
@@ -2782,7 +2783,7 @@ cat > /usr/local/etc/nginx/sites-available/serviio-console << 'EOF'
         server_name  serviio-console.pa-us.mydomain.name serviio-console;
 
         access_log   /var/log/nginx/serviio_console_access.log;
-        root         /usr/local/www/Web-UI-for-Serviio-Serviio-1.3;
+        root         /usr/local/www/Web-UI-for-Serviio-Serviio-1.5;
 
         location / {
             index index.php;
@@ -2790,7 +2791,7 @@ cat > /usr/local/etc/nginx/sites-available/serviio-console << 'EOF'
         location ~ \.php$ {
             fastcgi_pass 10.100.102.14:9000;
             fastcgi_index index.php;
-            fastcgi_param SCRIPT_FILENAME /usr/local/www/Web-UI-for-Serviio-Serviio-1.3$fastcgi_script_name;
+            fastcgi_param SCRIPT_FILENAME /usr/local/www/Web-UI-for-Serviio-Serviio-1.5$fastcgi_script_name;
             include fastcgi_params;
         }
         location ~ /\.ht {
