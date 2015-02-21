@@ -586,24 +586,18 @@ pkg install devel/checkbashisms
 pkg install ports-mgmt/portlint devel/rclint
 
 ################################################################################
-# FreeIPMI Utilities and a basic status check during the daily periodic.
-# See `man freeipmi` for more than the what's listed.
+# IPMItool
+# Example to display sensors data: ipmitool sdr
 ################################################################################
- 
-pkg install sysutils/freeipmi
 
-cat > /usr/local/etc/periodic/daily/990.ipmi-daily.sh << 'EOF'
-#!/bin/sh
-echo
-echo "IPMI Sensor Check"
-iout=`/usr/local/sbin/ipmi-sensors --no-header-output --interpret-oem-data \
-	| cut -d "|" -f "2 4 5 6" | sed 's/|//g' | awk '{gsub(/^ +|  +$/,"")}1'`
-echo "$iout"
+# Add ipmi kernel module prerequisite to boot time kernel module load list
+sysrc kld_list="`sysrc -n kld_list` ipmi"
 
-echo "$iout" | egrep -v "Presence detected|OK|Low" > /dev/null && rc=1 || rc=0
-exit $rc
-'EOF'
-chmod 555 /usr/local/etc/periodic/daily/990.ipmi-daily.sh
+# Load ipmi kernel module now
+kldload ipmi
+
+# Install
+pkg install sysutils/ipmitool
 
 ################################################################################
 # Nut (Network UPS Tools) - Monitor UPS status and auto-shutdown if necessary
@@ -853,19 +847,17 @@ do
 	    { print "PUTVAL", HOSTNAME"/exec-hwsensors/gauge-smart/"$2"-"DISK, "interval="INTERVAL, "N:"$10 }'
 	done
 
-	/usr/local/bin/sudo /usr/local/sbin/ipmi-sensors \
-	    --no-header-output --interpret-oem-data --comma-separated-output \
+	/usr/local/bin/ipmitool -c sdr \
 	    | awk -F',' -v HOSTNAME=$HOSTNAME -v INTERVAL=$INTERVAL \
-	    '/(Temperature|Voltage|Fan)/ \
+	    '/(degrees|Volts|RPM)/ \
 	    { gsub (/ /, "");
-	      print "PUTVAL", HOSTNAME"/exec-hwsensors/gauge-ipmi/"$2, "interval="INTERVAL, "N:"$4 }'
+	      print "PUTVAL", HOSTNAME"/exec-hwsensors/gauge-ipmi/"$1, "interval="INTERVAL, "N:"$2 }'
 done
 'EOF'
 
 # Turn off syslog for _collectd user sudo commands
 echo 'Defaults:_collectd \!syslog' >> /usr/local/etc/sudoers.d/_collectd
 echo '_collectd ALL=(ALL) NOPASSWD: /usr/local/sbin/smartctl' >> /usr/local/etc/sudoers.d/_collectd
-echo '_collectd ALL=(ALL) NOPASSWD: /usr/local/sbin/ipmi-sensors' >> /usr/local/etc/sudoers.d/_collectd
 
 # Enable Collectdmon
 echo '' >> /etc/rc.conf
@@ -900,8 +892,8 @@ patch /usr/local/etc/rc.d/collectdmon << 'EOF'
 'EOF'
 
 # Create _collectd user, assign to extra unbound group to run unbound stats,
-# and fix permissions
-pw useradd _collectd -c "Collectd daemon,,," -d "/var/db/collectd" -G unbound -s /usr/sbin/nologin
+# assign to operator group to read /dev/ipmi0, and fix permissions
+pw useradd _collectd -c "Collectd daemon,,," -d "/var/db/collectd" -G unbound,operator -s /usr/sbin/nologin
 chgrp _collectd /usr/local/etc/collectd.conf
 chown -R _collectd /var/db/collectd
 
@@ -1625,7 +1617,7 @@ sysutils/bsdstats
 security/clamav
 editors/vim-lite
 devel/checkbashisms
-sysutils/freeipmi
+sysutils/ipmitool
 sysutils/nut
 security/logcheck
 sysutils/panicmail
