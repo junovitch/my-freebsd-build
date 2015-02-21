@@ -591,7 +591,7 @@ pkg install ports-mgmt/portlint devel/rclint
 ################################################################################
 
 # Add ipmi kernel module prerequisite to boot time kernel module load list
-sysrc kld_list="`sysrc -n kld_list` ipmi"
+sysrc kld_list="`sysrc -ni kld_list` ipmi"
 
 # Load ipmi kernel module now
 kldload ipmi
@@ -1474,7 +1474,7 @@ service nfsd start
 # Installed with PAM_SMBPASS from local pkg repo
 pkg install net/samba41
 
-sysrc kld_list="`sysrc -n kld_list` aio"
+sysrc kld_list="`sysrc -ni kld_list` aio"
 kldload aio
 
 cat > /usr/local/etc/smb4.conf << 'EOF'
@@ -1780,8 +1780,8 @@ echo 'ezjail_enable="YES"' >> /etc/rc.conf
 echo '/usr/local/bin/ezjail-admin snapshot' >> /usr/local/etc/periodic/daily/900.rollingsnap
 
 # Enable HTTP and DATA Accept filters for some of the jails to use
-sysrc kld_list="`sysrc -n kld_list` accf_http"
-sysrc kld_list="`sysrc -n kld_list` accf_data"
+sysrc kld_list="`sysrc -ni kld_list` accf_http"
+sysrc kld_list="`sysrc -ni kld_list` accf_data"
 kldload accf_http
 kldload accf_data
 
