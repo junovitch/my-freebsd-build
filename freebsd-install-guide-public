@@ -1575,7 +1575,7 @@ poudriere jails -c -j 84i386 -v 8.4-RELEASE -a i386
 
 # Setup make.conf variables for build jail
 cat > /usr/local/etc/poudriere.d/101amd64-make.conf << 'EOF'
-DEFAULT_VERSIONS= php=5.4 ruby=2.0 perl5=5.20 mysql=5.5m pgsql=9.4
+DEFAULT_VERSIONS= php=5.6 ruby=2.0 perl5=5.20 mysql=5.5m pgsql=9.4
 ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 gnutls_UNSET+=TPM
 ca_root_nss_SET+=ETCSYMLINK
@@ -1640,13 +1640,13 @@ benchmarks/iperf
 net/serviio
 graphics/dcraw
 ########## PHP5 and dependencies listed by-name for Serviio ##########
-lang/php5
-ftp/php5-curl
-textproc/php5-xml
-converters/php5-mbstring
-devel/php5-json
-textproc/php5-simplexml
-textproc/php5-dom
+lang/php56
+ftp/php56-curl
+textproc/php56-xml
+converters/php56-mbstring
+devel/php56-json
+textproc/php56-simplexml
+textproc/php56-dom
 ########## Owncloud Jail##########
 www/owncloud
 ########## Puppet/Foreman/Web Applications Jails ##########
@@ -2763,9 +2763,8 @@ echo serviio_args=\'-Dserviio.advertisementDuration=\"15\"\' >> /etc/rc.conf.loc
 service serviio start
 
 ########### Option 1: PHP5 FPM listener for Nginx App Jail Frontend ############
-#cd /usr/ports/lang/php5 && make config WITH_FPM=YES
-#portmaster lang/php5 ftp/php5-curl textproc/php5-xml converters/php5-mbstring devel/php5-json textproc/php5-simplexml textproc/php5-dom
-pkg install php5 php5-curl php5-xml php5-mbstring php5-json php5-simplexml php5-dom
+#portmaster lang/php56 ftp/php56-curl textproc/php56-xml converters/php56-mbstring devel/php56-json textproc/php56-simplexml textproc/php56-dom
+pkg install php56 php56-curl php56-xml php56-mbstring php56-json php56-simplexml php56-dom
 
 sed -i '' -e 's/;listen.allowed_clients = 127.0.0.1/listen.allowed_clients = 10.100.102.11,10.100.102.12/' /usr/local/etc/php-fpm.conf
 
