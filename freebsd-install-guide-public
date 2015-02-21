@@ -143,8 +143,8 @@ ifconfig_em1_alias8="inet 10.100.102.15/32"			# lanser.pa-us.mydomain.name
 ifconfig_em1_alias9="inet6 2001:123:4:5678::15/128"		# lanser.pa-us.mydomain.name
 ifconfig_em1_alias10="inet 10.100.102.16/32"			# unused
 ifconfig_em1_alias11="inet6 2001:123:4:5678::16/128"		# unused
-ifconfig_em1_alias12="inet 10.100.102.17/32"			# pdbi.pa-us.mydomain.name
-ifconfig_em1_alias13="inet6 2001:123:4:5678::17/128"		# pdbi.pa-us.mydomain.name
+ifconfig_em1_alias12="inet 10.100.102.17/32"			# pgsql.pa-us.mydomain.name
+ifconfig_em1_alias13="inet6 2001:123:4:5678::17/128"		# pgsql.pa-us.mydomain.name
 ifconfig_em1_alias14="inet 10.100.102.18/32"			# mdbi.pa-us.mydomain.name
 ifconfig_em1_alias15="inet6 2001:123:4:5678::18/128"		# mdbi.pa-us.mydomain.name
 ifconfig_em1_alias16="inet 10.100.102.19/32"			# unused
@@ -780,7 +780,7 @@ LoadPlugin zfs_arc
 
 <Plugin postgresql>
   <Database foreman>
-    Host "pdbi.pa-us.mydomain.name"
+    Host "pgsql.pa-us.mydomain.name"
     Port "5432"
     User "collectd"
     Password "collectd_password"
@@ -791,7 +791,7 @@ LoadPlugin zfs_arc
     Query disk_usage
   </Database>
   <Database graphite>
-    Host "pdbi.pa-us.mydomain.name"
+    Host "pgsql.pa-us.mydomain.name"
     Port "5432"
     User "collectd"
     Password "collectd_password"
@@ -1249,6 +1249,12 @@ zfs set dedup=on zfs/homedirs/common_photo_albums
 zfs create zfs/local
 zfs create zfs/local/pgsql_backups
 chown 70:70 /zfs/local/pgsql_backups; chmod 700 /zfs/local/pgsql_backups
+zfs create zfs/local/pgsql
+zfs set recordsize=8k zfs/local/pgsql
+zfs set primarycache=metadata zfs/local/pgsql
+zfs set compression=lz4 zfs/local/pgsql
+zfs set atime=off zfs/local/pgsql
+chown 70:70 /zfs/local/pgsql; chmod 700 /zfs/local/pgsql
 zfs create zfs/local/jails
 zfs create zfs/local/jails/archive
 
@@ -1939,15 +1945,21 @@ echo 'options edns0' >> /zfs/jails/flavours/lan/etc/resolv.conf
 # Useful references:
 # http://daemon-notes.com/articles/network/postgresql
 
-ezjail-admin create -f lan pdbi.pa-us.mydomain.name 10.100.102.17,2001:123:4:5678::17
-mkdir -p /zfs/jails/pdbi.pa-us.mydomain.name/zfs/local/pgsql_backups
-echo '/zfs/poudriere/data/packages /zfs/jails/pdbi.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.pdbi_pa_us_mydomain_name
-echo '/zfs/local/pgsql_backups /zfs/jails/pdbi.pa-us.mydomain.name/zfs/local/pgsql_backups nullfs rw 0 0' >> /etc/fstab.pdbi_pa_us_mydomain_name
-perl -pwi -e 's/parameters=""/parameters="allow.sysvipc=1"/g' /usr/local/etc/ezjail/pdbi_pa_us_mydomain_name
-ezjail-admin console -f pdbi.pa-us.mydomain.name
+ezjail-admin create -f lan pgsql.pa-us.mydomain.name 10.100.102.17,2001:123:4:5678::17
+mkdir -p /zfs/jails/pgsql.pa-us.mydomain.name/zfs/local/pgsql_backups
+mkdir -p /zfs/jails/pgsql.pa-us.mydomain.name/zfs/local/pgsql
+echo '/zfs/poudriere/data/packages /zfs/jails/pgsql.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.pgsql_pa_us_mydomain_name
+echo '/zfs/local/pgsql_backups /zfs/jails/pgsql.pa-us.mydomain.name/zfs/local/pgsql_backups nullfs rw 0 0' >> /etc/fstab.pgsql_pa_us_mydomain_name
+echo '/zfs/local/pgsql /zfs/jails/pgsql.pa-us.mydomain.name/zfs/local/pgsql nullfs rw 0 0' >> /etc/fstab.pgsql_pa_us_mydomain_name
+perl -pwi -e 's/parameters=""/parameters="allow.sysvipc=1"/g' /usr/local/etc/ezjail/pgsql_pa_us_mydomain_name
+ezjail-admin console -f pgsql.pa-us.mydomain.name
 passwd
 
 pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
+
+# Symlink /usr/local/pgsql before installing PostgreSQL to keep database on
+# ZFS dataset with ideal options
+ln -s /zfs/local/pgsql /usr/local/pgsql
 
 # Install PostgreSQL with default options
 pkg install postgresql94-server
