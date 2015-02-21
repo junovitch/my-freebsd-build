@@ -452,8 +452,6 @@ perl -pwi -e 's^KEY_PROVINCE=.*^KEY_PROVINCE="PA"^g' vars
 perl -pwi -e 's^KEY_SIZE=.*^KEY_SIZE=2048^g' vars
 perl -pwi -e 's^KEY_CITY=.*^KEY_CITY="Someplace"^g' vars
 perl -pwi -e 's^KEY_ORG=.*^KEY_ORG="SomethingSomewhere"^g' vars
-perl -pwi -e 's^KEY_EMAIL="\b\w+.*?"^KEY_EMAIL="jason.unovitch\@gmail.com"^g' vars
-perl -pwi -e 's^KEY_EMAIL=\b\w+.*^KEY_EMAIL=jason.unovitch\@gmail.com^' vars
 perl -pwi -e 's^KEY_CN=.*^KEY_CN=SomethingSomewhere^' vars
 perl -pwi -e 's^KEY_NAME=.*^KEY_NAME=SomethingSomewhere^' vars
 perl -pwi -e 's^KEY_OU=.*^KEY_OU=SomethingSomewhere^' vars
