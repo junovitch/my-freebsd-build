@@ -2805,45 +2805,47 @@ service php-fpm start
 
 ################### Option 2: Standalone Apache/PHP Stack ######################
 # Setup Apache 2.4
-portmaster www/apache24
+pkg install www/apache24
 
-# Setup PHP5 configuration then start port build with WebUI dependencies
-cd /usr/ports/lang/php5 && make config WITH_APACHE=YES
-portmaster lang/php5 ftp/php5-curl textproc/php5-xml converters/php5-mbstring devel/php5-json textproc/php5-simplexml textproc/php5-dom
+# Setup Mod_PHP56 and required webUI deps
+pkg install www/mod_php56 lang/php56 ftp/php56-curl textproc/php56-xml converters/php56-mbstring devel/php56-json textproc/php56-simplexml textproc/php56-dom
 
 # Fetch the current WebUI. Update if a new version is available on the Serviio wiki.
 # http://wiki.serviio.org/doku.php?id=phpwebui
-cd /tmp && fetch https://github.com/SwoopX/Web-UI-for-Serviio/archive/Serviio-1.3.zip 
-unzip -d /usr/local/www/apache24/data/ Serviio-1.3.zip
+cd /tmp && fetch https://github.com/SwoopX/Web-UI-for-Serviio/archive/Serviio-1.5.zip
+unzip -d /usr/local/www Serviio-1.5.zip
 
 # Setup httpd.conf file
-cd /usr/local/etc/apache24; cp httpd.conf httpd.conf.original
+cd /usr/local/etc/apache24
 patch httpd.conf << 'EOF'
-185c185
-< ServerAdmin you@example.com
----
-> ServerAdmin jason.unovitch@gmail.com
-194c194
+219c220
 < #ServerName www.example.com:80
 ---
 > ServerName serviio.pa-us.mydomain.name:80
-218,219c218,219
+243,244c244,245
 < DocumentRoot "/usr/local/www/apache24/data"
 < <Directory "/usr/local/www/apache24/data">
 ---
-> DocumentRoot "/usr/local/www/apache24/data/Web-UI-for-Serviio-Serviio-1.3"
-> <Directory /usr/local/www/apache24/data/Web-UI-for-Serviio-Serviio-1.3>
-252c252
+> DocumentRoot "/usr/local/www/Web-UI-for-Serviio-Serviio-1.5"
+> <Directory "/usr/local/www/Web-UI-for-Serviio-Serviio-1.5">
+277c278
 <     DirectoryIndex index.html
 ---
 >     DirectoryIndex index.html index.php
-380a381,382
->     AddType application/x-httpd-php .php
->     AddType application/x-httpd-php-source .phps
+'EOF'
+
+# Create Include file to execute PHP extensions
+cat > Includes/mod_php.conf << 'EOF'
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+<FilesMatch "\.phps$">
+    SetHandler application/x-httpd-php-source
+</FilesMatch>
 'EOF'
 
 # Secure the httpd-default.conf file
-cd /usr/local/etc/apache24/extra; cp httpd-default.conf httpd-default.conf.original
+cd /usr/local/etc/apache24/extra
 patch httpd-default.conf << 'EOF'
 55c55
 < ServerTokens Full
