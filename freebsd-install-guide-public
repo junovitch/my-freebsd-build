@@ -905,6 +905,13 @@ pkg install sysutils/panicmail
 echo 'panicmail_enable="YES"' >> /etc/rc.conf
 
 ################################################################################
+# DTraceToolkit - Experimental scripts for investigating issues
+# /usr/share/dtrace already has scripts that are FreeBSD tested
+################################################################################
+
+pkg install shells/mksh sysutils/DTraceToolkit
+
+################################################################################
 # FTPD
 ################################################################################
 
@@ -1632,6 +1639,8 @@ sysutils/ezjail
 security/sudo
 net-mgmt/collectd5
 benchmarks/iperf
+shells/mksh
+sysutils/DTraceToolkit
 ########## Serviio Jail ##########
 net/serviio
 graphics/dcraw
