@@ -2167,7 +2167,7 @@ chown -R puppet:puppet /usr/local/etc/puppet/rack
 # Installing Foreman from Git
 mkdir /opt
 cd /opt
-git clone https://github.com/theforeman/foreman.git -b 1.7-stable
+git clone https://github.com/theforeman/foreman.git -b 1.8-stable
 cd foreman
 cp config/settings.yaml.example config/settings.yaml
 
@@ -2282,25 +2282,41 @@ find /opt/foreman/log -type f -exec chmod g+rw {} \;
 # All agent nodes have to be configured to submit reports to the master.
 # The master has to be configured to send reports to Foreman.
 
-# Changes to make in foreman.rb:
-# $foreman_url='https://foreman.pa-us.mydomain.name'
-# $foreman_ssl_ca = "/var/puppet/ssl/certs/ca.pem"
-# $foreman_ssl_cert = "/var/puppet/ssl/certs/apps2.pa-us.mydomain.name.pem"
-# $foreman_ssl_key = "/var/puppet/ssl/private_keys/apps2.pa-us.mydomain.name.pem"
-cd /usr/local/lib/ruby/site_ruby/2.0/puppet/reports
-fetch https://raw.github.com/theforeman/puppet-foreman/master/templates/foreman-report_v2.rb.erb
-mv foreman-report_v2.rb.erb foreman.rb
-vim foreman.rb
+# Grab Foreman report Ruby script
+cd /usr/local/lib/ruby/site_ruby/2.1/puppet/reports
+fetch -o foreman.rb https://raw.github.com/theforeman/puppet-foreman/master/files/foreman-report_v2.rb
+sed -i '' -e 's^settings_file = "/etc/puppet/foreman.yaml"^settings_file = "/usr/local/etc/puppet/foreman.apps2.yaml"^' foreman.rb
 
 # Changes to make in foreman_enc.rb
-# Change shebang to /usr/local/bin/ruby
-# Update SSL keys same as report file
+# Grab Foreman ENC Ruby script
 cd /usr/local/etc/puppet
-fetch https://raw.github.com/theforeman/puppet-foreman/master/templates/external_node_v2.rb.erb
-cp external_node_v2.rb.erb foreman_enc.rb.apps1.pa-us.mydomain.name.rb
-mv external_node_v2.rb.erb foreman_enc.rb.apps2.pa-us.mydomain.name.rb
-vim foreman_enc.rb.apps1.pa-us.mydomain.name.rb
-vim foreman_enc.rb.apps2.pa-us.mydomain.name.rb
+fetch https://raw.github.com/theforeman/puppet-foreman/master/files/external_node_v2.rb
+cp external_node_v2.rb foreman_enc.apps1.pa-us.mydomain.name.rb
+mv external_node_v2.rb foreman_enc.apps2.pa-us.mydomain.name.rb
+sed -i '' -e 's^settings_file = "/etc/puppet/foreman.yaml"^settings_file = "/usr/local/etc/puppet/foreman.apps1.yaml"^' foreman_enc.apps1.pa-us.mydomain.name.rb
+sed -i '' -e 's^settings_file = "/etc/puppet/foreman.yaml"^settings_file = "/usr/local/etc/puppet/foreman.apps2.yaml"^' foreman_enc.apps2.pa-us.mydomain.name.rb
+sed -i '' -e 's^#\!/usr/bin/env ruby^#\!/usr/local/bin/ruby^' foreman_enc.apps1.pa-us.mydomain.name.rb
+sed -i '' -e 's^#\!/usr/bin/env ruby^#\!/usr/local/bin/ruby^' foreman_enc.apps2.pa-us.mydomain.name.rb
+chmod +x foreman_enc.apps1.pa-us.mydomain.name.rb
+chmod +x foreman_enc.apps2.pa-us.mydomain.name.rb
+
+# Create the Foreman config file for both to use
+cat > /usr/local/etc/puppet/foreman.apps2.yaml << 'EOF'
+---
+:url: "https://foreman.pa-us.mydomain.name"
+:ssl_ca: "/var/puppet/ssl/certs/ca.pem"
+:ssl_cert: "/var/puppet/ssl/certs/apps2.pa-us.mydomain.name.pem"
+:ssl_key: "/var/puppet/ssl/private_keys/apps2.pa-us.mydomain.name.pem"
+:user: "foreman"
+#:password: "<%= @foreman_password %>"
+:puppetdir: "/var/puppet"
+:puppetuser: "puppet"
+:facts: true
+:timeout: 10
+:threads: null
+'EOF'
+cd /usr/local/etc/puppet
+sed -e 's/apps2/apps1/g' foreman.apps2.yaml > foreman.apps1.yaml
 
 # Example:
 #   puppet.conf (on each agent)
@@ -2338,7 +2354,7 @@ events {
 http {
     include                  /usr/local/etc/nginx/sites-enabled/*;
 
-    passenger_root           /usr/local/lib/ruby/gems/2.0/gems/passenger-4.0.53;
+    passenger_root           /usr/local/lib/ruby/gems/2.1/gems/passenger-4.0.59;
     passenger_ruby           /usr/local/bin/ruby;
     passenger_max_pool_size  10;
     passenger_pool_idle_time 300;
@@ -2493,7 +2509,8 @@ cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/kickstart kick
 mkdir /var/log/nginx
 
 # Enable a daily log file rotation via newsyslog.conf
-printf "/var/log/nginx/*.log\t\t\t644  7\t   *    @T00  JG    /var/run/nginx.pid  30\n" >> /etc/newsyslog.conf
+mkdir -p /usr/local/etc/newsyslog.conf.d
+printf "/var/log/nginx/*.log\t\t\t644  7\t   *    @T00  JG    /var/run/nginx.pid  30\n" >> /usr/local/etc/newsyslog.conf.d/nginx.conf
 
 # If the puppetmaster service is still running from earlier testing, stop it now
 # Mark appropriate optiosn for hostname specific 
@@ -2566,12 +2583,11 @@ rm /usr/local/etc/nginx/sites-enabled/foreman
 service nginx reload
 cd /opt/foreman
 git pull
-git checkout 1.7-stable
+git checkout 1.8-stable
 bundle update
 # If bundle update fails, attempt removal and reinstall of all gems
-#   cd /opt/foreman/vendor
-#   rm -r bundle
-#   cd ..
+#   cd /opt/foreman
+#   rm -r vendor/bundle
 #   rm Gemfile.lock
 #   cd /usr/local/bin && ln g++47 g++ && cd -
 #   bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
