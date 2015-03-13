@@ -171,6 +171,15 @@ sed -i '' -e 's/ada0p3/ada0p3.eli/' /etc/fstab
 swapon /dev/ada0p3.eli
 
 ################################################################################
+#  Randomness
+################################################################################
+
+echo '' >> /etc/sysctl.conf
+echo '# Randomness' >> /etc/sysctl.conf
+echo 'net.inet.ip.random_id="1"' >> /etc/sysctl.conf
+echo 'kern.randompid="100"' >> /etc/sysctl.conf
+
+################################################################################
 # Without the changes to using multiple routing fibs, the following would be
 # enough. However, a reboot will be required at this point.
 #
