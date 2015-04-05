@@ -74,7 +74,7 @@ Index: etc/rc.d/pflog
 +	pidfile="/var/run/pflogd.$2.pid"
 +
 +	# Override service name and execute command
-+	export name=$pflog_dev
++	name=$pflog_dev
 +	run_rc_command "$1"
 +# Check if spawning multiple pflogd and not told what to spawn
 +elif [ "$pflog_instances" ] && [ -n "$pflog_instances" ]; then
