@@ -1,0 +1,140 @@
+Index: Makefile
+===================================================================
+--- Makefile	(revision 377896)
++++ Makefile	(working copy)
+@@ -2,8 +2,8 @@
+ # $FreeBSD$
+ 
+ PORTNAME=	serviio
+-PORTVERSION=	1.4.1.2
+-PORTREVISION=	2
++PORTVERSION=	1.5
++#PORTREVISION=	0
+ CATEGORIES=	net multimedia java www
+ MASTER_SITES=	http://download.serviio.org/releases/
+ EXTRACT_SUFX=	-linux.tar.gz
+@@ -15,6 +15,7 @@
+ 
+ NO_BUILD=	yes
+ USE_JAVA=	yes
++JAVA_VERSION=	1.8
+ USES=		dos2unix
+ DOS2UNIX_GLOB=	derby.properties
+ 
+@@ -36,10 +37,10 @@
+ 	${MKDIR} ${STAGEDIR}${PREFIX}/etc/${PORTNAME}
+ .for f in application-profiles profiles log4j
+ 	${INSTALL_DATA} ${WRKSRC}/config/$f.xml \
+-		${STAGEDIR}${ETCDIR}/$f.dist.xml
++		${STAGEDIR}${ETCDIR}/$f.xml.sample
+ .endfor
+ 	${INSTALL_DATA} ${FILESDIR}/console-log4j.properties	\
+-		${STAGEDIR}${ETCDIR}/console-log4j.dist.properties
++		${STAGEDIR}${ETCDIR}/console-log4j.properties.sample
+ 	${INSTALL_SCRIPT} ${WRKDIR}/serviiod ${STAGEDIR}${PREFIX}/sbin
+ 	${INSTALL_SCRIPT} ${WRKDIR}/serviio-console ${STAGEDIR}${PREFIX}/bin
+ 
+Index: distinfo
+===================================================================
+--- distinfo	(revision 377896)
++++ distinfo	(working copy)
+@@ -1,2 +1,2 @@
+-SHA256 (serviio-1.4.1.2-linux.tar.gz) = 76f208716e2c1c8d7ed52eb2f57bd190ee622acd9529e225a59424bd1b12a0a2
+-SIZE (serviio-1.4.1.2-linux.tar.gz) = 20701487
++SHA256 (serviio-1.5-linux.tar.gz) = e933de2f5f9da95cc3cdc3afba9d5b623fd5fd4189c5f7f247d4718e14166c3c
++SIZE (serviio-1.5-linux.tar.gz) = 22055839
+Index: files/serviio-console.in
+===================================================================
+--- files/serviio-console.in	(revision 377896)
++++ files/serviio-console.in	(working copy)
+@@ -13,10 +13,10 @@
+ for j in $SERVIIO_CONSOLE_HOME/*.jar; do
+ 	SERVIIO_CONSOLE_CLASS_PATH="$SERVIIO_CONSOLE_CLASS_PATH:$j"
+ done
+-#SERVIIO_CONSOLE_CLASS_PATH="$SERVIIO_CONSOLE_HOME/serviio-client.jar:$SERVIIO_CONSOLE_HOME/serviio.jar:$SERVIIO_CONSOLE_HOME/log4j.jar:$SERVIIO_CONSOLE_HOME/slf4j-api.jar:$SERVIIO_CONSOLE_HOME/slf4j-log4j12.jar:$SERVIIO_CONSOLE_HOME/jul-to-slf4j.jar:$SERVIIO_CONSOLE_HOME/org.restlet.jar:$SERVIIO_CONSOLE_HOME/org.restlet.ext.xstream.jar:$SERVIIO_CONSOLE_HOME/xstream.jar"
+ 
+ # Setup Serviio specific properties
+-JAVA_OPTS="-Dserviio.home=$SERVIIO_CONSOLE_HOME -Djava.net.preferIPv4Stack=true -Dffmpeg.location=%%LOCALBASE%%/bin/ffmpeg -Dlog4j.configuration=file:%%ETCDIR%%/console-log4j.properties"
++JAVA_OPTS="-Dserviio.home=$SERVIIO_CONSOLE_HOME -Djava.net.preferIPv4Stack=true -Dorg.restlet.engine.loggerFacadeClass=org.restlet.ext.slf4j.Slf4jLoggerFacade"
++JAVA_OPTS="${JAVA_OPTS} -Dlog4j.configuration=file:%%ETCDIR%%/console-log4j.properties"
+ 
+ # A kludge to get the -D... flags to Java, rather than to Serviio itself:
+ for o in "$@"
+@@ -29,4 +29,4 @@
+ done
+ 
+ # Execute the JVM in the foreground
+-exec java -Xms5M -XX:+UseParNewGC -XX:MinHeapFreeRatio=5 -XX:MaxHeapFreeRatio=10 $JAVA_OPTS -classpath "$SERVIIO_CONSOLE_CLASS_PATH" org.serviio.console.ServiioConsole "$@"
++exec java -Xms5M -XX:+UseG1GC -XX:GCTimeRatio=1 -XX:MinHeapFreeRatio=5 -XX:MaxHeapFreeRatio=10 $JAVA_OPTS -classpath "$SERVIIO_CONSOLE_CLASS_PATH" org.serviio.console.ServiioConsole "$@"
+Index: files/serviiod.in
+===================================================================
+--- files/serviiod.in	(revision 377896)
++++ files/serviiod.in	(working copy)
+@@ -17,10 +17,9 @@
+ SERVIIO_CLASS_PATH="$SERVIIO_CLASS_PATH:%%ETCDIR%%"
+ 
+ # Setup Serviio specific properties
+-JAVA_OPTS="-Djava.net.preferIPv4Stack=true -Djava.awt.headless=true -Dderby.system.home=/var/db/serviio -Dserviio.home=$HOME -Dffmpeg.location=%%LOCALBASE%%/bin/ffmpeg"
++JAVA_OPTS="-Djava.net.preferIPv4Stack=true -Djava.awt.headless=true -Dorg.restlet.engine.loggerFacadeClass=org.restlet.ext.slf4j.Slf4jLoggerFacade -Dderby.system.home=/var/db/serviio -Dserviio.home=$HOME -Dffmpeg.location=%%LOCALBASE%%/bin/ffmpeg -Ddcraw.location=%%LOCALBASE%%/bin/dcraw"
+ JAVA_OPTS="${JAVA_OPTS} -Djcs.auxiliary.DC.attributes.DiskPath=/var/db/serviio"
+ 
+-
+ # A kludge to get the -D... flags to Java, rather than to Serviio itself:
+ for o in "$@"
+ do
+@@ -33,4 +32,4 @@
+ 
+ # Execute the JVM in the foreground
+ export HOME PATH
+-exec java -Xmx512M -Xms20M -XX:+UseParNewGC -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 $JAVA_OPTS -classpath "$SERVIIO_CLASS_PATH" org.serviio.MediaServer "$@" 2>&1 >/dev/null
++exec java -Xmx512M -Xms20M -XX:+UseG1GC -XX:GCTimeRatio=1 -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=20 $JAVA_OPTS -classpath "$SERVIIO_CLASS_PATH" org.serviio.MediaServer "$@" 2>&1 >/dev/null
+Index: pkg-plist
+===================================================================
+--- pkg-plist	(revision 377896)
++++ pkg-plist	(working copy)
+@@ -17,10 +17,12 @@
+ %%JAVAJARDIR%%/serviio/jdom.jar
+ %%JAVAJARDIR%%/serviio/jnat-pmplib.jar
+ %%JAVAJARDIR%%/serviio/jul-to-slf4j.jar
++%%JAVAJARDIR%%/serviio/log4j.jar
+ %%JAVAJARDIR%%/serviio/lucene-analyzers-common.jar
+ %%JAVAJARDIR%%/serviio/lucene-core.jar
+-%%JAVAJARDIR%%/serviio/log4j.jar
+ %%JAVAJARDIR%%/serviio/org.restlet.ext.gson.jar
++%%JAVAJARDIR%%/serviio/org.restlet.ext.simple.jar
++%%JAVAJARDIR%%/serviio/org.restlet.ext.slf4j.jar
+ %%JAVAJARDIR%%/serviio/org.restlet.ext.xstream.jar
+ %%JAVAJARDIR%%/serviio/org.restlet.jar
+ %%JAVAJARDIR%%/serviio/padlock.jar
+@@ -28,24 +30,17 @@
+ %%JAVAJARDIR%%/serviio/rome.jar
+ %%JAVAJARDIR%%/serviio/sbbi-upnp.jar
+ %%JAVAJARDIR%%/serviio/serviio-client.jar
+-%%JAVAJARDIR%%/serviio/serviio-media-browser.jar
+-%%JAVAJARDIR%%/serviio/serviio-media-browser-web.jar
++%%JAVAJARDIR%%/serviio/serviio-mediabrowser-api.jar
++%%JAVAJARDIR%%/serviio/serviio-mediabrowser-web.jar
+ %%JAVAJARDIR%%/serviio/serviio.jar
++%%JAVAJARDIR%%/serviio/simple.jar
+ %%JAVAJARDIR%%/serviio/slf4j-api.jar
+ %%JAVAJARDIR%%/serviio/slf4j-log4j12.jar
+ %%JAVAJARDIR%%/serviio/streamflyer-core.jar
+ %%JAVAJARDIR%%/serviio/winp.jar
+ %%JAVAJARDIR%%/serviio/xstream.jar
+-@unexec cmp %D/%%ETCDIR%%/application-profiles.xml %D/%%ETCDIR%%/application-profiles.dist.xml && rm -f %D/%%ETCDIR%%/application-profiles.xml || echo Modified application-profiles.xml remains in %D/%%ETCDIR%%
+-@unexec cmp %D/%%ETCDIR%%/profiles.xml %D/%%ETCDIR%%/profiles.dist.xml && rm -f %D/%%ETCDIR%%/profiles.xml || echo Modified profiles.xml remains in %D/%%ETCDIR%%
+-@unexec cmp %D/%%ETCDIR%%/log4j.xml %D/%%ETCDIR%%/log4j.dist.xml && rm -f %D/%%ETCDIR%%/log4j.xml || echo Modified log4j.xml remains in %D/%%ETCDIR%%
+-@unexec cmp %D/%%ETCDIR%%/console-log4j.properties %D/%%ETCDIR%%/console-log4j.dist.properties && rm -f %D/%%ETCDIR%%/console-log4j.properties || echo Modified console-log4j.properties remains in %D/%%ETCDIR%%
+-%%ETCDIR%%/profiles.dist.xml
+-%%ETCDIR%%/log4j.dist.xml
+-%%ETCDIR%%/application-profiles.dist.xml
+-%%ETCDIR%%/console-log4j.dist.properties
+-@exec [ -f %D/%%ETCDIR%%/application-profiles.xml ] || cp -v %D/%%ETCDIR%%/application-profiles.dist.xml %D/%%ETCDIR%%/application-profiles.xml
+-@exec [ -f %D/%%ETCDIR%%/profiles.xml ] || cp -v %D/%%ETCDIR%%/profiles.dist.xml %D/%%ETCDIR%%/profiles.xml
+-@exec [ -f %D/%%ETCDIR%%/log4j.xml ] || cp -v %D/%%ETCDIR%%/log4j.dist.xml %D/%%ETCDIR%%/log4j.xml
+-@exec [ -f %D/%%ETCDIR%%/console-log4j.properties ] || cp -v %D/%%ETCDIR%%/console-log4j.dist.properties %D/%%ETCDIR%%/console-log4j.properties
++@sample %%ETCDIR%%/profiles.xml.sample
++@sample %%ETCDIR%%/log4j.xml.sample
++@sample %%ETCDIR%%/application-profiles.xml.sample
++@sample %%ETCDIR%%/console-log4j.properties.sample
+ @dir %%JAVAJARDIR%%/serviio/plugins
