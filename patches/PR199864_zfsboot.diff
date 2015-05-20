@@ -1,0 +1,12 @@
+Index: usr.sbin/bsdinstall/scripts/zfsboot
+===================================================================
+--- usr.sbin/bsdinstall/scripts/zfsboot	(revision 282336)
++++ usr.sbin/bsdinstall/scripts/zfsboot	(working copy)
+@@ -157,6 +157,7 @@
+ 
+ 	# Create /var and friends
+ 	/var		mountpoint=/var,canmount=off
++	/var/audit
+ 	/var/crash	exec=off,setuid=off
+ 	/var/log	exec=off,setuid=off
+ 	/var/mail	atime=on
