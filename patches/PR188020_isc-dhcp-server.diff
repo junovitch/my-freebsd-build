@@ -1,0 +1,42 @@
+Index: isc-dhcp41-server/Makefile
+===================================================================
+--- isc-dhcp41-server/Makefile	(revision 349587)
++++ isc-dhcp41-server/Makefile	(working copy)
+@@ -119,6 +119,9 @@
+ 
+ .if ${PORT_OPTIONS:MPARANOIA}
+ CONFIGURE_ARGS+=	--enable-paranoia --enable-early-chroot
++SUB_LIST+=	PARANOIA=yes
++.else
++SUB_LIST+=	PARANOIA=no
+ .endif
+ 
+ .if ${PORT_OPTIONS:MIPV6}
+Index: isc-dhcp42-server/Makefile
+===================================================================
+--- isc-dhcp42-server/Makefile	(revision 349587)
++++ isc-dhcp42-server/Makefile	(working copy)
+@@ -91,6 +91,9 @@
+ 
+ .if ${PORT_OPTIONS:MPARANOIA}
+ CONFIGURE_ARGS+=--enable-paranoia --enable-early-chroot
++SUB_LIST+=	PARANOIA=yes
++.else
++SUB_LIST+=	PARANOIA=no
+ .endif
+ 
+ .if ${PORT_OPTIONS:MLDAP}
+Index: isc-dhcp43-server/Makefile
+===================================================================
+--- isc-dhcp43-server/Makefile	(revision 349587)
++++ isc-dhcp43-server/Makefile	(working copy)
+@@ -91,6 +91,9 @@
+ 
+ .if ${PORT_OPTIONS:MPARANOIA}
+ CONFIGURE_ARGS+=--enable-paranoia --enable-early-chroot
++SUB_LIST+=	PARANOIA=yes
++.else
++SUB_LIST+=	PARANOIA=no
+ .endif
+ 
+ .if ${PORT_OPTIONS:MLDAP}
