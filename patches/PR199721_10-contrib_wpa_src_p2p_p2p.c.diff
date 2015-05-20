@@ -1,0 +1,12 @@
+Index: contrib/wpa/src/p2p/p2p.c
+===================================================================
+--- contrib/wpa/src/p2p/p2p.c	(revision 281987)
++++ contrib/wpa/src/p2p/p2p.c	(working copy)
+@@ -661,6 +661,7 @@
+ 	if (os_memcmp(addr, p2p_dev_addr, ETH_ALEN) != 0)
+ 		os_memcpy(dev->interface_addr, addr, ETH_ALEN);
+ 	if (msg.ssid &&
++	    msg.ssid[1] <= sizeof(dev->oper_ssid) &&
+ 	    (msg.ssid[1] != P2P_WILDCARD_SSID_LEN ||
+ 	     os_memcmp(msg.ssid + 2, P2P_WILDCARD_SSID, P2P_WILDCARD_SSID_LEN)
+ 	     != 0)) {
