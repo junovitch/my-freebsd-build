@@ -1,0 +1,53 @@
+Index: Makefile
+===================================================================
+--- Makefile	(revision 378189)
++++ Makefile	(working copy)
+@@ -3,6 +3,7 @@
+ 
+ PORTNAME=	fluxbox
+ PORTVERSION=	1.3.6
++PORTREVISION=	1  	
+ CATEGORIES=	x11-wm
+ MASTER_SITES=	SF
+ DISTFILES=	${PORTNAME}-${PORTVERSION}${EXTRACT_SUFX}
+Index: files/patch-src_FbTk_TextButton.cc
+===================================================================
+--- files/patch-src_FbTk_TextButton.cc	(revision 0)
++++ files/patch-src_FbTk_TextButton.cc	(working copy)
+@@ -0,0 +1,21 @@
++--- src/FbTk/TextButton.cc.orig	2013-06-17 11:38:14 UTC
+++++ src/FbTk/TextButton.cc
++@@ -143,11 +143,17 @@ void TextButton::drawText(int x_offset, 
++     unsigned int textlen = visual.size();
++     unsigned int button_width = width();
++     unsigned int button_height = height();
+++    const int max_width = static_cast<int>(button_width) - x_offset -
+++        m_left_padding - m_right_padding;
+++
+++    if (max_width <= bevel()) {
+++        return;
+++    }
++ 
++     translateSize(m_orientation, button_width, button_height);
++ 
++     // horizontal alignment, cut off text if needed
++-    int align_x = FbTk::doAlignment(button_width - x_offset - m_left_padding - m_right_padding,
+++    int align_x = FbTk::doAlignment(max_width,
++                                     bevel(), justify(), font(),
++                                     visual.data(), visual.size(),
++                                     textlen); // return new text len
+
+Property changes on: files/patch-src_FbTk_TextButton.cc
+___________________________________________________________________
+Added: svn:mime-type
+## -0,0 +1 ##
++text/plain
+\ No newline at end of property
+Added: fbsd:nokeywords
+## -0,0 +1 ##
++yes
+\ No newline at end of property
+Added: svn:eol-style
+## -0,0 +1 ##
++native
+\ No newline at end of property
