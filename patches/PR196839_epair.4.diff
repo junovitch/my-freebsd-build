@@ -1,0 +1,16 @@
+Index: share/man/man4/epair.4
+===================================================================
+--- share/man/man4/epair.4	(revision 276952)
++++ share/man/man4/epair.4	(working copy)
+@@ -89,9 +89,9 @@
+ To change the default addresses one may use the SIOCSIFADDR ioctl(2) or
+ ifconfig(8) utility.
+ .Pp
+-The basic intend is to provide connectivity between two virtual
++The basic intent is to provide connectivity between two virtual
+ network stack instances.
+-When connected to a
++When connected to an
+ .Xr if_bridge 4
+ one end of the interface pair can also be part of another (virtual) LAN.
+ As with any other Ethernet interface one can configure
