@@ -1,0 +1,235 @@
+Index: Makefile
+===================================================================
+--- Makefile	(revision 378756)
++++ Makefile	(working copy)
+@@ -2,8 +2,7 @@
+ # $FreeBSD$
+ 
+ PORTNAME=	fluxbox
+-PORTVERSION=	1.3.6
+-PORTREVISION=	1
++PORTVERSION=	1.3.7
+ CATEGORIES=	x11-wm
+ MASTER_SITES=	SF
+ DISTFILES=	${PORTNAME}-${PORTVERSION}${EXTRACT_SUFX}
+Index: distinfo
+===================================================================
+--- distinfo	(revision 378756)
++++ distinfo	(working copy)
+@@ -1,5 +1,5 @@
+-SHA256 (fluxbox-1.3.6.tar.gz) = cb54eb62d3dba2f282a50fbdd077d26a2c9f555c12b5bf664b1192ece7669527
+-SIZE (fluxbox-1.3.6.tar.gz) = 1312141
++SHA256 (fluxbox-1.3.7.tar.gz) = c99e2baa06fff1e96342b20415059d12ff1fa2917ade0173c75b2fa570295b9f
++SIZE (fluxbox-1.3.7.tar.gz) = 1267833
+ SHA256 (fb-doc-mfhtml-20060629.tgz) = 98d37b73dbb1caf1361b098bffc69d1f365f9b324a71f622ba72ed5da5d9b9ec
+ SIZE (fb-doc-mfhtml-20060629.tgz) = 115560
+ SHA256 (fluxbook-20060629.pdf) = 8f225b101e9ab81543182c83699aeef3fe86370d72da215831321c903eee9cde
+Index: files/patch-src__FbTk__TextButton.cc
+===================================================================
+--- files/patch-src__FbTk__TextButton.cc	(revision 378756)
++++ files/patch-src__FbTk__TextButton.cc	(working copy)
+@@ -1,21 +0,0 @@
+---- src/FbTk/TextButton.cc	2015-01-28 11:12:27.000000000 +0200
+-+++ src/FbTk/TextButton.cc	2015-01-28 11:14:03.000000000 +0200
+-@@ -143,11 +143,17 @@
+-     unsigned int textlen = visual.size();
+-     unsigned int button_width = width();
+-     unsigned int button_height = height();
+-+    const int max_width = static_cast<int>(button_width) - x_offset -
+-+        m_left_padding - m_right_padding;
+-+
+-+    if (max_width <= bevel()) {
+-+        return;
+-+    }
+- 
+-     translateSize(m_orientation, button_width, button_height);
+- 
+-     // horizontal alignment, cut off text if needed
+--    int align_x = FbTk::doAlignment(button_width - x_offset - m_left_padding - m_right_padding,
+-+    int align_x = FbTk::doAlignment(max_width,
+-                                     bevel(), justify(), font(),
+-                                     visual.data(), visual.size(),
+-                                     textlen); // return new text len
+Index: files/patch-src__fluxbox.cc
+===================================================================
+--- files/patch-src__fluxbox.cc	(revision 378756)
++++ files/patch-src__fluxbox.cc	(working copy)
+@@ -1,6 +1,6 @@
+---- ./src/fluxbox.cc.orig	2013-02-13 10:04:05.899812000 +0000
+-+++ ./src/fluxbox.cc	2013-09-20 15:41:23.584087389 +0000
+-@@ -1355,7 +1355,7 @@
++--- src/fluxbox.cc.orig	2015-02-08 10:44:45 UTC
+++++ src/fluxbox.cc
++@@ -1316,7 +1316,7 @@ void Fluxbox::revertFocus() {
+          FocusControl::setFocusedWindow(0);
+  }
+  
+Index: files/patch-src__fluxbox.hh
+===================================================================
+--- files/patch-src__fluxbox.hh	(revision 378756)
++++ files/patch-src__fluxbox.hh	(working copy)
+@@ -1,11 +1,11 @@
+---- ./src/fluxbox.hh.orig	2013-02-13 10:04:05.899812000 +0000
+-+++ ./src/fluxbox.hh	2013-09-20 15:41:23.585087645 +0000
+-@@ -88,7 +88,7 @@
+-     /// main event loop
+-     void eventLoop();
++--- src/fluxbox.hh.orig	2015-02-08 10:44:45 UTC
+++++ src/fluxbox.hh
++@@ -103,7 +103,7 @@ public:
++     WinClient *searchWindow(Window);
++     BScreen *searchScreen(Window w);
+      bool validateWindow(Window win) const;
+ -    bool validateClient(const WinClient *client) const;
+ +    bool validateClient(WinClient *client) const;
+  
+-     void grab();
+-     void ungrab();
++     // Not currently implemented until we decide how it'll be used
++     //WinClient *searchGroup(Window);
+Index: files/patch-util__fluxbox-generate_menu.in
+===================================================================
+--- files/patch-util__fluxbox-generate_menu.in	(revision 378756)
++++ files/patch-util__fluxbox-generate_menu.in	(working copy)
+@@ -1,6 +1,6 @@
+---- util/fluxbox-generate_menu.in.orig	2012-12-10 18:26:53.000000000 +0100
+-+++ util/fluxbox-generate_menu.in	2013-01-02 14:22:14.000000000 +0100
+-@@ -68,7 +68,7 @@
++--- util/fluxbox-generate_menu.in.orig	2015-02-08 10:44:45 UTC
+++++ util/fluxbox-generate_menu.in
++@@ -68,7 +68,7 @@ Options:
+      -d  Other path(s) to recursively search for *.desktop files
+      -ds Wider search for *.desktop files (takes more time)
+      -i  Other path(s) to search for icons
+@@ -9,7 +9,7 @@
+      -is Wider search for icons (worth the extra time)
+      -in Skip icon search
+  
+-@@ -85,7 +85,7 @@
++@@ -85,7 +85,7 @@ Options:
+    Only for packagers:
+  
+      -p  Prefix; default is @PREFIX@
+@@ -18,7 +18,7 @@
+      -q  KDE-prefix; idem dito
+  
+  
+-@@ -145,13 +145,42 @@
++@@ -145,13 +145,42 @@ testoption() {
+      esac
+  }
+  
+@@ -67,7 +67,7 @@
+  
+  #echo "replaceWithinString: $1, $2, $3" >&2
+  #echo ${1//$2/$3} # causes error in BSD even though not used
+-@@ -203,7 +232,7 @@
++@@ -203,7 +232,7 @@ convertIcon(){
+      if [ -f "${entry_icon}" ]; then
+          : echo "File exists. To overwrite, type: convert \"$1\" \"$entry_icon\"" >&2
+      else
+@@ -76,7 +76,7 @@
+              convert "$1" "$entry_icon"
+              # echo convert "$1" , "$entry_icon" >> $ICONMAPPING
+          else
+-@@ -275,7 +304,7 @@
++@@ -275,7 +304,7 @@ doSearch(){
+      # echo -n "for $temp_icon"
+      eval doSearchLoop $USER_ICONPATHS \
+        "$FB_ICONDIR" \
+@@ -85,7 +85,7 @@
+        ${OTHER_ICONPATHS} \
+  
+  
+-@@ -558,7 +587,7 @@
++@@ -558,7 +587,7 @@ rm -f ${MENUFILENAME}.tmp
+  
+  
+  WHOAMI=`whoami`
+@@ -94,7 +94,7 @@
+  
+  # Check for Imlib2-support
+  if @pkgprefix@fluxbox@pkgsuffix@@EXEEXT@ -info 2> /dev/null | grep -q "^IMLIB"; then
+-@@ -1271,16 +1300,16 @@
++@@ -1271,16 +1300,16 @@ if [ ! "${INSTALL}" = Yes ]; then
+  # These are prefixes; So if fluxbox is installed in @PREFIX@/bin/fluxbox
+  # your prefix is: @PREFIX@
+  
+@@ -115,7 +115,7 @@
+  
+  
+  # --- Boolean variables.
+-@@ -1327,29 +1356,21 @@
++@@ -1327,29 +1356,21 @@ while [ $# -gt 0 ]; do
+          -g) GNOMEMENU=yes; shift;;
+          -in) NO_ICON=yes; shift;;
+          -is) OTHER_ICONPATHS="
+@@ -157,7 +157,7 @@
+              "
+              # /usr/share/apps \
+              shift;;
+-@@ -1420,13 +1441,12 @@
++@@ -1420,13 +1441,12 @@ fi
+  # prefix
+  PREFIX="${PREFIX:=@PREFIX@}"
+  if [  -z "${PREFIX}" -o ! -d "${PREFIX}" ]; then
+@@ -173,7 +173,7 @@
+      if [ -n "${GNOME_PREFIX}" -a -d "$GNOME_PREFIX/share/gnome" ]; then
+          break;
+      fi
+-@@ -1434,7 +1454,7 @@
++@@ -1434,7 +1454,7 @@ done
+  # Will remain $PREFIX if all else fails
+  
+  # kde prefix
+@@ -182,38 +182,28 @@
+      if [ -n "${KDE_PREFIX}" -a -d "$KDE_PREFIX/share/applnk" ]; then
+          break;
+      fi
+-@@ -1522,7 +1542,7 @@
++@@ -1522,7 +1542,7 @@ if find_it_options $MY_BROWSER; then
+  else
+      [ -n "$MY_BROWSER" ] && echo "Warning: you chose an invalid browser." >&2
+      #The precise order is up for debate.
+--    for browser in firefox mozilla-firefox mozilla-firebird MozillaFirebird opera skipstone mozilla seamonkey galeon konqueror dillo netscape w3m amaya links lynx; do
+-+    for browser in chrome firefox mozilla-firefox mozilla-firebird MozillaFirebird linux-opera opera skipstone mozilla seamonkey galeon konqueror dillo netscape w3m amaya links lynx; do
++-    for browser in firefox mozilla-firefox chrome chromium google-chrome mozilla-firebird MozillaFirebird opera skipstone mozilla seamonkey galeon konqueror dillo netscape w3m amaya links lynx; do
+++    for browser in firefox mozilla-firefox chrome chromium google-chrome mozilla-firebird MozillaFirebird linux-opera opera skipstone mozilla seamonkey galeon konqueror dillo netscape w3m amaya links lynx; do
+          if find_it_options $browser; then
+              DEFAULT_BROWSER=$browser
+              break
+-@@ -1581,9 +1601,10 @@
+- 
+- case "$DEFAULT_BROWSERNAME" in
+-     links|w3m|lynx)  append "[exec] (${DEFAULT_BROWSERNAME}) {${DEFAULT_TERM} -e ${DEFAULT_BROWSER} ${HOMEPAGE}}" ;;
+--    firefox|firebird|mozilla|seamonkey|phoenix|galeon|dillo|netscape|amaya) append "[exec] (${DEFAULT_BROWSERNAME}) {${DEFAULT_BROWSER}}" ;;
+-+    chrome|firefox|firebird|mozilla|seamonkey|phoenix|galeon|dillo|netscape|amaya) append "[exec] (${DEFAULT_BROWSERNAME}) {${DEFAULT_BROWSER}}" ;;
++@@ -1589,6 +1609,7 @@ case "$DEFAULT_BROWSERNAME" in
++     chrome|chromium) append "[exec] (${DEFAULT_BROWSERNAME}) {${DEFAULT_BROWSER}}" ;;
++     google-chrome) append "[exec] (${DEFAULT_BROWSERNAME}) {${DEFAULT_BROWSER}}" ;;
+      konqueror) append "[exec] (konqueror) {kfmclient openProfile webbrowsing}" ;;
+--    opera) append "[exec] (opera) {env QT_XFT=true opera}" ;;
+-+    linux-opera) append "[exec] (linux-opera) {linux-opera}" ;;
+-+    opera) append "[exec] (opera) {opera}" ;;
+++    linux-opera) append "[exec] (linux-opera) {env QT_XFT=true linux-opera}" ;;
++     opera) append "[exec] (opera) {env QT_XFT=true opera}" ;;
+      MozillaFirebird) append "[exec] (firebird) {MozillaFirebird}" ;;
+      MozillaFirefox) append "[exec] (firefox) {MozillaFirefox}" ;;
+-     *) append "[exec] ($DEFAULT_BROWSERNAME) {$DEFAULT_BROWSER}" ;;
+-@@ -1600,9 +1621,10 @@
+- 
+- append_submenu "${NETMENU}"
++@@ -1608,6 +1629,7 @@ append_submenu "${NETMENU}"
+      append_submenu "${BROWSERMENU}"
+--        normal_find firefox mozilla-firefox MozillaFirefox galeon mozilla seamonkey dillo netscape vncviewer
+-+        normal_find chrome firefox mozilla-firefox MozillaFirefox galeon mozilla seamonkey dillo netscape vncviewer
++         normal_find chrome chromium firefox google-chrome mozilla-firefox MozillaFirefox galeon mozilla seamonkey dillo netscape vncviewer
+          find_it links       append "[exec]   (links-graphic) {links -driver x ${HOMEPAGE}}"
+--        find_it opera       append "[exec]   (opera) {env QT_XFT=true opera}"
+-+        find_it linux-opera append "[exec]   (linux-opera) {linux-opera}"
+-+        find_it opera       append "[exec]   (opera) {opera}"
+++        find_it linux-opera append "[exec]   (linux-opera) {env QT_XFT=true opera}"
++         find_it opera       append "[exec]   (opera) {env QT_XFT=true opera}"
+          find_it konqueror   append "[exec]   (konqueror) {kfmclient openProfile webbrowsing}"
+          find_it links       append "[exec]   (links) {${DEFAULT_TERM} -e links ${HOMEPAGE}}"
+-         find_it w3m         append "[exec]   (w3m) {${DEFAULT_TERM} -e w3m ${HOMEPAGE}}"
