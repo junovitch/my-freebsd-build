@@ -1,0 +1,23 @@
+Index: Makefile
+===================================================================
+--- Makefile	(revision 381237)
++++ Makefile	(working copy)
+@@ -3,6 +3,7 @@
+ 
+ PORTNAME=	lldpd
+ PORTVERSION=	0.7.13
++PORTREVISION=	1
+ CATEGORIES=	net-mgmt
+ MASTER_SITES=	http://media.luffy.cx/files/${PORTNAME}/
+ 
+Index: files/lldpd.in
+===================================================================
+--- files/lldpd.in	(revision 381237)
++++ files/lldpd.in	(working copy)
+@@ -27,6 +27,4 @@
+ command=%%PREFIX%%/sbin/${name}
+ pidfile=/var/run/${name}.pid
+ 
+-command_args=${lldpd_flags}
+-
+ run_rc_command "$1"
