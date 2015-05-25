@@ -1,0 +1,47 @@
+Index: security/vuxml/vuln.xml
+===================================================================
+--- security/vuxml/vuln.xml	(revision 387127)
++++ security/vuxml/vuln.xml	(working copy)
+@@ -57,6 +57,42 @@
+ 
+ -->
+ <vuxml xmlns="http://www.vuxml.org/apps/vuxml-1">
++  <vuln vid="5444ce37-014a-11e5-8fda-002590263bf5">
++    <topic>virtualbox-ose -- buffer overflow vulnerability in QEMU's virtual Floppy Disk Controller (FDC)</topic>
++    <affects>
++      <package>
++	<name>virtualbox-ose</name>
++	<range><lt>4.3.28</lt></range>
++      </package>
++    </affects>
++    <description>
++      <body xmlns="http://www.w3.org/1999/xhtml">
++	<p>Oracle reports:</p>
++	<blockquote cite="http://www.oracle.com/technetwork/topics/security/alert-cve-2015-3456-2542656.html">
++	  <p>This Security Alert addresses security issue CVE-2015-3456
++	    ("VENOM"), a buffer overflow vulnerability in QEMU's virtual Floppy
++	    Disk Controller (FDC). The vulnerable FDC code is included in
++	    various virtualization platforms and is used in some Oracle products.
++	    The vulnerability may be exploitable by an attacker who has access
++	    to an account on the guest operating system with privilege to access
++	    the FDC. The attacker may be able to send malicious code to the FDC
++	    that is executed in the context of the hypervisor process on the host
++	    operating system. This vulnerability is not remotely exploitable
++	    without authentication, i.e., may not be exploited over a network
++	    without the need for a username and password.</p>
++	</blockquote>
++      </body>
++    </description>
++    <references>
++      <url>http://www.oracle.com/technetwork/topics/security/alert-cve-2015-3456-2542656.html</url>
++      <cvename>CVE-2015-3456</cvename>
++    </references>
++    <dates>
++      <discovery>2015-05-15</discovery>
++      <entry>2015-05-23</entry>
++    </dates>
++  </vuln>
++
+   <vuln vid="7927165a-0126-11e5-9d98-080027ef73ec">
+     <topic>dnsmasq -- remotely exploitable buffer overflow in release candidate</topic>
+     <affects>
