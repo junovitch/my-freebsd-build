@@ -1294,6 +1294,8 @@ zfs create -o compression=lz4 -o atime=off -o mountpoint=none zfs/ROOT
 zfs create -o compression=lz4 -o atime=off -o mountpoint=/ zfs/ROOT/default
 zfs create -o compression=lz4 -o atime=off -o mountpoint=/tmp -o exec=on -o setuid=off zfs/tmp
 zfs create -o compression=lz4 -o atime=off -o mountpoint=/usr -o canmount=off zfs/usr
+zfs create -o compression=lz4 -o atime=off zfs/usr/doc
+chown jason:unovitch /mnt/usr/doc
 zfs create -o compression=lz4 -o atime=off zfs/usr/home
 zfs create -o compression=lz4 -o atime=off zfs/usr/obj
 zfs create -o compression=lz4 -o atime=off -o setuid=off zfs/usr/ports
