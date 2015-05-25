@@ -2928,25 +2928,26 @@ service named start
 
 # Install TFTPD
 pkg install ftp/tftp-hpa
-# Get syslinux-6.01 (6.02 didn't boot from local hard drive properly when tested)
+# Get syslinux-6.03
 cd /root
-fetch --no-verify-peer https://www.kernel.org/pub/linux/utils/boot/syslinux/syslinux-6.01.zip
-mkdir syslinux-6.01
-unzip -d syslinux-6.01 syslinux-6.01.zip
-rm syslinux-6.01.zip
+fetch --no-verify-peer https://www.kernel.org/pub/linux/utils/boot/syslinux/syslinux-6.03.zip
+mkdir syslinux-6.03
+unzip -d syslinux-6.03 syslinux-6.03.zip
+rm syslinux-6.03.zip
 # Populate tftpboot directory with bare minimum files needed from syslinux package
 mkdir -p /zfs/data/tftpboot/images
 mkdir -p /zfs/data/tftpboot/pxelinux.cfg
 cp -v \
-	syslinux-6.01/bios/com32/chain/chain.c32 \
-	syslinux-6.01/bios/gpxe/gpxelinux.0 \
-	syslinux-6.01/bios/com32/elflink/ldlinux/ldlinux.c32 \
-	syslinux-6.01/bios/com32/lib/libcom32.c32 \
-	syslinux-6.01/bios/core/lpxelinux.0 \
-	syslinux-6.01/bios/memdisk/memdisk \
-	syslinux-6.01/bios/com32/menu/menu.c32 \
-	syslinux-6.01/bios/com32/modules/reboot.c32 \
-	syslinux-6.01/bios/com32/menu/vesamenu.c32 \
+	syslinux-6.03/bios/com32/chain/chain.c32 \
+	syslinux-6.03/bios/gpxe/gpxelinux.0 \
+	syslinux-6.03/bios/core/pxelinux.0 \
+	syslinux-6.03/bios/com32/elflink/ldlinux/ldlinux.c32 \
+	syslinux-6.03/bios/com32/lib/libcom32.c32 \
+	syslinux-6.03/bios/core/lpxelinux.0 \
+	syslinux-6.03/bios/memdisk/memdisk \
+	syslinux-6.03/bios/com32/menu/menu.c32 \
+	syslinux-6.03/bios/com32/modules/reboot.c32 \
+	syslinux-6.03/bios/com32/menu/vesamenu.c32 \
 	/zfs/data/tftpboot
 # Get Ubuntu netboot installer
 fetch http://archive.ubuntu.com/ubuntu/dists/saucy/main/installer-amd64/current/images/netboot/netboot.tar.gz
