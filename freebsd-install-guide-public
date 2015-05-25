@@ -2360,7 +2360,7 @@ events {
 http {
     include                  /usr/local/etc/nginx/sites-enabled/*;
 
-    passenger_root           /usr/local/lib/ruby/gems/2.1/gems/passenger-4.0.59;
+    passenger_root           /usr/local/lib/ruby/gems/2.1/gems/passenger-5.0.8;
     passenger_ruby           /usr/local/bin/ruby;
     passenger_max_pool_size  10;
     passenger_pool_idle_time 300;
@@ -2413,8 +2413,8 @@ cat > /usr/local/etc/nginx/sites-available/foreman << 'EOF'
         server_name  foreman.pa-us.mydomain.name foreman accept_filter=dataready;
 
         passenger_enabled          on;
-        passenger_set_cgi_param    HTTP_X_CLIENT_DN $ssl_client_s_dn;
-        passenger_set_cgi_param    HTTP_X_CLIENT_VERIFY $ssl_client_verify;
+        passenger_set_header       X_CLIENT_DN $ssl_client_s_dn;
+        passenger_set_header       X_CLIENT_VERIFY $ssl_client_verify;
         passenger_user             foreman;
         passenger_group            foreman;
 
@@ -2435,8 +2435,8 @@ cat > /usr/local/etc/nginx/sites-available/puppet << 'EOF'
         server_name  puppet.pa-us.mydomain.name puppet accept_filter=dataready;
 
         passenger_enabled          on;
-        passenger_set_cgi_param    HTTP_X_CLIENT_DN $ssl_client_s_dn;
-        passenger_set_cgi_param    HTTP_X_CLIENT_VERIFY $ssl_client_verify;
+        passenger_set_header       X_CLIENT_DN $ssl_client_s_dn;
+        passenger_set_header       X_CLIENT_VERIFY $ssl_client_verify;
         passenger_user             puppet;
         passenger_group            puppet;
 
