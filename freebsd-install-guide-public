@@ -2367,7 +2367,7 @@ http {
 
     include            mime.types;
     default_type       application/octet-stream;
-    sendfile           on;
+    sendfile           off;
     tcp_nopush         on;
     keepalive_timeout  65;
     tcp_nodelay        on;
