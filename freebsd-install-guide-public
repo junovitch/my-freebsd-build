@@ -1247,6 +1247,7 @@ zfs set compression=lz4 zfs/data
 zfs create zfs/homedirs
 zfs create zfs/homedirs/public
 zfs create zfs/homedirs/jason
+zfs set compression=lz4 zfs/homedirs/jason
 zfs create zfs/homedirs/common_media
 zfs create zfs/homedirs/common_assorted
 zfs set compression=lz4 zfs/homedirs/common_assorted
