@@ -1381,6 +1381,8 @@ _SNAPDATE=$(/bin/date "+%Y%m%d")
 
 zfs destroy -r zfs/homedirs@$_30DAYSAGO-autodaily > /dev/null 2>&1
 zfs snapshot -r zfs/homedirs@$_SNAPDATE-autodaily
+zfs destroy -r zfs/data@$_30DAYSAGO-autodaily > /dev/null 2>&1
+zfs snapshot -r zfs/data@$_SNAPDATE-autodaily
 'EOF'
 chmod 555 /usr/local/etc/periodic/daily/900.rollingsnap
 
@@ -1388,6 +1390,7 @@ cat > /usr/local/etc/periodic/monthly/900.monthlysnap << 'EOF'
 #!/bin/sh
 _SNAPDATE=$(/bin/date "+%Y%m%d")
 zfs rename -r zfs/homedirs@$_SNAPDATE-autodaily @$_SNAPDATE-automonthly > /dev/null 2>&1
+zfs rename -r zfs/data@$_SNAPDATE-autodaily @$_SNAPDATE-automonthly > /dev/null 2>&1
 'EOF'
 chmod 555 /usr/local/etc/periodic/monthly/900.monthlysnap
 
