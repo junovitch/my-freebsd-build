@@ -2382,7 +2382,7 @@ http {
 
     ssl_session_cache          shared:SSL:10m;
     ssl_session_timeout        35m;
-    ssl_protocols              SSLv3 TLSv1 TLSv1.1 TLSv1.2;
+    ssl_protocols              TLSv1 TLSv1.1 TLSv1.2;
     ssl_ciphers                ALL:!aNULL:!eNULL:!DES:!3DES:!IDEA:!SEED:!DSS:!PSK:!RC4:!MD5:+HIGH:+MEDIUM:!LOW:!SSLv2:!EXP;
     ssl_prefer_server_ciphers  on;
     ssl_verify_client          optional;
