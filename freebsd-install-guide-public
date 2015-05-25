@@ -2580,8 +2580,7 @@ FOREMAN_HOME=/opt/foreman
 cd /opt/foreman
 git pull
 bundle update
-touch tmp/restart.txt
-rm tmp/restart.txt
+passenger-config restart-app --name /opt/foreman/public#default
 
 # Foreman Upgrade Process
 # Major Updates (Example: 1.6 to 1.7)
