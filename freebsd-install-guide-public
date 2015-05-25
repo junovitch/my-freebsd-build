@@ -2800,7 +2800,7 @@ mkdir -p /var/db/serviio/home/plugins
 pw usermod dlna -m -d /var/db/serviio/home
 echo 'serviio_enable="YES"' >> /etc/rc.conf.local
 echo 'serviio_lang="en_US.UTF-8"' >> /etc/rc.conf.local
-echo serviio_args=\'-Dserviio.advertisementDuration=\"15\"\' >> /etc/rc.conf.local
+echo 'serviio_args="-Dserviio.advertisementDuration=15 -Dserviio.libraryPollerFrequency=5"' >> /etc/rc.conf.local
 service serviio start
 
 ########### Option 1: PHP5 FPM listener for Nginx App Jail Frontend ############
