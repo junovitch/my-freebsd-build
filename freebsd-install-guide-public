@@ -1596,7 +1596,6 @@ cat > /usr/local/etc/poudriere.d/101amd64-make.conf << 'EOF'
 DEFAULT_VERSIONS= ruby=2.1 perl5=5.20 mysql=5.5m pgsql=9.4
 ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 gnutls_UNSET+=TPM
-ca_root_nss_SET+=ETCSYMLINK
 rubygem-passenger_UNSET+=APACHE22
 rubygem-passenger_SET+=NGINX
 net-mgmt_collectd5_SET+=CURL MYSQL NUTUPS PING PGSQL STATGRAB XML
