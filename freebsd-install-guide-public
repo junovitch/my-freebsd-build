@@ -2144,9 +2144,12 @@ chown -R puppet:puppet /usr/local/etc/puppet/rack
 # Installing Foreman from Git
 mkdir /opt
 cd /opt
-git clone https://github.com/theforeman/foreman.git -b 1.8-stable
+git clone https://github.com/theforeman/foreman.git -b 1.9-stable
 cd foreman
 cp config/settings.yaml.example config/settings.yaml
+
+# Enable download of Foreman Salt Plugins
+echo "gem 'foreman_salt'" >> bundler.d/Gemfile.local.rb
 
 # Note: rubygem-libv8 doesn't recognize current gcc47 and requires a link
 # GCC and gmake are required to successfully build and install
@@ -2331,7 +2334,7 @@ events {
 http {
     include                  /usr/local/etc/nginx/sites-enabled/*;
 
-    passenger_root           /usr/local/lib/ruby/gems/2.1/gems/passenger-5.0.8;
+    passenger_root           /usr/local/lib/ruby/gems/2.1/gems/passenger-5.0.13;
     passenger_ruby           /usr/local/bin/ruby;
     passenger_max_pool_size  10;
     passenger_pool_idle_time 300;
@@ -2547,32 +2550,36 @@ FOREMAN_HOME=/opt/foreman
 'EOF'
 
 # Foreman Upgrade Process
-# Minor Updates (Example: 1.6 to 1.6.1)
+# Minor Updates (Example: 1.8 to 1.8.1)
 cd /opt/foreman
 git pull
 bundle update
-passenger-config restart-app --name /opt/foreman/public#default
+passenger-config restart-app --name /opt/foreman/public
 
 # Foreman Upgrade Process
-# Major Updates (Example: 1.6 to 1.7)
+# Major Updates (Example: 1.8 to 1.9)
 rm /usr/local/etc/nginx/sites-enabled/foreman
 service nginx reload
 cd /opt/foreman
 git pull
-git checkout 1.8-stable
+git checkout 1.9-stable
 bundle update
 # If bundle update fails, attempt removal and reinstall of all gems
 #   cd /opt/foreman
 #   rm -r vendor/bundle
 #   rm Gemfile.lock
 #   cd /usr/local/bin && ln g++47 g++ && cd -
+#   mkdir vendor/bundle
+#   chown foreman:foreman vendor/bundle
+#   touch /opt/foreman/Gemfile.lock
+#   chown foreman:foreman /opt/foreman/Gemfile.lock
 #   bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
-#   bundle install --path vendor/bundle
+#   su -m foreman -c 'bundle install --path vendor/bundle'
 #   rm /usr/local/bin/g++
 # Database backup for major upgrades before any database migration (on database jail)
 su - pgsql
 cd /zfs/local/pgsql_backups
-pg_dump -Fc foreman > $(/bin/date "+%Y%m%d")-foreman16.dump
+pg_dump -Fc foreman > $(/bin/date "+%Y%m%d")-foreman18.dump
 # Back on Foreman
 env RAILS_ENV=production bundle exec rake apipie:cache
 env RAILS_ENV=production bundle exec rake db:migrate
