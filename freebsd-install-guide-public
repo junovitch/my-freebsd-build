@@ -147,8 +147,8 @@ ifconfig_em1_alias12="inet 10.100.102.17/32"			# pgsql.pa-us.mydomain.name
 ifconfig_em1_alias13="inet6 2001:123:4:5678::17/128"		# pgsql.pa-us.mydomain.name
 ifconfig_em1_alias14="inet 10.100.102.18/32"			# mdbi.pa-us.mydomain.name
 ifconfig_em1_alias15="inet6 2001:123:4:5678::18/128"		# mdbi.pa-us.mydomain.name
-ifconfig_em1_alias16="inet 10.100.102.19/32"			# unused
-ifconfig_em1_alias17="inet6 2001:123:4:5678::19/128"		# unused
+ifconfig_em1_alias16="inet 10.100.102.19/32"			# carbon.pa-us.mydomain.name
+ifconfig_em1_alias17="inet6 2001:123:4:5678::19/128"		# carbon.pa-us.mydomain.name
 
 # Syslog Configuration, bind (-b) to LAN Internal address
 syslogd_enable="YES"
@@ -2022,9 +2022,11 @@ sed -i '' -e 's/#track_functions = none/track_functions = all/g' /usr/local/pgsq
 echo "host all all 10.100.102.11/32 md5" >> /usr/local/pgsql/data/pg_hba.conf
 echo "host all all 10.100.102.12/32 md5" >> /usr/local/pgsql/data/pg_hba.conf
 echo "host all all 10.100.102.17/32 md5" >> /usr/local/pgsql/data/pg_hba.conf
+echo "host graphite graphite 10.100.102.19/32 md5" >> /usr/local/pgsql/data/pg_hba.conf
 echo "host all all 2001:123:4:5678::11/128 md5" >> /usr/local/pgsql/data/pg_hba.conf
 echo "host all all 2001:123:4:5678::12/128 md5" >> /usr/local/pgsql/data/pg_hba.conf
 echo "host all all 2001:123:4:5678::17/128 md5" >> /usr/local/pgsql/data/pg_hba.conf
+echo "host graphite graphite 2001:123:4:5678::19/128 md5" >> /usr/local/pgsql/data/pg_hba.conf
 
 # Reload service to apply postgresql.conf and pg_hba.conf changes
 service postgresql reload
@@ -2614,19 +2616,25 @@ cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/foreman forema
 service nginx reload
 
 ################################################################################
-##                  APPS Jail: Graphite Application Servers                   ##
+##                      APPS Jail: Carbon Jail Backend                        ##
 ################################################################################
 # References:
 # www.flagword.net/2014/01/installing-and-configuring-graphite-with-collectd-on-freebsd/
 # forums.freebsd.org/viewtopic.php?f=39&t=45652
 
+ezjail-admin create -f lan carbon.pa-us.mydomain.name 10.100.102.19,2001:123:4:5678::19
+echo '/zfs/poudriere/data/packages /zfs/jails/carbon.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.carbon_pa_us_mydomain_name
+ezjail-admin console -f carbon.pa-us.mydomain.name
+passwd
+
+pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
+
+# Install specific packages
 pkg install www/py-graphite-web www/uwsgi databases/py-psycopg2
 
 # Create carbon and carbon relay users
 pw groupadd -n carbon -g 2003
 pw useradd -n carbon -c "Carbon Daemon,,," -u 2003 -g carbon -d /nonexistent -s /sbin/nologin
-pw groupadd -n carbon_relay -g 2013
-pw useradd -n carbon_relay -c "Carbon Relay Daemon,,," -u 2013 -g carbon_relay -d /nonexistent -s /sbin/nologin
 
 # Configure Carbon and Carbon Relay
 cd /usr/local/etc/carbon
@@ -2635,26 +2643,6 @@ patch /usr/local/etc/carbon/carbon.conf << 'EOF'
 < USER =
 ---
 > USER = carbon
-218a219,222
-> # Specify the user to drop privileges to
-> # If this is blank carbon runs as the user that invokes it
-> USER = carbon_relay
-> 
-245c249
-< REPLICATION_FACTOR = 1
----
-> REPLICATION_FACTOR = 2
-263c267
-< DESTINATIONS = 127.0.0.1:2004
----
-> DESTINATIONS = 10.100.102.11:2004, 10.100.102.12:2004
-'EOF'
-
-patch /usr/local/etc/carbon/relay-rules.conf << 'EOF'
-21c21
-< destinations = 127.0.0.1:2004:a, 127.0.0.1:2104:b
----
-> destinations = 10.100.102.11:2004, 10.100.102.12:2004
 'EOF'
 
 patch /usr/local/etc/carbon/storage-schemas.conf << 'EOF'
@@ -2675,22 +2663,12 @@ patch /usr/local/etc/carbon/storage-schemas.conf << 'EOF'
 
 # Enable carbon services
 echo 'carbon_enable="YES"' >> /etc/rc.conf.local
-echo 'carbon_relay_enable="YES"' >> /etc/rc.conf.local
 
 # Update permissions so carbon user can write to it's database directory
 chown -R carbon:carbon /var/db/carbon
 
-# Create carbon_relay runcom script
-cd /usr/local/etc/rc.d
-cp carbon carbon_relay
-# Copy carbon rc.d script and change carbon lines to carbon_relay
-# Also change:
-# required_files="${carbon_relay_conf} /usr/local/etc/carbon/relay-rules.conf"
-# command="/usr/local/bin/carbon-relay.py"
-
 # Start Carbon services
 service carbon start
-service carbon_relay start
 
 # Generate Secret Key for Graphite
 dd if=/dev/urandom bs=32 count=1 | openssl base64 | cut -b -32
@@ -2715,12 +2693,6 @@ patch /usr/local/etc/graphite/local_settings.py << 'EOF'
 >                'PASSWORD': 'graphite_password',
 >                'HOST': '10.100.102.17',
 >                'PORT': '5432',
-209,210c213,214
-< #CARBONLINK_HOSTS = ["127.0.0.1:7002:a", "127.0.0.1:7102:b", "127.0.0.1:7202:c"]
-< #CARBONLINK_TIMEOUT = 1.0
----
-> CARBONLINK_HOSTS = ["10.100.102.11:7002", "10.100.102.12:7002"]
-> CARBONLINK_TIMEOUT = 1.0
 'EOF'
 
 patch /usr/local/etc/graphite/graphite.wsgi << 'EOF'
@@ -2742,12 +2714,16 @@ chown -R www:www /var/db/graphite/ /var/log/graphite/
 echo 'uwsgi_enable="YES"' >> /etc/rc.conf.local
 echo 'uwsgi_profiles="graphite"' >> /etc/rc.conf.local
 echo 'uwsgi_graphite_enable="YES"' >> /etc/rc.conf.local
-echo 'uwsgi_graphite_flags="-L -M -p 2 --socket /tmp/uwsgi_graphite.sock --gid 80 --uid 80 --python-path /usr/local/lib/python2.7/site-packages/ --file /usr/local/etc/graphite/graphite.wsgi"' >> /etc/rc.conf.local
+echo 'uwsgi_graphite_flags="-L -M -p 2 --socket :8000 --gid 80 --uid 80 --python-path /usr/local/lib/python2.7/site-packages/ --file /usr/local/etc/graphite/graphite.wsgi"' >> /etc/rc.conf.local
 
+# Start UWSGI application server
+service uwsgi start
+
+## On the apps jails:
 # Create sites-available config file and follow up with sites-enabled symlink
 cat > /usr/local/etc/nginx/sites-available/graphite << 'EOF'
     upstream graphite {
-        server       unix:/tmp/uwsgi_graphite.sock;
+        server       carbon.pa-us.mydomain.name:8000;
     }
     server {
         listen       80;
@@ -2765,8 +2741,13 @@ cat > /usr/local/etc/nginx/sites-available/graphite << 'EOF'
 'EOF'
 cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/graphite graphite
 
-# Start UWSGI application server and reload Nginx
-service uwsgi start
+# On the Host, do an rsync of all the graphite-web content to the web front end
+# jails so nginx is able to serve any static content. This should also be done
+# after every update of the www/py-graphite-web port
+rsync -authic --progress --delete /zfs/jails/carbon.pa-us.mydomain.name/usr/local/share/graphite-web/ /zfs/jails/apps1.pa-us.mydomain.name/usr/local/share/graphite-web
+rsync -authic --progress --delete /zfs/jails/carbon.pa-us.mydomain.name/usr/local/share/graphite-web/ /zfs/jails/apps2.pa-us.mydomain.name/usr/local/share/graphite-web
+
+# Start reload Nginx
 service nginx reload
 
 ################################################################################
