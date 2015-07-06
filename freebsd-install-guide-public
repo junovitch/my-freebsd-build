@@ -520,35 +520,6 @@ pkg install sysutils/cmdwatch
 pkg install sysutils/tree
 
 ################################################################################
-# Uprecords - Track uptime trends/percentages.
-# Use via `uprecords`
-################################################################################
-
-pkg install sysutils/uptimed 
-
-echo '' >> /etc/rc.conf
-echo '# Enable Uptimed' >> /etc/rc.conf
-echo 'uptimed_enable="YES"' >> /etc/rc.conf
-echo 'uptimed_user="_uptimed"' >> /etc/rc.conf
-echo 'uptimed_pidfile="/var/run/uptimed/uptimed.pid"' >> /etc/rc.conf
-
-patch /usr/local/etc/rc.d/uptimed << 'EOF'
-31a32,39
-> start_precmd=uptimed_precmd
-> uptimed_precmd()
-> {
->     if [ ! -z ${uptimed_user} ]; then
->        install -d -o ${uptimed_user} /var/run/uptimed
->        install -d -o ${uptimed_user} /var/spool/uptimed
->     fi
-> }
-'EOF'
-
-pw useradd _uptimed -c "Uptimed Account,,," -d "/nonexistent" -s /usr/sbin/nologin
-
-service uptimed start
-
-################################################################################
 # BSDStats - Report BSD usage, hardware, and software popularity.
 # Recommend agreeing to all defaults during install.
 ################################################################################
@@ -1631,7 +1602,6 @@ sysutils/pstree
 net-mgmt/iftop
 sysutils/cmdwatch
 sysutils/tree
-sysutils/uptimed
 sysutils/bsdstats
 security/clamav
 editors/vim-lite
