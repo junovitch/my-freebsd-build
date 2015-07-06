@@ -3151,7 +3151,7 @@ sed -i '' -e 's/kern_securelevel/#kern_securelevel/' /etc/rc.conf
 sed -i '' -e 's/ezjail_enable/#ezjail_enable/' /etc/rc.conf
 shutdown -r now
 freebsd-update install
-ezjail-admin update -u
+env UNAME_r=10.1-RELEASE-p9 ezjail-admin update -u
 poudriere jail -u -j 101amd64
 poudriere jail -u -j 101i386
 poudriere jail -u -j 93amd64
