@@ -57,6 +57,164 @@
 #
 ################################################################################
 ##----------------------------------------------------------------------------##
+##                       Install Notes (ZFS  Support)                         ##
+##----------------------------------------------------------------------------##
+################################################################################
+#
+# Manual setup for ZFS.
+# The FreeBSD installer should be used for this, however given my system was
+# converted to ZFS only after being installed, here's how the current config
+# was done. Additionally, the original 'zfs' raidz pool was migrated live to
+# a 4 disk 'zroot' setup in a RAID-10 like configuration. Since this was all
+# done on a live system the FreeBSD installer wasn't used.
+#
+################################################################################
+# Search for all hard drives in the `dmesg`, confirm with `smartctl`
+# Note the devices shown for later (i.e. /dev/ada0 and so on)
+#
+# Performance using native 4K sectors should be faster in Advanced Format
+# drives that use physical 4096K sector and fake a 512K sector to the OS. I
+# tested repeated transfers of 13.5 gb of files from the main SSD onto a raid-z
+# pool using each sector size.
+#
+# Mean write speed on a 512 byte pool  - 123.5 mb/sec
+# Mean write speed on a 4096 byte pool - 134.5 mb/sec (9% faster)
+################################################################################
+
+dmesg | grep "sectors"
+smartctl -a /dev/ada0 | grep "Sector Sizes"
+smartctl -a /dev/ada1 | grep "Sector Sizes"
+smartctl -a /dev/ada2 | grep "Sector Sizes"
+smartctl -a /dev/ada3 | grep "Sector Sizes"
+
+################################################################################
+# Check that no partitions are on the disk, if so see gpart(8) for guidance on
+# deleting them.
+################################################################################
+
+gpart show
+
+################################################################################
+# Manually create the partition tables followed by a ZFS type (-t) partition
+# beginning (-b) at the 1 mb mark and aligned (-a) to 4096 sized sectors. The
+# label (-l) can be freely changed to whatever is intuitive.
+#
+# `smartctl -a /dev/ada1` will list all properties of the drive including
+# serial number which is used below.
+################################################################################
+
+# Bay 1
+gpart create -s gpt ada0
+gpart add -t freebsd-boot -l bay1_bootcode -s 512k ada0
+gpart add -t freebsd-swap -b 1M -s 16G -a 4096 ada0
+gpart add -t freebsd-zfs -l bay1_XXXXXXXXXXXX -a 4096 ada0
+gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 1 ada0
+
+# Bay 2
+gpart create -s gpt ada1
+gpart add -t freebsd-boot -l bay2_bootcode -s 512k ada1
+gpart add -t freebsd-swap -b 1M -s 16G -a 4096 ada1
+gpart add -t freebsd-zfs -l bay2_XXXXXXXXXXXX -a 4096 ada1
+gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 1 ada1
+
+# Bay 3
+gpart create -s gpt ada2
+gpart add -t freebsd-boot -l bay3_bootcode -s 512k ada2
+gpart add -t freebsd-zfs -l bay3_XXXXXXXXXXXX -b 1M -a 4096 ada2
+gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 2 ada2
+
+# Bay 4
+gpart create -s gpt ada3
+gpart add -t freebsd-boot -l bay4_bootcode -s 512k ada3
+gpart add -t freebsd-zfs -l bay4_XXXXXXXXXXXX -b 1M -a 4096 ada3
+gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 1 ada3
+
+################################################################################
+# Create gnop translation devices with 4096 sector sizes to force ZFS to
+# ignore 512 byte block size simulated by the drives.
+################################################################################
+
+gnop create -S 4096 gpt/bay1_XXXXXXXXXXXX
+gnop create -S 4096 gpt/bay2_XXXXXXXXXXXX
+gnop create -S 4096 gpt/bay3_XXXXXXXXXXXX
+gnop create -S 4096 gpt/bay4_XXXXXXXXXXXX
+
+################################################################################
+# Build the ZFS array using the translations.
+#
+# The name of the array used here and for the remaining guide is 'zroot'.
+################################################################################
+
+zpool create zroot mirror /dev/gpt/bay1_XXXXXXXXXXXX.nop /dev/gpt/bay2_XXXXXXXXXXXX.nop mirror /dev/gpt/bay3_XXXXXXXXXXXX.nop /dev/gpt/bay4_XXXXXXXXXXXX.nop
+# Export the zpool
+zpool export zroot
+# Trash the gnops
+gnop destroy /dev/gpt/bay1_XXXXXXXXXXXX.nop
+gnop destroy /dev/gpt/bay2_XXXXXXXXXXXX.nop
+gnop destroy /dev/gpt/bay3_XXXXXXXXXXXX.nop
+gnop destroy /dev/gpt/bay4_XXXXXXXXXXXX.nop
+# Re-import the zpool for manual install and dataset creation
+zpool import -o altroot=/mnt zroot
+# Verify ashift = 12 shows up
+zdb
+
+################################################################################
+# Build datasets as needed
+################################################################################
+
+# Create requisite datasets based off 10.1-RELEASE layout
+zfs create -o compression=lz4 -o atime=off -o mountpoint=none -o copies=2 zroot/ROOT
+zfs create -o compression=lz4 -o atime=off -o mountpoint=/ zroot/ROOT/default
+zfs create -o compression=lz4 -o atime=off -o mountpoint=/tmp -o exec=on -o setuid=off zroot/tmp
+zfs create -o compression=lz4 -o atime=off -o mountpoint=/usr -o canmount=off zroot/usr
+zfs create -o compression=lz4 -o atime=off zroot/usr/doc
+chown jason:unovitch /mnt/usr/doc
+zfs create -o compression=lz4 -o atime=off zroot/usr/home
+zfs create -o compression=lz4 -o atime=off zroot/usr/obj
+zfs create -o compression=lz4 -o atime=off -o setuid=off zroot/usr/ports
+zfs create -o compression=lz4 -o atime=off zroot/usr/src
+zfs create -o compression=lz4 -o atime=off -o mountpoint=/var -o canmount=off zroot/var
+zfs create -o compression=lz4 -o atime=off -o exec=off -o setuid=off zroot/var/audit
+zfs create -o compression=lz4 -o atime=off -o exec=off -o setuid=off zroot/var/crash
+zfs create -o compression=lz4 -o atime=off -o exec=off -o setuid=off zroot/var/log
+zfs create -o compression=lz4 -o atime=on zroot/var/mail
+zfs create -o compression=lz4 -o atime=off -o setuid=off zroot/var/tmp
+
+# Install FreeBSD
+cd /usr/freebsd-dist/
+sh -c 'for file in base.txz lib32.txz kernel.txz doc.txz games.txz; do tar --unlink -xvpJf $file -C /mnt; done'
+zpool set bootfs=zroot/ROOT/default zroot
+
+echo 'zfs_load="YES"' >> /mnt/boot/loader.conf
+echo 'zfs_enable="YES"' >> /mnt/etc/rc.conf
+touch /mnt/etc/fstab
+
+# Other datasets
+zfs create -o mountpoint=/zfs/data -o compression=lz4 zroot/data
+zfs create -o mountpoint=/zfs/homedirs zroot/homedirs
+zfs create zroot/homedirs/public
+zfs create -o compression=lz4 zroot/homedirs/jason
+zfs create zroot/homedirs/common_media
+zfs create -o compression=lz4 zroot/homedirs/common_assorted
+zfs create -o dedup=on zroot/homedirs/common_photo_albums
+zfs create -o compression=lz4 zroot/maildirs
+zfs create -o mountpoint=/zfs/local zroot/local
+zfs create zroot/local/pgsql_backups
+chown 70:70 /zroot/local/pgsql_backups; chmod 700 /zroot/local/pgsql_backups
+zfs create zroot/local/pgsql
+zfs set recordsize=8k zroot/local/pgsql
+zfs set primarycache=metadata zroot/local/pgsql
+zfs set compression=lz4 zroot/local/pgsql
+zfs set atime=off zroot/local/pgsql
+chown 70:70 /zroot/local/pgsql; chmod 700 /zroot/local/pgsql
+zfs create zroot/local/jails
+zfs create zroot/local/jails/archive
+
+zfs unmount -a
+shutdown -r now
+
+################################################################################
+##----------------------------------------------------------------------------##
 ##                       Initial Configuration Section                        ##
 ##----------------------------------------------------------------------------##
 ################################################################################
@@ -158,17 +316,6 @@ syslogd_flags="-v -v -b 10.100.102.2:syslog"
 ntpdate_enable="YES"
 ntpdate_hosts="192.168.102.1"
 'EOF'
-
-################################################################################
-# Encrypted Swap Setup
-# https://www.freebsd.org/doc/handbook/swap-encrypting.html
-################################################################################
-
-# Update /dev/ada0p3 as needed
-swapoff /dev/ada0p3
-dd if=/dev/random of=/dev/ada0p3 bs=1m
-sed -i '' -e 's/ada0p3/ada0p3.eli/' /etc/fstab
-swapon /dev/ada0p3.eli
 
 ################################################################################
 #  Randomness
@@ -956,6 +1103,43 @@ perl -pwi -e 's^3|5|7\t^9\t^' /etc/newsyslog.conf
 ##                  Programs Related to Host System Storage                   ##
 ##----------------------------------------------------------------------------##
 ################################################################################
+# Kick off scrub via cron the first Monday of every month to keep scrubs from
+# slowing down other cron jobs that run throughout the week. If this by some
+# chance fails, the periodic.conf job is enabled in the next lines and the
+# default of 35 days will ensure a scrub gets run routinely. Also enable
+# reporting on zfs status daily.
+################################################################################
+
+printf '0\t4\t*\t*\tmon\t[ $(/bin/date +\\%%d) -le 7 ] && /sbin/zpool scrub zroot\n' >> /var/cron/tabs/root
+echo 'daily_status_zfs_enable="YES"' >> /etc/periodic.conf
+echo 'daily_scrub_zfs_enable="YES"' >> /etc/periodic.conf
+
+################################################################################
+# Quick Rolling snapshot scripts for a month's worth of snapshot along with
+# a permanent snapshot made on the first of every month.
+################################################################################
+
+cat > /usr/local/etc/periodic/daily/900.rollingsnap << 'EOF'
+#!/bin/sh
+_30DAYSAGO=$(/bin/date -v -30d "+%Y%m%d")
+_SNAPDATE=$(/bin/date "+%Y%m%d")
+
+zfs destroy -r zroot/homedirs@$_30DAYSAGO-autodaily > /dev/null 2>&1
+zfs snapshot -r zroot/homedirs@$_SNAPDATE-autodaily
+zfs destroy -r zroot/data@$_30DAYSAGO-autodaily > /dev/null 2>&1
+zfs snapshot -r zroot/data@$_SNAPDATE-autodaily
+'EOF'
+chmod 555 /usr/local/etc/periodic/daily/900.rollingsnap
+
+cat > /usr/local/etc/periodic/monthly/900.monthlysnap << 'EOF'
+#!/bin/sh
+_SNAPDATE=$(/bin/date "+%Y%m%d")
+zfs rename -r zroot/homedirs@$_SNAPDATE-autodaily @$_SNAPDATE-automonthly > /dev/null 2>&1
+zfs rename -r zroot/data@$_SNAPDATE-autodaily @$_SNAPDATE-automonthly > /dev/null 2>&1
+'EOF'
+chmod 555 /usr/local/etc/periodic/monthly/900.monthlysnap
+
+################################################################################
 # Smartd package for basic disk management and status checking.  We'll set up
 # the smartd.conf for more detailed checks along with sending a notification
 # email to root if issues get detected.
@@ -1137,236 +1321,6 @@ pkg install sysutils/beadm
 
 ################################################################################
 ##----------------------------------------------------------------------------##
-##                   Configure Host System ZFS and RAIDZ pool                 ##
-##----------------------------------------------------------------------------##
-################################################################################
-# Setup RAIDZ pool
-# http://zfsguru.com/doc/bsd/zfs
-# http://savagedlight.me/2012/07/15/freebsd-zfs-advanced-format/
-################################################################################
-# Search for all hard drives in the `dmesg`, confirm with `smartctl`
-# Note the devices shown for later (i.e. /dev/ada0 and so on)
-#
-# If physical sector size matches the logical size below then you can likely
-# skip to the `zpool create zfs` step.
-#
-# Performance using native 4K sectors should be faster in Advanced Format
-# drives that use physical 4096K sector and fake a 512K sector to the OS. I
-# tested repeated transfers of 13.5 gb of files from the main SSD onto a raid-z
-# pool using each sector size.
-#
-# Mean write speed on a 512 byte pool  - 123.5 mb/sec
-# Mean write speed on a 4096 byte pool - 134.5 mb/sec (9% faster)
-################################################################################
-
-dmesg | grep "sectors"
-smartctl -a /dev/ada1 | grep "Sector Sizes"
-smartctl -a /dev/ada2 | grep "Sector Sizes"
-smartctl -a /dev/ada3 | grep "Sector Sizes"
-
-################################################################################
-# Erase any partition table on the planned pool drives by doing this.
-#
-# BE CAREFUL! Use the wrong output file (of=) and you may not be able boot. 
-# In this case, the main OS was on the first drive (/dev/ada0) so this will
-# clear the partition table of the remaining 3 drives.
-################################################################################
-
-dd if=/dev/zero of=/dev/ada1 bs=1m count=1
-dd if=/dev/zero of=/dev/ada2 bs=1m count=1
-dd if=/dev/zero of=/dev/ada3 bs=1m count=1
-
-################################################################################
-# Manually create the partition tables followed by a ZFS type (-t) partition
-# beginning (-b) at the 1 mb mark and aligned (-a) to 4096 sized sectors. The
-# label (-l) can be freely changed to whatever is intuitive.
-#
-# `smartctl -a /dev/ada1` will list all properties of the drive including
-# serial number which is used below.
-################################################################################
-
-gpart create -s gpt ada1
-gpart add -t freebsd-zfs -l bay2_WCAWZ0415892 -b 1M -a 4096 ada1
-gpart create -s gpt ada2
-gpart add -t freebsd-zfs -l bay3_WCAWZ0416712 -b 1M -a 4096 ada2
-gpart create -s gpt ada3
-gpart add -t freebsd-zfs -l bay4_WCAWZ0424121 -b 1M -a 4096 ada3
-
-################################################################################
-# Create gnop translation devices with 4096 sector sizes to force ZFS to
-# ignore 512 byte block size simulated by the drives.
-################################################################################
-
-gnop create -S 4096 gpt/bay2_WCAWZ0415892
-gnop create -S 4096 gpt/bay3_WCAWZ0416712
-gnop create -S 4096 gpt/bay4_WCAWZ0424121 
-
-################################################################################
-# Build the ZFS array using the translations.
-#
-# The name of the array used here and for the remaining guide is 'zfs'.
-################################################################################
-
-zpool create zfs raidz /dev/gpt/bay2_WCAWZ0415892.nop /dev/gpt/bay3_WCAWZ0416712.nop /dev/gpt/bay4_WCAWZ0424121.nop
-
-################################################################################
-# Build datasets as needed
-################################################################################
-
-zfs create zfs/data
-zfs set compression=lz4 zfs/data
-zfs create zfs/homedirs
-zfs create zfs/homedirs/public
-zfs create zfs/homedirs/jason
-zfs set compression=lz4 zfs/homedirs/jason
-zfs create zfs/homedirs/common_media
-zfs create zfs/homedirs/common_assorted
-zfs set compression=lz4 zfs/homedirs/common_assorted
-zfs create zfs/homedirs/common_photo_albums
-zfs set dedup=on zfs/homedirs/common_photo_albums
-zfs create zfs/local
-zfs create zfs/local/pgsql_backups
-chown 70:70 /zfs/local/pgsql_backups; chmod 700 /zfs/local/pgsql_backups
-zfs create zfs/local/pgsql
-zfs set recordsize=8k zfs/local/pgsql
-zfs set primarycache=metadata zfs/local/pgsql
-zfs set compression=lz4 zfs/local/pgsql
-zfs set atime=off zfs/local/pgsql
-chown 70:70 /zfs/local/pgsql; chmod 700 /zfs/local/pgsql
-zfs create zfs/local/jails
-zfs create zfs/local/jails/archive
-
-################################################################################
-# Emergency conversion from booting from UFS SSD to booting from existing RAIDZ
-#
-# Note: This may not be 100% ideal. However due to a sporadic hardware failure
-# of the system boot SSD, the system was converted to boot from the ZFS RAID.
-# The gpart partitioning used left a 2MB padding at the start of the disk that
-# allowed setting up a freebsd-boot partition. Combined with ZFS being, well,
-# amazingly flexible and FreeBSD being easily installed manually by untarring
-# its tarballs this was easy to pull off without any loss of data.
-#
-# All steps were done from the installer's Live CD mode
-################################################################################
-
-# Write ZFS bootloader code
-gpart add -t freebsd-boot -l bay2_bootcode -s 128k ada0
-gpart add -t freebsd-boot -l bay3_bootcode -s 128k ada1
-gpart add -t freebsd-boot -l bay4_bootcode -s 128k ada2
-gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 2 ada0
-gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 2 ada1
-gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 2 ada2
-
-# Force import
-zpool import -f -o altroot=/mnt zfs
-
-# Create requisite datasets based off 10.1-RELEASE layout
-zfs create -o compression=lz4 -o atime=off -o mountpoint=none zfs/ROOT
-zfs create -o compression=lz4 -o atime=off -o mountpoint=/ zfs/ROOT/default
-zfs create -o compression=lz4 -o atime=off -o mountpoint=/tmp -o exec=on -o setuid=off zfs/tmp
-zfs create -o compression=lz4 -o atime=off -o mountpoint=/usr -o canmount=off zfs/usr
-zfs create -o compression=lz4 -o atime=off zfs/usr/doc
-chown jason:unovitch /mnt/usr/doc
-zfs create -o compression=lz4 -o atime=off zfs/usr/home
-zfs create -o compression=lz4 -o atime=off zfs/usr/obj
-zfs create -o compression=lz4 -o atime=off -o setuid=off zfs/usr/ports
-zfs create -o compression=lz4 -o atime=off zfs/usr/src
-zfs create -o compression=lz4 -o atime=off -o mountpoint=/var -o canmount=off zfs/var
-zfs create -o compression=lz4 -o atime=off -o exec=off -o setuid=off zfs/var/audit
-zfs create -o compression=lz4 -o atime=off -o exec=off -o setuid=off zfs/var/crash
-zfs create -o compression=lz4 -o atime=off -o exec=off -o setuid=off zfs/var/log
-zfs create -o compression=lz4 -o atime=on zfs/var/mail
-zfs create -o compression=lz4 -o atime=off -o setuid=off zfs/var/tmp
-zfs create -V 16G zfs/swap
-zfs set org.freebsd:swap=on zfs/swap
-
-# Install FreeBSD
-cd /usr/freebsd-dist/
-sh -c 'for file in base.txz lib32.txz kernel.txz doc.txz games.txz; do tar --unlink -xvpJf $file -C /mnt; done'
-zpool set bootfs=zfs/ROOT/default zfs
-
-echo 'zfs_load="YES"' >> /mnt/boot/loader.conf
-echo 'zfs_enable="YES"' >> /mnt/etc/rc.conf
-touch /mnt/etc/fstab
-
-zfs unmount -a
-shutdown -r now
-
-################################################################################
-# Export the zpool
-################################################################################
-
-zpool export zfs
-
-################################################################################
-# Trash the gnops
-################################################################################
-
-gnop destroy /dev/gpt/bay2_WCAWZ0415892.nop
-gnop destroy /dev/gpt/bay3_WCAWZ0416712.nop
-gnop destroy /dev/gpt/bay4_WCAWZ0424121.nop
-
-################################################################################
-# Re-import the zpool
-################################################################################
-
-zpool import -d /dev/gpt zfs
-
-################################################################################
-# Make sure the datasets set up are present and mounted
-################################################################################
-
-ls -l /zfs
-
-################################################################################
-# Verify ashift = 12 shows up
-################################################################################
-
-zdb 
-
-################################################################################
-# Kick off scrub via cron the first Monday of every month to keep scrubs from
-# slowing down other cron jobs that run throughout the week. If this by some
-# chance fails, the periodic.conf job is enabled in the next lines and the
-# default of 35 days will ensure a scrub gets run routinely.
-################################################################################
-
-printf '0\t4\t*\t*\tmon\t[ $(/bin/date +\\%%d) -le 7 ] && /sbin/zpool scrub zfs\n' >> /var/cron/tabs/root
-
-################################################################################
-# If all is well, enable reporting during daily updates.
-################################################################################
-
-echo 'daily_status_zfs_enable="YES"' >> /etc/periodic.conf
-echo 'daily_scrub_zfs_enable="YES"' >> /etc/periodic.conf
-
-################################################################################
-# Quick Rolling snapshot scripts for a month's worth of snapshot along with
-# a permanent snapshot made on the first of every month. 
-################################################################################
-
-cat > /usr/local/etc/periodic/daily/900.rollingsnap << 'EOF'
-#!/bin/sh
-_30DAYSAGO=$(/bin/date -v -30d "+%Y%m%d")
-_SNAPDATE=$(/bin/date "+%Y%m%d")
-
-zfs destroy -r zfs/homedirs@$_30DAYSAGO-autodaily > /dev/null 2>&1
-zfs snapshot -r zfs/homedirs@$_SNAPDATE-autodaily
-zfs destroy -r zfs/data@$_30DAYSAGO-autodaily > /dev/null 2>&1
-zfs snapshot -r zfs/data@$_SNAPDATE-autodaily
-'EOF'
-chmod 555 /usr/local/etc/periodic/daily/900.rollingsnap
-
-cat > /usr/local/etc/periodic/monthly/900.monthlysnap << 'EOF'
-#!/bin/sh
-_SNAPDATE=$(/bin/date "+%Y%m%d")
-zfs rename -r zfs/homedirs@$_SNAPDATE-autodaily @$_SNAPDATE-automonthly > /dev/null 2>&1
-zfs rename -r zfs/data@$_SNAPDATE-autodaily @$_SNAPDATE-automonthly > /dev/null 2>&1
-'EOF'
-chmod 555 /usr/local/etc/periodic/monthly/900.monthlysnap
-
-################################################################################
-##----------------------------------------------------------------------------##
 ##                    Configure Host System NFS Support                       ##
 ##----------------------------------------------------------------------------##
 ################################################################################
@@ -1416,7 +1370,7 @@ echo 'V4: / -sec=sys -network 10.100.0.0 -mask 255.255.0.0' >> /etc/exports
 # permissions.
 ################################################################################
 
-zfs set sharenfs='-network 10.100.0.0 -mask 255.255.0.0 -maproot=root' zfs/homedirs
+zfs set sharenfs='-network 10.100.0.0 -mask 255.255.0.0 -maproot=root' zroot/homedirs
 
 ################################################################################
 # Lock to NFSv4 only (optional)
@@ -1729,7 +1683,7 @@ pkg install sysutils/ezjail
 sed -i '' -e 's/# ezjail_devfs_ruleset="devfsrules_jail"/ezjail_devfs_ruleset="4"/' /usr/local/etc/ezjail.conf
 
 # Backup to zfs
-sed -i '' -e 's^# ezjail_archivedir="${ezjail_jaildir}/ezjail_archives"^ezjail_archivedir=/zfs/local/jails/archive^' /usr/local/etc/ezjail.conf
+sed -i '' -e 's^# ezjail_archivedir="${ezjail_jaildir}/ezjail_archives"^ezjail_archivedir=/zroot/local/jails/archive^' /usr/local/etc/ezjail.conf
 
 # Define default jail stop command to ensure graceful shutdown of jails
 echo 'ezjail_exec_stop="/bin/sh /etc/rc.shutdown"' >> /usr/local/etc/ezjail.conf
@@ -1738,10 +1692,10 @@ echo 'ezjail_exec_stop="/bin/sh /etc/rc.shutdown"' >> /usr/local/etc/ezjail.conf
 sed -i '' -e 's^# ezjail_uglyperlhack="YES"^ezjail_uglyperlhack="NO"^' /usr/local/etc/ezjail.conf
 
 # Enable Ezjail ZFS
-sed -i '' -e 's^# ezjail_jaildir=/zfs/jails^ezjail_jaildir=/zfs/jails^' /usr/local/etc/ezjail.conf
+sed -i '' -e 's^# ezjail_jaildir=/usr/jails^ezjail_jaildir=/zfs/jails^' /usr/local/etc/ezjail.conf
 sed -i '' -e 's^# ezjail_use_zfs="YES"^ezjail_use_zfs="YES"^' /usr/local/etc/ezjail.conf
 sed -i '' -e 's^# ezjail_use_zfs_for_jails="YES"^ezjail_use_zfs_for_jails="YES"^' /usr/local/etc/ezjail.conf
-sed -i '' -e 's^# ezjail_jailzfs="tank/ezjail"^ezjail_jailzfs="zfs/jails"^' /usr/local/etc/ezjail.conf
+sed -i '' -e 's^# ezjail_jailzfs="tank/ezjail"^ezjail_jailzfs="zroot/jails"^' /usr/local/etc/ezjail.conf
 sed -i '' -e 's^# ezjail_zfs_properties="-o compression=lzjb -o atime=off"^ezjail_zfs_properties="-o compression=lz4 -o atime=off"^' /usr/local/etc/ezjail.conf
 sed -i '' -e 's^# ezjail_default_retention_policy^ezjail_default_retention_policy^' /usr/local/etc/ezjail.conf
 
