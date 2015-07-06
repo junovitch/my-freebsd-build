@@ -1506,12 +1506,17 @@ pkg install ports-mgmt/poudriere-devel
 
 # Backup and change default configuration variables
 cd /usr/local/etc && cp poudriere.conf.sample poudriere.conf
-perl -pwi -e 's^#ZPOOL=tank^ZPOOL=zfs^g' poudriere.conf
-perl -pwi -e 's^_PROTO_://_CHANGE_THIS_^http://ftp.freebsd.org^g' poudriere.conf
-perl -pwi -e 's^BASEFS=/usr/local/poudriere^BASEFS=/zfs/poudriere^g' poudriere.conf
+sed -i '' -e 's^.*ZPOOL=.*^ZPOOL=zroot^' poudriere.conf
+sed -i '' -e 's^.*FREEBSD_HOST=.*^FREEBSD_HOST=http://ftp.freebsd.org^' poudriere.conf
+sed -i '' -e 's^.*SVN_HOST=.*^SVN_HOST=svn0.us-east.FreeBSD.org^' poudriere.conf
 
-# Setup Poudriere to use the current host /usr/ports as the default
-poudriere ports -c -F -f none -M /usr/ports -p default
+# Remove current ports tree and have Poudriere fill /usr/ports from SVN
+rm -r /usr/ports/*
+poudriere ports -c -f none -m svn+https -M /usr/ports -p default
+
+# Setup 11.0-CURRENT build environments
+poudriere jail -c -j 110amd64 -v head -a amd64 -m svn+https
+poudriere jail -c -j 110i386 -v head -a i386 -m svn+https
 
 # Setup 10.1-RELEASE build environments
 poudriere jails -c -j 101amd64 -v 10.1-RELEASE -a amd64
@@ -1525,6 +1530,7 @@ poudriere jails -c -j 84i386 -v 8.4-RELEASE -a i386
 # Setup make.conf variables for build jail
 cat > /usr/local/etc/poudriere.d/101amd64-make.conf << 'EOF'
 DEFAULT_VERSIONS= ruby=2.1 perl5=5.20 mysql=5.5m pgsql=9.4
+ports-mgmt_poudriere-devel_SET+=QEMU
 ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 gnutls_UNSET+=TPM
 rubygem-passenger_UNSET+=APACHE22
@@ -1536,6 +1542,8 @@ nginx_SET+=PASSENGER HTTP_FANCYINDEX
 'EOF'
 
 # Do hard links to make this the default for all build jails
+ln 101amd64-make.conf 110amd64-make.conf
+ln 101amd64-make.conf 110i386-make.conf
 ln 101amd64-make.conf 101i386-make.conf
 ln 101amd64-make.conf 93amd64-make.conf
 ln 101amd64-make.conf 93i386-make.conf
@@ -1631,6 +1639,9 @@ ftp/tftp-hpa
 'EOF'
 
 # Start a bulk build of all ports in that list
+poudriere bulk -f /zfs/poudriere/pkg_list -j 110amd64
+poudriere bulk -f /zfs/poudriere/pkg_list -j 110i386
+
 poudriere bulk -f /zfs/poudriere/pkg_list -j 101amd64
 poudriere bulk -f /zfs/poudriere/pkg_list -j 101i386
 
@@ -1649,6 +1660,8 @@ FreeBSD: {
 # poudriere jail -u -j jailname
 # - To upgrade to a newer version of FreeBSD, let's say from 9.0 to 9.1:
 # poudriere jail -u -t 9.1-RELEASE -j jailname
+# - To upgrade the CURRENT jails using SVN after they were built:
+# poudriere jail -u -j 110amd64 && poudriere jail -u -j 110i386
 
 # Optional Patch to add link to local package repo on Poudriere index page
 cat > /home/jason/poudriere-index.patch << 'EOF'
@@ -1669,9 +1682,32 @@ pkg check -r poudriere-devel
 # Cron entries to automate
 echo 'MAILTO=jason' >> /var/cron/tabs/root
 echo 'PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin' >> /var/cron/tabs/root
-printf "30\t5\t*\t*\twed\tportsup; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 84amd64;  nice poudriere bulk -f /zfs/poudriere/pkg_list -j 84i386\n" >> /var/cron/tabs/root
-printf "30\t5\t*\t*\tthu\tportsup; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 93amd64;  nice poudriere bulk -f /zfs/poudriere/pkg_list -j 93i386\n" >> /var/cron/tabs/root
-printf "30\t5\t*\t*\tfri\tportsup; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 101amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 101i386\n" >> /var/cron/tabs/root
+printf "30\t5\t*\t*\ttue\tpoudriere ports -u; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 84amd64;  nice poudriere bulk -f /zfs/poudriere/pkg_list -j 84i386\n" >> /var/cron/tabs/root
+printf "30\t5\t*\t*\twed\tpoudriere ports -u; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 93amd64;  nice poudriere bulk -f /zfs/poudriere/pkg_list -j 93i386\n" >> /var/cron/tabs/root
+printf "30\t5\t*\t*\tthu\tpoudriere ports -u; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 101amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 101i386\n" >> /var/cron/tabs/root
+printf "30\t5\t*\t*\tfri\tpoudriere ports -u; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 110amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 110i386\n" >> /var/cron/tabs/root
+
+# Helpful testing scripts
+cat > /home/jason/bin/bulkall.sh << 'EOF'
+#!/bin/sh
+port=$1
+for jail in $(poudriere jail -lnq | sort -n); do
+	if [ -z $port ]; then
+		poudriere bulk -j $jail -f /zfs/poudriere/pkg_list
+	elif [ -d /usr/ports/$port ]; then
+		poudriere bulk -j $jail $port
+	else
+		echo "$port does not exist in /usr/ports/$port"
+	fi
+'EOF'
+
+cat > /home/jason/bin/testportall.sh << 'EOF'
+#!/bin/sh
+port=$1
+for jail in $(poudriere jail -lnq | sort -n); do
+	poudriere testport -j $jail -o $port
+done
+'EOF'
 
 ################################################################################
 ##----------------------------------------------------------------------------##
