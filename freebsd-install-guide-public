@@ -3227,6 +3227,45 @@ sed -i '' -e 's/#kern_securelevel/kern_securelevel/' /etc/rc.conf
 sysctl kern.securelevel=1
 
 ################################################################################
+# Tracking CURRENT on host with Boot Environments
+################################################################################
+# Update /usr/src and build it
+cd /usr/src
+svnlite up
+make -j `sysctl -n hw.ncpu` buildworld && make -j `sysctl -n hw.ncpu` buildkernel
+# Install in new BE
+beadm list
+beadm create <newBE>
+beadm mount <newBE> /mnt
+make installkernel DESTDIR=/mnt
+beadm unmount <newBE>
+beadm list
+beadm activate <newBE>
+# Reboot into the new kernel
+shutdown -r now
+# Now update Poudriere and build a new set of packages
+poudriere jail -u -j 110amd64 && \
+poudriere jail -u -j 110i386 && \
+poudriere bulk -j 110amd64 -f /zfs/poudriere/pkg_list && \
+poudriere bulk -j 110i386 -f /zfs/poudriere/pkg_list
+# At this point, if the kernel has been reliable, upgrade config files and userland
+cd /usr/src
+etcupdate -s /usr/src -D "" -p
+make installworld
+etcupdate -s /usr/src -D ""
+# Update all packages
+pkg-static upgrade -fy
+# Do any local patches for rc.d scripts and so forth
+pkg check -r
+# Reboot into the new userland
+shutdown -r now
+# After reinstall of packages and a reboot
+make -DBATCH_DELETE_OLD_FILES delete-old delete-old-libs
+# Make a snapshot
+beadm list
+beadm create <beName@snapshot>
+
+################################################################################
 # CONSOLE USE ONLY
 # Major system updates short of kernel updates, go to single-user mode
 ################################################################################
