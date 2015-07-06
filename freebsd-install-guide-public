@@ -413,6 +413,12 @@ tmux
 pkg install shells/bash
 
 ################################################################################
+# Zsh - The Z shell
+################################################################################
+
+pkg install shells/zsh
+
+################################################################################
 # Perl - Used for misc editing tasks and various programs.
 ################################################################################
 
@@ -1548,6 +1554,7 @@ ports-mgmt/portlint
 devel/rclint
 sysutils/tmux
 shells/bash
+shells/zsh
 lang/perl5.20
 dns/unbound
 net/openntpd
@@ -1888,7 +1895,7 @@ perl -pwi -e 's/parameters=""/parameters="allow.sysvipc=1"/g' /usr/local/etc/ezj
 ezjail-admin console -f pgsql.pa-us.mydomain.name
 passwd
 
-pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
+pkg install bash zsh portmaster tmux vim-lite pstree cmdwatch tree
 
 # Symlink /usr/local/pgsql before installing PostgreSQL to keep database on
 # ZFS dataset with ideal options
@@ -1973,7 +1980,7 @@ echo '/zfs/poudriere/data/packages /zfs/jails/mdbi.pa-us.mydomain.name/pkgrepo n
 ezjail-admin console -f mdbi.pa-us.mydomain.name
 passwd
 
-pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
+pkg install bash zsh portmaster tmux vim-lite pstree cmdwatch tree
 
 # Install MariaDB 5.5
 pkg install mariadb55-server
@@ -2046,7 +2053,7 @@ passwd
 # Both apps1 and apps2 will get the same steps from this point on with very minor changes
 # between each other.
 
-pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
+pkg install bash zsh portmaster tmux vim-lite pstree cmdwatch tree
 
 # Installing Dependencies:  Install Puppet, Git, Nginx, and Ruby Components
 
@@ -2554,7 +2561,7 @@ echo '/zfs/poudriere/data/packages /zfs/jails/carbon.pa-us.mydomain.name/pkgrepo
 ezjail-admin console -f carbon.pa-us.mydomain.name
 passwd
 
-pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
+pkg install bash zsh portmaster tmux vim-lite pstree cmdwatch tree
 
 # Install specific packages
 pkg install www/py-graphite-web www/uwsgi databases/py-psycopg2
@@ -2695,7 +2702,7 @@ echo '/zfs/poudriere/data/packages /zfs/jails/serviio.pa-us.mydomain.name/pkgrep
 ezjail-admin console -f serviio.pa-us.mydomain.name
 passwd
 
-pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
+pkg install bash zsh portmaster tmux vim-lite pstree cmdwatch tree
 
 # Setup FFMPEG options per guidance in the helpful links then start Serviio build.
 # cd /usr/ports/multimedia/ffmpeg && make config WITH_RTMP=YES WITH_X11GRAB=YES WITH_FAAC=YES WITH_LAME=YES WITH_AMR_NB=YES WITH_AMR_WB=YES WITH_ASS=YES
@@ -2824,7 +2831,7 @@ echo '/zfs/data /zfs/jails/lanser.pa-us.mydomain.name/zfs/data nullfs rw 0 0' >>
 ezjail-admin console -f lanser.pa-us.mydomain.name
 passwd
 
-pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
+pkg install bash zsh portmaster tmux vim-lite pstree cmdwatch tree
 
 # Install BIND
 pkg install dns/bind910
@@ -2913,7 +2920,7 @@ cp /root/mycert/www.mydomain.name.* /zfs/jails/www1.pa-us.mydomain.name/usr/loca
 ezjail-admin console -f www1.pa-us.mydomain.name
 passwd
 
-pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
+pkg install bash zsh portmaster tmux vim-lite pstree cmdwatch tree
 
 # Assign Apache module build to the PHP5 config then start the full build.
 # cd /usr/ports/lang/php5 && make config WITH_APACHE=YES
@@ -3005,7 +3012,7 @@ echo '/zfs/poudriere/data/packages /zfs/jails/ms1.pa-us.mydomain.name/pkgrepo nu
 ezjail-admin console -f ms1.pa-us.mydomain.name
 passwd
 
-pkg install bash portmaster tmux vim-lite pstree cmdwatch tree
+pkg install bash zsh portmaster tmux vim-lite pstree cmdwatch tree
 
 fetch https://bitbucket.org/zhb/iredmail/downloads/iRedMail-0.8.5.tar.bz2
 tar xjf iRedMail-0.8.5.tar.bz2
