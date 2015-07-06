@@ -1764,10 +1764,6 @@ perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.100.102.2^g' /zfs/
 
 cat >> /zfs/jails/flavours/example/etc/rc.conf << 'EOF'
 
-# Kernel Secure Level
-kern_securelevel_enable="YES"
-kern_securelevel="3"
-
 # Clear Tmp
 clear_tmp_enable="YES"
 'EOF'
@@ -3031,13 +3027,6 @@ LOCAL_ADDRESS='192.168.102.11' bash iRedMail.sh
 ##----------------------------------------------------------------------------##
 ################################################################################
 
-## Set Kernel Secure Level
-echo '' >> /etc/rc.conf
-echo '# Kernel Secure Level' >> /etc/rc.conf
-echo 'kern_securelevel_enable="YES"' >> /etc/rc.conf
-echo 'kern_securelevel="1"' >> /etc/rc.conf
-sysctl kern.securelevel=1
-
 ## Enable Auditing
 echo '' >> /etc/rc.conf
 echo '# Auditing' >> /etc/rc.conf
@@ -3147,7 +3136,6 @@ chmod 555 /usr/local/sbin/portsup
 
 # Small Updates, I.E. 9.1-RELEASE to 9.1-RELEASE-p6
 freebsd-update fetch
-sed -i '' -e 's/kern_securelevel/#kern_securelevel/' /etc/rc.conf
 sed -i '' -e 's/ezjail_enable/#ezjail_enable/' /etc/rc.conf
 shutdown -r now
 freebsd-update install
@@ -3158,18 +3146,15 @@ poudriere jail -u -j 93amd64
 poudriere jail -u -j 93i386
 poudriere jail -u -j 84amd64
 poudriere jail -u -j 84i386
-sed -i '' -e 's/#kern_securelevel/kern_securelevel/' /etc/rc.conf
 sed -i '' -e 's/#ezjail_enable/ezjail_enable/' /etc/rc.conf
 service ezjail start
-sysctl kern.securelevel=1
 
 # Big Updates, I.E. 9.2-RELEASE to 10.0-RELEASE
 ## Backup Old /etc
 cp -Rp /etc /root/etc.old
 ## Run freebsd-update to get the latest patches
 freebsd-update upgrade -r 10.1-RELEASE
-## If using a heightened securelevel, lower it and reboot
-sed -i '' -e 's/kern_securelevel/#kern_securelevel/' /etc/rc.conf
+## Reboot
 shutdown -r now
 ## First `freebsd-update install` and reboot for new kernel
 freebsd-update install
@@ -3222,9 +3207,6 @@ pkg autoremove
 service ezjail stop
 ezjail-admin archive -A
 service ezjail start
-## Enable and raise securelevel if in use
-sed -i '' -e 's/#kern_securelevel/kern_securelevel/' /etc/rc.conf
-sysctl kern.securelevel=1
 
 ################################################################################
 # Tracking CURRENT on host with Boot Environments
