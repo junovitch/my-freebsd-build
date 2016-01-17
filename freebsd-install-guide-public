@@ -711,10 +711,10 @@ pkg install editors/vim-lite
 pkg install devel/checkbashisms
 
 ################################################################################
-# Portlint and Rclint for checking ports and scripts for syntax issues 
+# Portlint, Rclint, and Igor for checking ports, scripts, and man pages
 ################################################################################
 
-pkg install ports-mgmt/portlint devel/rclint
+pkg install ports-mgmt/portlint devel/rclint textproc/igor
 
 ################################################################################
 # IPMItool
@@ -1560,6 +1560,7 @@ ports-mgmt/poudriere-devel
 ports-mgmt/dialog4ports
 ports-mgmt/portlint
 devel/rclint
+textproc/igor
 sysutils/tmux
 shells/bash
 shells/zsh
