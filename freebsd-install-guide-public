@@ -1508,11 +1508,11 @@ pkg install ports-mgmt/poudriere-devel
 cd /usr/local/etc && cp poudriere.conf.sample poudriere.conf
 sed -i '' -e 's^.*ZPOOL=.*^ZPOOL=zroot^' poudriere.conf
 sed -i '' -e 's^.*FREEBSD_HOST=.*^FREEBSD_HOST=http://ftp.freebsd.org^' poudriere.conf
-sed -i '' -e 's^.*SVN_HOST=.*^SVN_HOST=svn0.us-east.FreeBSD.org^' poudriere.conf
+sed -i '' -e 's^.*BUILD_AS_NON_ROOT=.*^BUILD_AS_NON_ROOT=yes^' poudriere.conf
 
-# Remove current ports tree and have Poudriere fill /usr/ports from SVN
+# Remove current ports tree and set Poudriere to use existing ports repo
 rm -r /usr/ports/*
-poudriere ports -c -f none -m svn+https -M /usr/ports -p default
+poudriere ports -c -F -f none -M /usr/ports -p default
 
 # Setup 11.0-CURRENT build environments
 poudriere jail -c -j 110amd64 -v head -a amd64 -m svn+https
@@ -1522,33 +1522,34 @@ poudriere jail -c -j 110i386 -v head -a i386 -m svn+https
 poudriere jails -c -j 101amd64 -v 10.1-RELEASE -a amd64
 poudriere jails -c -j 101i386 -v 10.1-RELEASE -a i386
 # Setup alternate build environments for testing ports
+poudriere jails -c -j 102amd64 -v 10.2-RELEASE -a amd64
+poudriere jails -c -j 102i386 -v 10.2-RELEASE -a i386
 poudriere jails -c -j 93amd64 -v 9.3-RELEASE -a amd64
 poudriere jails -c -j 93i386 -v 9.3-RELEASE -a i386
-poudriere jails -c -j 84amd64 -v 8.4-RELEASE -a amd64
-poudriere jails -c -j 84i386 -v 8.4-RELEASE -a i386
+
+# Setup build environments for cross building ports
+# http://blogs.freebsdish.org/brd/2015/08/25/building-arm-packages-with-poudriere-the-simple-way/
+sysrc qemu_user_static_enable=YES
+service qemu_user_static start
+poudriere jail -c -j 110armv6 -v head -a arm.armv6 -m svn+https
+poudriere jail -c -j 110aarch64 -v head -a arm.aarch64 -m svn+https
 
 # Setup make.conf variables for build jail
-cat > /usr/local/etc/poudriere.d/101amd64-make.conf << 'EOF'
+cat > /usr/local/etc/poudriere.d/make.conf << 'EOF'
 DEFAULT_VERSIONS= ruby=2.1 perl5=5.20 pgsql=9.4
 ports-mgmt_poudriere-devel_SET+=QEMU
-ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
-gnutls_UNSET+=TPM
-rubygem-passenger_UNSET+=APACHE22
-rubygem-passenger_SET+=NGINX
+multimedia_ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
+security_gnutls_UNSET+=TPM
+www_rubygem-passenger_UNSET+=APACHE22
+www_rubygem-passenger_SET+=NGINX
 net-mgmt_collectd5_SET+=CURL NUTUPS PING PGSQL STATGRAB XML
 net_samba41_SET+=PAM_SMBPASS
 net_unison240_UNSET+=X11
-nginx_SET+=PASSENGER HTTP_FANCYINDEX
+www_nginx_SET+=PASSENGER HTTP_FANCYINDEX
 'EOF'
-
-# Do hard links to make this the default for all build jails
-ln 101amd64-make.conf 110amd64-make.conf
-ln 101amd64-make.conf 110i386-make.conf
-ln 101amd64-make.conf 101i386-make.conf
-ln 101amd64-make.conf 93amd64-make.conf
-ln 101amd64-make.conf 93i386-make.conf
-ln 101amd64-make.conf 84amd64-make.conf
-ln 101amd64-make.conf 84i386-make.conf
+# Setup make.conf variables for HEAD jails
+echo 'SSP_CFLAGS= -fstack-protector-strong' >> /usr/local/etc/poudriere.d/110amd64-make.conf
+echo 'SSP_CFLAGS= -fstack-protector-strong' >> /usr/local/etc/poudriere.d/110i386-make.conf
 
 # Setup a package list of all ports used on host and in jails
 cat > /zfs/poudriere/pkg_list << 'EOF'
@@ -1641,8 +1642,8 @@ ftp/tftp-hpa
 poudriere bulk -f /zfs/poudriere/pkg_list -j 110amd64
 poudriere bulk -f /zfs/poudriere/pkg_list -j 110i386
 
-poudriere bulk -f /zfs/poudriere/pkg_list -j 101amd64
-poudriere bulk -f /zfs/poudriere/pkg_list -j 101i386
+poudriere bulk -f /zfs/poudriere/pkg_list -j 102amd64
+poudriere bulk -f /zfs/poudriere/pkg_list -j 102i386
 
 # Allow host to install from Poudriere Repo
 mkdir -p /usr/local/etc/pkg/repos
@@ -1681,10 +1682,11 @@ pkg check -r poudriere-devel
 # Cron entries to automate
 echo 'MAILTO=jason' >> /var/cron/tabs/root
 echo 'PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin' >> /var/cron/tabs/root
-printf "30\t5\t*\t*\ttue\tpoudriere ports -u; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 84amd64;  nice poudriere bulk -f /zfs/poudriere/pkg_list -j 84i386\n" >> /var/cron/tabs/root
-printf "30\t5\t*\t*\twed\tpoudriere ports -u; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 93amd64;  nice poudriere bulk -f /zfs/poudriere/pkg_list -j 93i386\n" >> /var/cron/tabs/root
-printf "30\t5\t*\t*\tthu\tpoudriere ports -u; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 101amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 101i386\n" >> /var/cron/tabs/root
-printf "30\t5\t*\t*\tfri\tpoudriere ports -u; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 110amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 110i386\n" >> /var/cron/tabs/root
+printf "30\t5\t*\t*\tmon\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 110armv6\n" >> /var/cron/tabs/root
+printf "30\t5\t*\t*\ttue\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 93amd64;  nice poudriere bulk -f /zfs/poudriere/pkg_list -j 93i386\n" >> /var/cron/tabs/root
+printf "30\t5\t*\t*\twed\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 101amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 101i386\n" >> /var/cron/tabs/root
+printf "30\t5\t*\t*\tthu\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 102amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 102i386\n" >> /var/cron/tabs/root
+printf "30\t5\t*\t*\tfri\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 110amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 110i386\n" >> /var/cron/tabs/root
 
 # Helpful testing scripts
 cat > /home/jason/bin/bulkall.sh << 'EOF'
