@@ -303,8 +303,8 @@ ifconfig_em1_alias10="inet 10.100.102.16/32"			# unused
 ifconfig_em1_alias11="inet6 2001:123:4:5678::16/128"		# unused
 ifconfig_em1_alias12="inet 10.100.102.17/32"			# pgsql.pa-us.mydomain.name
 ifconfig_em1_alias13="inet6 2001:123:4:5678::17/128"		# pgsql.pa-us.mydomain.name
-ifconfig_em1_alias14="inet 10.100.102.18/32"			# mdbi.pa-us.mydomain.name
-ifconfig_em1_alias15="inet6 2001:123:4:5678::18/128"		# mdbi.pa-us.mydomain.name
+ifconfig_em1_alias14="inet 10.100.102.18/32"			# unused
+ifconfig_em1_alias15="inet6 2001:123:4:5678::18/128"		# unused
 ifconfig_em1_alias16="inet 10.100.102.19/32"			# carbon.pa-us.mydomain.name
 ifconfig_em1_alias17="inet6 2001:123:4:5678::19/128"		# carbon.pa-us.mydomain.name
 
@@ -1529,13 +1529,13 @@ poudriere jails -c -j 84i386 -v 8.4-RELEASE -a i386
 
 # Setup make.conf variables for build jail
 cat > /usr/local/etc/poudriere.d/101amd64-make.conf << 'EOF'
-DEFAULT_VERSIONS= ruby=2.1 perl5=5.20 mysql=5.5m pgsql=9.4
+DEFAULT_VERSIONS= ruby=2.1 perl5=5.20 pgsql=9.4
 ports-mgmt_poudriere-devel_SET+=QEMU
 ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 gnutls_UNSET+=TPM
 rubygem-passenger_UNSET+=APACHE22
 rubygem-passenger_SET+=NGINX
-net-mgmt_collectd5_SET+=CURL MYSQL NUTUPS PING PGSQL STATGRAB XML
+net-mgmt_collectd5_SET+=CURL NUTUPS PING PGSQL STATGRAB XML
 net_samba41_SET+=PAM_SMBPASS
 net_unison240_UNSET+=X11
 nginx_SET+=PASSENGER HTTP_FANCYINDEX
@@ -1624,14 +1624,12 @@ devel/libvirt
 textproc/libxslt
 www/node
 databases/sqlite3
-databases/mariadb55-client
+databases/mysql56-client
 databases/postgresql94-client
 net/foreman-proxy
 www/py-graphite-web
 databases/py-psycopg2
 www/uwsgi
-########## MariaDB Jail ##########
-databases/mariadb55-server
 ########## PostgreSQL Jail ##########
 databases/postgresql94-server
 ########## Name Server/TFTP Jail ##########
@@ -2008,45 +2006,6 @@ pg_restore --dbname=foreman pgdump_foreman_2015-01-10T03:01:34
 
 ################################################################################
 ##----------------------------------------------------------------------------##
-##                       MariaDB Jail Configuration                           ##
-##----------------------------------------------------------------------------##
-################################################################################
-
-ezjail-admin create -f lan mdbi.pa-us.mydomain.name 10.100.102.18,2001:123:4:5678::18
-echo '/zfs/poudriere/data/packages /zfs/jails/mdbi.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.mdbi_pa_us_mydomain_name
-ezjail-admin console -f mdbi.pa-us.mydomain.name
-passwd
-
-pkg install bash zsh portmaster tmux vim-lite pstree cmdwatch tree
-
-# Install MariaDB 5.5
-pkg install mariadb55-server
-
-# Enable and start MariaDB
-cp /usr/local/share/mysql/my-medium.cnf /var/db/mysql/my.cnf
-echo 'mysql_enable="YES"' >> /etc/rc.conf.local
-service mysql-server start
-
-# Prepare Database for use by running the secure installation.
-# Choose a root password and answer yes to all questions.
-mysql_secure_installation
-
-# Login to MariaDB and create appropriate tables
-# Sub with random passwords:  dd if=/dev/urandom bs=32 count=1 | openssl base64 | cut -b -32
-mysql -u root -p
-CREATE DATABASE foreman CHARACTER SET utf8;
-CREATE DATABASE foreman_test CHARACTER SET utf8;
-CREATE USER 'foreman'@'10.100.102.11' IDENTIFIED BY 'foreman_password';
-CREATE USER 'foreman'@'10.100.102.12' IDENTIFIED BY 'foreman_password';
-GRANT ALL PRIVILEGES ON foreman.* TO 'foreman'@'10.100.102.11';
-GRANT ALL PRIVILEGES ON foreman.* TO 'foreman'@'10.100.102.12';
-GRANT ALL PRIVILEGES ON foreman_test.* TO 'foreman'@'10.100.102.11';
-GRANT ALL PRIVILEGES ON foreman_test.* TO 'foreman'@'10.100.102.12';
-flush privileges;
-quit;
-
-################################################################################
-##----------------------------------------------------------------------------##
 ##          Puppet and Foreman on Nginx/Passenger Jail Configuration          ##
 ##----------------------------------------------------------------------------##
 ################################################################################
@@ -2094,7 +2053,7 @@ pkg install bash zsh portmaster tmux vim-lite pstree cmdwatch tree
 
 # Installing Dependencies:  Install Puppet, Git, Nginx, and Ruby Components
 
-pkg install puppet rubygem-puppet-lint git nginx rubygem-rake rubygem-passenger rubygem-bundler libvirt mariadb55-client libxslt node sqlite3 postgresql94-client gcc47 gmake sudo foreman-proxy
+pkg install puppet rubygem-puppet-lint git nginx rubygem-rake rubygem-passenger rubygem-bundler libvirt mysql56-client libxslt node sqlite3 postgresql94-client gcc47 gmake sudo foreman-proxy
 
 # At this point, Puppet needs to be started so that all its SSL keys can be 
 # generated. This gives the chance to test that Puppet does work before anything
