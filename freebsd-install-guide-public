@@ -3236,10 +3236,10 @@ poudriere jail -u -j 110i386 && \
 poudriere bulk -j 110amd64 -f /zfs/poudriere/pkg_list && \
 poudriere bulk -j 110i386 -f /zfs/poudriere/pkg_list
 # At this point, if the kernel has been reliable, upgrade config files and userland
-cd /usr/src
-etcupdate -s /usr/src -D "" -p
+cd /usr/src/head
+etcupdate -s /usr/src/head -D "" -p
 make installworld
-etcupdate -s /usr/src -D ""
+etcupdate -s /usr/src/head -D ""
 # Update all packages
 pkg-static upgrade -fy
 # Do any local patches for rc.d scripts and so forth
