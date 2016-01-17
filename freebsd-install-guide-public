@@ -422,7 +422,7 @@ pkg install shells/zsh
 # Perl - Used for misc editing tasks and various programs.
 ################################################################################
 
-pkg install lang/perl5.20
+pkg install lang/perl5.22
 
 ################################################################################
 # Unbound - DNS for the host, each jail, and the local LAN.
@@ -1536,7 +1536,7 @@ poudriere jail -c -j 110aarch64 -v head -a arm.aarch64 -m svn+https
 
 # Setup make.conf variables for build jail
 cat > /usr/local/etc/poudriere.d/make.conf << 'EOF'
-DEFAULT_VERSIONS= ruby=2.1 perl5=5.20 pgsql=9.4
+DEFAULT_VERSIONS= ruby=2.1 perl5=5.22 pgsql=9.4
 ports-mgmt_poudriere-devel_SET+=QEMU
 multimedia_ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 security_gnutls_UNSET+=TPM
@@ -1565,7 +1565,7 @@ textproc/igor
 sysutils/tmux
 shells/bash
 shells/zsh
-lang/perl5.20
+lang/perl5.22
 dns/unbound
 net/openntpd
 mail/opensmtpd
