@@ -121,7 +121,7 @@ gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 1 ada1
 gpart create -s gpt ada2
 gpart add -t freebsd-boot -l bay3_bootcode -s 512k ada2
 gpart add -t freebsd-zfs -l bay3_XXXXXXXXXXXX -b 1M -a 4096 ada2
-gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 2 ada2
+gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 1 ada2
 
 # Bay 4
 gpart create -s gpt ada3
