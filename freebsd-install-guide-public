@@ -1101,6 +1101,17 @@ zfs rename -r zroot/data@$_SNAPDATE-autodaily @$_SNAPDATE-automonthly > /dev/nul
 chmod 555 /usr/local/etc/periodic/monthly/900.monthlysnap
 
 ################################################################################
+# sysutils/zfstools for snapshot management
+################################################################################
+
+pkg install zfstools
+# Add crontab entries show by pkg-message
+# crontab -e
+zfs set com.sun:auto-snapshot=true zroot/ROOT
+zfs set com.sun:auto-snapshot=true zroot/homedirs
+zfs set com.sun:auto-snapshot=true zroot/iocage/jails
+
+################################################################################
 # Smartd package for basic disk management and status checking.  We'll set up
 # the smartd.conf for more detailed checks along with sending a notification
 # email to root if issues get detected.
@@ -1551,6 +1562,7 @@ net/rsync
 net/unison240
 net/unison-nox11
 sysutils/zfs-stats
+sysutils/zfstools
 sysutils/beadm
 net/samba41
 sysutils/iocage
