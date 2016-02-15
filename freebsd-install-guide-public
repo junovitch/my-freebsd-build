@@ -196,19 +196,8 @@ zfs create zroot/homedirs/public
 zfs create -o compression=lz4 zroot/homedirs/jason
 zfs create zroot/homedirs/common_media
 zfs create -o compression=lz4 zroot/homedirs/common_assorted
-zfs create -o dedup=on zroot/homedirs/common_photo_albums
+zfs create -o dedup=on zroot/homedirs/common_photos
 zfs create -o compression=lz4 zroot/maildirs
-zfs create -o mountpoint=/zfs/local zroot/local
-zfs create zroot/local/pgsql_backups
-chown 70:70 /zroot/local/pgsql_backups; chmod 700 /zroot/local/pgsql_backups
-zfs create zroot/local/pgsql
-zfs set recordsize=8k zroot/local/pgsql
-zfs set primarycache=metadata zroot/local/pgsql
-zfs set compression=lz4 zroot/local/pgsql
-zfs set atime=off zroot/local/pgsql
-chown 70:70 /zroot/local/pgsql; chmod 700 /zroot/local/pgsql
-zfs create zroot/local/jails
-zfs create zroot/local/jails/archive
 
 zfs unmount -a
 shutdown -r now
@@ -263,24 +252,6 @@ ipv6_static_routes="dmzfibnetwork dmzfibdefault"
 # DMZ/External Interface Configuration
 ifconfig_em0="inet 192.168.102.2/24 fib 1"
 ifconfig_em0_ipv6="inet6 2001:123:4567:890::2/128 fib 1"
-ifconfig_em0_alias0="inet 192.168.102.11/32 fib 1"		# ms1.pa-us.mydomain.name
-ifconfig_em0_alias1="inet6 2001:123:4567:890::11/128 fib 1"	# ms1.pa-us.mydomain.name
-ifconfig_em0_alias2="inet 192.168.102.12/32 fib 1"		# ms2.pa-us.mydomain.name
-ifconfig_em0_alias3="inet6 2001:123:4567:890::12/128 fib 1"	# ms2.pa-us.mydomain.name
-ifconfig_em0_alias4="inet 192.168.102.13/32 fib 1"		# www1.pa-us.mydomain.name
-ifconfig_em0_alias5="inet6 2001:123:4567:890::13/128 fib 1"	# www1.pa-us.mydomain.name
-ifconfig_em0_alias6="inet 192.168.102.14/32 fib 1"		# www2.pa-us.mydomain.name
-ifconfig_em0_alias7="inet6 2001:123:4567:890::14/128 fib 1"	# www2.pa-us.mydomain.name
-ifconfig_em0_alias8="inet 192.168.102.15/32 fib 1"		# unused
-ifconfig_em0_alias9="inet6 2001:123:4567:890::15/128 fib 1"	# unused
-ifconfig_em0_alias10="inet 192.168.102.16/32 fib 1"		# unused
-ifconfig_em0_alias11="inet6 2001:123:4567:890::16/128 fib 1"	# unused
-ifconfig_em0_alias12="inet 192.168.102.17/32 fib 1"		# unused
-ifconfig_em0_alias13="inet6 2001:123:4567:890::17/128 fib 1"	# unused
-ifconfig_em0_alias14="inet 192.168.102.18/32 fib 1"		# unused
-ifconfig_em0_alias15="inet6 2001:123:4567:890::18/128 fib 1"	# unused
-ifconfig_em0_alias16="inet 192.168.102.19/32 fib 1"		# unused
-ifconfig_em0_alias17="inet6 2001:123:4567:890::19/128 fib 1"	# unused
 route_dmzfibnetwork="-net 192.168.102.0/24 -interface em0 -fib 1"
 route_dmzfibdefault="default 192.168.102.1 -fib 1"
 ipv6_route_dmzfibnetwork="-net 2001:123:4567:890::/64 -interface em0 -fib 1"
@@ -289,24 +260,6 @@ ipv6_route_dmzfibdefault="default 2001:123:4567:890::1 -fib 1"
 # LAN/Internal Interface Configuration
 ifconfig_em1="inet 10.100.102.2/24"
 ifconfig_em1_ipv6="inet6 2001:123:4:5678::2/64"
-ifconfig_em1_alias0="inet 10.100.102.11/32"			# apps1.pa-us.mydomain.name
-ifconfig_em1_alias1="inet6 2001:123:4:5678::11/128"		# apps1.pa-us.mydomain.name
-ifconfig_em1_alias2="inet 10.100.102.12/32"			# apps2.pa-us.mydomain.name
-ifconfig_em1_alias3="inet6 2001:123:4:5678::12/128"		# apps2.pa-us.mydomain.name
-ifconfig_em1_alias4="inet 10.100.102.13/32"			# unused
-ifconfig_em1_alias5="inet6 2001:123:4:5678::13/128"		# unused
-ifconfig_em1_alias6="inet 10.100.102.14/32"			# serviio.pa-us.mydomain.name
-ifconfig_em1_alias7="inet6 2001:123:4:5678::14/128"		# serviio.pa-us.mydomain.name
-ifconfig_em1_alias8="inet 10.100.102.15/32"			# lanser.pa-us.mydomain.name
-ifconfig_em1_alias9="inet6 2001:123:4:5678::15/128"		# lanser.pa-us.mydomain.name
-ifconfig_em1_alias10="inet 10.100.102.16/32"			# unused
-ifconfig_em1_alias11="inet6 2001:123:4:5678::16/128"		# unused
-ifconfig_em1_alias12="inet 10.100.102.17/32"			# pgsql.pa-us.mydomain.name
-ifconfig_em1_alias13="inet6 2001:123:4:5678::17/128"		# pgsql.pa-us.mydomain.name
-ifconfig_em1_alias14="inet 10.100.102.18/32"			# unused
-ifconfig_em1_alias15="inet6 2001:123:4:5678::18/128"		# unused
-ifconfig_em1_alias16="inet 10.100.102.19/32"			# carbon.pa-us.mydomain.name
-ifconfig_em1_alias17="inet6 2001:123:4:5678::19/128"		# carbon.pa-us.mydomain.name
 
 # Syslog Configuration, bind (-b) to LAN Internal address
 syslogd_enable="YES"
@@ -1538,7 +1491,7 @@ poudriere jail -c -j 110aarch64 -v head -a arm.aarch64 -m svn+https
 
 # Setup make.conf variables for build jail
 cat > /usr/local/etc/poudriere.d/make.conf << 'EOF'
-DEFAULT_VERSIONS= ruby=2.1 perl5=5.22 pgsql=9.4
+DEFAULT_VERSIONS= ruby=2.1 perl5=5.22 pgsql=9.5
 ports-mgmt_poudriere-devel_SET+=QEMU
 multimedia_ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 security_gnutls_UNSET+=TPM
@@ -1592,7 +1545,7 @@ net/unison-nox11
 sysutils/zfs-stats
 sysutils/beadm
 net/samba41
-sysutils/ezjail
+sysutils/iocage
 security/sudo
 net-mgmt/collectd5
 benchmarks/iperf
@@ -1628,13 +1581,20 @@ textproc/libxslt
 www/node
 databases/sqlite3
 databases/mysql56-client
-databases/postgresql94-client
+databases/postgresql95-client
 net/foreman-proxy
 www/py-graphite-web
 databases/py-psycopg2
 www/uwsgi
+sysutils/py-salt
+sysutils/rubygem-smart_proxy_salt
+########## ELK Stack Jail ##########
+sysutils/logstash
+sysutils/logstash-forwarder
+textproc/kibana4
+textproc/elasticsearch
 ########## PostgreSQL Jail ##########
-databases/postgresql94-server
+databases/postgresql95-server
 ########## Name Server/TFTP Jail ##########
 dns/bind910
 ftp/tftp-hpa
@@ -1717,37 +1677,66 @@ done
 ##                    Host System Initial Jail Configuration                  ##
 ##----------------------------------------------------------------------------##
 ################################################################################
-# Setup Ezjail scripts
-#
-# Type this to allow pings from inside the jail for testing purposes
-# sysctl security.jail.allow_raw_sockets=1
-################################################################################
 
-pkg install sysutils/ezjail
+pkg install sysutils/iocage
 
-# FreeBSD 10+ devfs handling (rules must be numbers not names)
-sed -i '' -e 's/# ezjail_devfs_ruleset="devfsrules_jail"/ezjail_devfs_ruleset="4"/' /usr/local/etc/ezjail.conf
+# Persistance configuration for VIMAGE
+cat >> /etc/rc.conf << 'EOF'
+# Bridges for VIMAGE jails
+cloned_interfaces="bridge0 bridge1"
+ifconfig_bridge0="addm em0 up"
+ifconfig bridge1="addm em1 up"
+'EOF'
+# Make the bridges now
+ifconfig bridge0 create
+ifconfig bridge1 create
+ifconfig bridge0 addm em0 up
+ifconfig bridge1 addm em1 up
 
-# Backup to zfs
-sed -i '' -e 's^# ezjail_archivedir="${ezjail_jaildir}/ezjail_archives"^ezjail_archivedir=/zroot/local/jails/archive^' /usr/local/etc/ezjail.conf
+# Fetch release and set defaults
+iocage fetch release=10.2-RELEASE
+iocage fetch release=9.3-RELEASE
+iocage set compression=lz4 default
 
-# Define default jail stop command to ensure graceful shutdown of jails
-echo 'ezjail_exec_stop="/bin/sh /etc/rc.shutdown"' >> /usr/local/etc/ezjail.conf
+# Make a test jail. Basic commands for each jail.
+iocage create tag=test-jail10 release=10.2-RELEASE
+iocage set hostname="test-jail10.pa-us.mydomain.name" test-jail10
+iocage set ip4_addr="em1|10.100.102.21" test-jail10
+iocage set ip6_addr="em1|2001:123:4:5678::21" test-jail10
+iocage set boot="on" test-jail10
+iocage start test-jail10
+iocage console test-jail10
+iocage create tag=test-jail9 release=9.3-RELEASE
+iocage set hostname="test-jail9.pa-us.mydomain.name" test-jail9
+iocage set ip4_addr="em1|10.100.102.22" test-jail9
+iocage set ip6_addr="em1|2001:123:4:5678::22" test-jail9
+iocage set boot="on" test-jail9
+iocage start test-jail9
+iocage console test-jail9
 
-# Disable ugly Perl hack
-sed -i '' -e 's^# ezjail_uglyperlhack="YES"^ezjail_uglyperlhack="NO"^' /usr/local/etc/ezjail.conf
+# VIMAGE test jail
+# http://iocage.readthedocs.org/en/latest/networking.html#vimage-vnet
+iocage create tag=test-jail10 release=10.2-RELEASE
+iocage set vnet=on test-jail10
+iocage set hostname="test-jail10.pa-us.mydomain.name" test-jail10
+iocage set interfaces='vnet0:bridge0' test-jail10-single
+iocage set ip4_addr="vnet0|192.168.102.50/24" test-jail10
+iocage set defaultrouter="192.168.102.1" test-jail10
+iocage set ip6_addr="vnet0|2001:123:4567:890::50/64" test-jail10
+iocage set defaultrouter6="2001:123:4567:890::1" test-jail10
+iocage set boot="on" test-jail10
+iocage start test-jail10
+iocage console test-jail10
 
-# Enable Ezjail ZFS
-sed -i '' -e 's^# ezjail_jaildir=/usr/jails^ezjail_jaildir=/zfs/jails^' /usr/local/etc/ezjail.conf
-sed -i '' -e 's^# ezjail_use_zfs="YES"^ezjail_use_zfs="YES"^' /usr/local/etc/ezjail.conf
-sed -i '' -e 's^# ezjail_use_zfs_for_jails="YES"^ezjail_use_zfs_for_jails="YES"^' /usr/local/etc/ezjail.conf
-sed -i '' -e 's^# ezjail_jailzfs="tank/ezjail"^ezjail_jailzfs="zroot/jails"^' /usr/local/etc/ezjail.conf
-sed -i '' -e 's^# ezjail_zfs_properties="-o compression=lzjb -o atime=off"^ezjail_zfs_properties="-o compression=lz4 -o atime=off"^' /usr/local/etc/ezjail.conf
-sed -i '' -e 's^# ezjail_default_retention_policy^ezjail_default_retention_policy^' /usr/local/etc/ezjail.conf
-
-# Install ezjail
-ezjail-admin install
-ezjail-admin update -P
+# Salt for each jail
+pkg install py27-salt
+sysrc -f /etc/rc.conf.local salt_minion_enable=YES
+cat > /usr/local/etc/salt/minion << 'EOF'
+grains:
+  roles:
+    - infra
+'EOF'
+service salt_minion start
 
 ################################################################################
 # Make SSH jail friendly by not allowing it to listen to all IP aliases
@@ -1763,12 +1752,8 @@ service sshd restart
 
 # Enable jails in rc.conf
 echo '' >> /etc/rc.conf
-echo '# Ezjail Configuration' >> /etc/rc.conf
-echo 'ezjail_enable="YES"' >> /etc/rc.conf
-
-# Do automated jail snapshots only once a day, otherwise 'ezjail-admin snapshot'
-# could be run on the host anytime maintenance is done.
-echo '/usr/local/bin/ezjail-admin snapshot' >> /usr/local/etc/periodic/daily/900.rollingsnap
+echo '# Iocage config' >> /etc/rc.conf
+echo 'iocage_enable="YES"' >> /etc/rc.conf
 
 # Enable HTTP and DATA Accept filters for some of the jails to use
 sysrc kld_list+=accf_http
@@ -1782,11 +1767,13 @@ echo '# Uncomment to allow pings within a jail on upon reboot' >> /etc/sysctl.co
 echo '#security.jail.allow_raw_sockets=1' >> /etc/sysctl.conf
 
 # Copy package repo to basejail and map default myrepo.conf to use it
-mkdir -p /zfs/jails/newjail/pkgrepo
-mkdir -p /zfs/jails/flavours/example/usr/local/etc/pkg/repos
-cat >> /zfs/jails/flavours/example/usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
+# XXX: handle this for iocage
+mkdir -p /iocage/releases/10.2-RELEASE/root/usr/local/etc/pkg/repos
+cat >> /iocage/releases/10.2-RELEASE/root/usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
 myrepo: {
-  url: "file:///pkgrepo/101amd64-default",
+  url: "http://poudriere.pa-us.mydomain.name/pkgrepo/102amd64-default",
+  signature_type: 'none',
+  enabled: yes
 }
 FreeBSD: {
   enabled: no
@@ -1794,29 +1781,35 @@ FreeBSD: {
 'EOF'
 
 # Copy .ssh directory for my user to the root user of each jail
-cp -a /usr/home/jason/.ssh /zfs/jails/newjail/root/
-chown -R root:wheel /zfs/jails/newjail/root/.ssh
-
-# Enable logging in as root with SSH keys
-perl -pwi -e 's^#PermitRootLogin no^PermitRootLogin without-password^g' /zfs/jails/newjail/etc/ssh/sshd_config
+# XXX: must be managed by salt
+# XXX: no more root login. make SSH all managed by salt.
+#cp -a /usr/home/jason/.ssh /zfs/jails/newjail/root/
+#chown -R root:wheel /zfs/jails/newjail/root/.ssh
 
 # Disable useless cron entries to prevent them spamming syslog
-perl -pwi -e 's^1,31\t0-5\t\*\t\*\t\*\troot\tadjkerntz -a^#1,31\t0-5\t\*\t\*\t\*\troot\tadjkerntz -a^' /zfs/jails/newjail/etc/crontab
+# XXX: is this still needed???
+#perl -pwi -e 's^1,31\t0-5\t\*\t\*\t\*\troot\tadjkerntz -a^#1,31\t0-5\t\*\t\*\t\*\troot\tadjkerntz -a^' /zfs/jails/newjail/etc/crontab
 
 # Set up remaining for all jail's rc.conf
-perl -pwi -e 's^# sshd_enable="YES"^sshd_enable="YES"^g' /zfs/jails/flavours/example/etc/rc.conf
-perl -pwi -e 's^syslogd_flags="-ss"^syslogd_flags="-s -v -v"^g' /zfs/jails/flavours/example/etc/rc.conf
-perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.100.102.2^g' /zfs/jails/newjail/etc/syslog.conf
-
-cat >> /zfs/jails/flavours/example/etc/rc.conf << 'EOF'
-
-# Clear Tmp
+perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.100.102.2^g' /iocage/releases/10.2-RELEASE/root/etc/syslog.conf
+cat >> /iocage/releases/10.2-RELEASE/root/etc/rc.conf.local << 'EOF'
+syslogd_flags="-s -v -v"
+sshd_enable="YES"
 clear_tmp_enable="YES"
 'EOF'
 
 # Configure baseline periodic.conf for all jail templates.
 # periodic.conf.local will be used for any things specific to one jail only.
-cat >> /zfs/jails/flavours/example/etc/periodic.conf << 'EOF'
+cat >> /iocage/releases/10.2-RELEASE/root/etc/periodic.conf << 'EOF'
+daily_output="/var/log/daily.log"
+weekly_output="/var/log/weekly.log"
+monthly_output="/var/log/monthly.log"
+daily_status_security_output="/var/log/daily_status_security.log"
+daily_status_network_enable="NO"
+daily_status_world_kernel="NO"
+daily_status_security_ipfwlimit_enable="NO"
+daily_status_security_ipfwdenied_enable="NO"
+weekly_whatis_enable="NO"
 ##### General formatting for all jails
 daily_show_success="NO"
 security_show_success="NO"
@@ -1854,7 +1847,7 @@ fi
 
 case "$daily_jail_periodic_enable" in
     [Yy][Ee][Ss])
-        paths=`jls | awk '{ print $4 }' | sort`
+        paths=`jls -n path | cut -f 2 -d '='`
         for path in $paths; do
             if [ -f ${path}/var/log/daily.log ]; then
                 LENGTH=`grep -vc newsyslog ${path}/var/log/daily.log`
@@ -1891,32 +1884,6 @@ monthly_jail_periodic_enable="YES"
 'EOF'
 
 ################################################################################
-# Create Jail flavours based on network segment 
-################################################################################
-
-cd /zfs/jails/flavours/
-cp -Rp example dmz
-cp -Rp example lan
-
-################################################################################
-# DMZ-specific segment config
-################################################################################
-
-echo 'search pa-us.mydomain.name. nc-us.mydomain.name.' >> /zfs/jails/flavours/dmz/etc/resolv.conf
-echo 'nameserver 192.168.102.1' >> /zfs/jails/flavours/dmz/etc/resolv.conf
-echo 'nameserver 192.168.102.2' >> /zfs/jails/flavours/dmz/etc/resolv.conf
-echo 'options edns0' >> /zfs/jails/flavours/dmz/etc/resolv.conf
-
-################################################################################
-# LAN-specific segment config 
-################################################################################
-
-echo 'search pa-us.mydomain.name. nc-us.mydomain.name.' >> /zfs/jails/flavours/lan/etc/resolv.conf
-echo 'nameserver 10.100.102.1' >> /zfs/jails/flavours/lan/etc/resolv.conf
-echo 'nameserver 10.100.102.2' >> /zfs/jails/flavours/lan/etc/resolv.conf
-echo 'options edns0' >> /zfs/jails/flavours/lan/etc/resolv.conf
-
-################################################################################
 ##----------------------------------------------------------------------------##
 ##                     PostgreSQL Jail Configuration                          ##
 ##----------------------------------------------------------------------------##
@@ -1924,24 +1891,26 @@ echo 'options edns0' >> /zfs/jails/flavours/lan/etc/resolv.conf
 # Useful references:
 # http://daemon-notes.com/articles/network/postgresql
 
-ezjail-admin create -f lan pgsql.pa-us.mydomain.name 10.100.102.17,2001:123:4:5678::17
-mkdir -p /zfs/jails/pgsql.pa-us.mydomain.name/zfs/local/pgsql_backups
-mkdir -p /zfs/jails/pgsql.pa-us.mydomain.name/zfs/local/pgsql
-echo '/zfs/poudriere/data/packages /zfs/jails/pgsql.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.pgsql_pa_us_mydomain_name
-echo '/zfs/local/pgsql_backups /zfs/jails/pgsql.pa-us.mydomain.name/zfs/local/pgsql_backups nullfs rw 0 0' >> /etc/fstab.pgsql_pa_us_mydomain_name
-echo '/zfs/local/pgsql /zfs/jails/pgsql.pa-us.mydomain.name/zfs/local/pgsql nullfs rw 0 0' >> /etc/fstab.pgsql_pa_us_mydomain_name
-perl -pwi -e 's/parameters=""/parameters="allow.sysvipc=1"/g' /usr/local/etc/ezjail/pgsql_pa_us_mydomain_name
-ezjail-admin console -f pgsql.pa-us.mydomain.name
+iocage create tag=pgsql release=10.2-RELEASE
+iocage set vnet=on pgsql
+iocage set interfaces='vnet0:bridge0,vnet1:bridge1' pgsql
+iocage set hostname="pgsql.pa-us.mydomain.name" pgsql
+iocage set ip4_addr="vnet0|192.168.102.17/24,vnet1|10.100.102.17/24" pgsql
+iocage set defaultrouter="10.100.102.1" pgsql
+iocage set ip6_addr="vnet0|2001:123:4567:890::17/64,vnet1|2001:123:4:5678::17/64" pgsql
+iocage set defaultrouter6="2001:123:4:5678::1" pgsql
+iocage set boot="on" pgsql
+iocage set priority="20" pgsql
+iocage set allow_sysvipc=1 pgsql
+iocage start pgsql
+iocage console pgsql
+
 passwd
 
 pkg install bash zsh portmaster tmux vim-lite pstree cmdwatch tree
 
-# Symlink /usr/local/pgsql before installing PostgreSQL to keep database on
-# ZFS dataset with ideal options
-ln -s /zfs/local/pgsql /usr/local/pgsql
-
 # Install PostgreSQL with default options
-pkg install postgresql94-server
+pkg install postgresql95-server
 
 cat >> /etc/login.conf << 'EOF'
 postgres:\
@@ -1955,10 +1924,10 @@ cap_mkdb /etc/login.conf
 echo 'postgresql_enable="YES"' >> /etc/rc.conf.local
 echo 'postgresql_class="postgres"' >> /etc/rc.conf.local
 service postgresql initdb
+sed -i '' -e "s/.*listen_addresses = .*/listen_addresses = \'*\'/" /usr/local/pgsql/data/postgresql.conf
 service postgresql start
 
 echo 'daily_pgsql_backup_enable="YES"' >> /etc/periodic.conf.local
-echo 'daily_pgsql_backupdir="/zfs/local/pgsql_backups"' >> /etc/periodic.conf.local
 echo 'daily_pgsql_vacuum_enable="YES"' >> /etc/periodic.conf.local
 
 # Create users and databases
@@ -1987,11 +1956,11 @@ sed -i '' -e 's/#track_counts = on/track_counts = on/g' /usr/local/pgsql/data/po
 sed -i '' -e 's/#track_functions = none/track_functions = all/g' /usr/local/pgsql/data/postgresql.conf
 echo "host all all 10.100.102.11/32 md5" >> /usr/local/pgsql/data/pg_hba.conf
 echo "host all all 10.100.102.12/32 md5" >> /usr/local/pgsql/data/pg_hba.conf
-echo "host all all 10.100.102.17/32 md5" >> /usr/local/pgsql/data/pg_hba.conf
+echo "host all all 10.100.102.2/32 md5" >> /usr/local/pgsql/data/pg_hba.conf
 echo "host graphite graphite 10.100.102.19/32 md5" >> /usr/local/pgsql/data/pg_hba.conf
 echo "host all all 2001:123:4:5678::11/128 md5" >> /usr/local/pgsql/data/pg_hba.conf
 echo "host all all 2001:123:4:5678::12/128 md5" >> /usr/local/pgsql/data/pg_hba.conf
-echo "host all all 2001:123:4:5678::17/128 md5" >> /usr/local/pgsql/data/pg_hba.conf
+echo "host all all 2001:123:4:5678::2/128 md5" >> /usr/local/pgsql/data/pg_hba.conf
 echo "host graphite graphite 2001:123:4:5678::19/128 md5" >> /usr/local/pgsql/data/pg_hba.conf
 
 # Reload service to apply postgresql.conf and pg_hba.conf changes
@@ -1999,7 +1968,7 @@ service postgresql reload
 
 # Restoring from a backup
 su - pgsql
-cd /zfs/local/pgsql_backups
+cd /usr/local/pgsql/backups
 # Restore 1
 pg_restore pgdump_<db>_<date>
 # Restore all (example for backups on 2015-01-10)
@@ -2021,33 +1990,65 @@ pg_restore --dbname=foreman pgdump_foreman_2015-01-10T03:01:34
 # All state files are under /var/puppet
 ################################################################################
 
-ezjail-admin create -f lan apps1.pa-us.mydomain.name 10.100.102.11,2001:123:4:5678::11
-mkdir -p /zfs/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere
-mkdir -p /zfs/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere_logs
-mkdir -p /zfs/jails/apps1.pa-us.mydomain.name/usr/local/www/pkg
-mkdir -p /zfs/jails/apps1.pa-us.mydomain.name/zfs/data
-echo '/usr/local/share/poudriere/html /zfs/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
-echo '/zfs/poudriere/data/logs/bulk /zfs/jails/apps1.pa-us.mydomain.name/usr/local/www/poudriere_logs nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
-echo '/zfs/poudriere/data/packages /zfs/jails/apps1.pa-us.mydomain.name/usr/local/www/pkg nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
-echo '/zfs/poudriere/data/packages /zfs/jails/apps1.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
-echo '/zfs/data /zfs/jails/apps1.pa-us.mydomain.name/zfs/data nullfs rw 0 0' >> /etc/fstab.apps1_pa_us_mydomain_name
-ezjail-admin console -f apps1.pa-us.mydomain.name
+iocage create tag=apps1 release=10.2-RELEASE
+iocage set vnet=on apps1
+iocage set interfaces='vnet1:bridge1' apps1
+iocage set hostname="apps1.pa-us.mydomain.name" apps1
+iocage set ip4_addr="vnet1|10.100.102.11/24" apps1
+iocage set defaultrouter="10.100.102.1" apps1
+iocage set ip6_addr="vnet1|2001:123:4:5678::11/64" apps1
+iocage set defaultrouter6="2001:123:4:5678::1" apps1
+iocage set boot="on" apps1
+
+mkdir -p /iocage/jails/`iocage get host_hostuuid apps1`/root/usr/local/www/poudriere
+echo "/usr/local/share/poudriere/html /iocage/jails/`iocage get host_hostuuid apps1`/root/usr/local/www/poudriere nullfs ro 0 0" \
+	>> /iocage/jails/`iocage get host_hostuuid apps1`/fstab
+mkdir -p /iocage/jails/`iocage get host_hostuuid apps1`/root/usr/local/www/poudriere_logs
+echo "/zfs/poudriere/data/logs/bulk /iocage/jails/`iocage get host_hostuuid apps1`/root/usr/local/www/poudriere_logs nullfs ro 0 0" \
+	>> /iocage/jails/`iocage get host_hostuuid apps1`/fstab
+mkdir -p /iocage/jails/`iocage get host_hostuuid apps1`/root/usr/local/www/pkg
+echo "/zfs/poudriere/data/packages /iocage/jails/`iocage get host_hostuuid apps1`/root/usr/local/www/pkg nullfs ro 0 0" \
+	>> /iocage/jails/`iocage get host_hostuuid apps1`/fstab
+# XXX: remove eventually
+mkdir -p /iocage/jails/`iocage get host_hostuuid apps1`/root/zfs/data
+echo "/zfs/data /iocage/jails/`iocage get host_hostuuid apps1`/root/zfs/data nullfs ro 0 0" \
+	>> /iocage/jails/`iocage get host_hostuuid apps1`/fstab
+
+iocage start apps1
+iocage console apps1
+
 passwd
 
 # Note that the backup jail will follow the majority of the same settings for redundancy
 # and testing purposes.
 
-ezjail-admin create -f lan apps2.pa-us.mydomain.name 10.100.102.12,2001:123:4:5678::12
-mkdir -p /zfs/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere
-mkdir -p /zfs/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere_logs
-mkdir -p /zfs/jails/apps2.pa-us.mydomain.name/usr/local/www/pkg
-mkdir -p /zfs/jails/apps2.pa-us.mydomain.name/zfs/data
-echo '/usr/local/share/poudriere/html /zfs/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
-echo '/zfs/poudriere/data/logs/bulk /zfs/jails/apps2.pa-us.mydomain.name/usr/local/www/poudriere_logs nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
-echo '/zfs/poudriere/data/packages /zfs/jails/apps2.pa-us.mydomain.name/usr/local/www/pkg nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
-echo '/zfs/poudriere/data/packages /zfs/jails/apps2.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
-echo '/zfs/data /zfs/jails/apps2.pa-us.mydomain.name/zfs/data nullfs rw 0 0' >> /etc/fstab.apps2_pa_us_mydomain_name
-ezjail-admin console -f apps2.pa-us.mydomain.name
+iocage create tag=apps2 release=10.2-RELEASE
+iocage set vnet=on apps2
+iocage set interfaces='vnet1:bridge1' apps2
+iocage set hostname="apps2.pa-us.mydomain.name" apps2
+iocage set ip4_addr="vnet1|10.100.102.12/24" apps2
+iocage set defaultrouter="10.100.102.1" apps2
+iocage set ip6_addr="vnet1|2001:123:4:5678::12/64" apps2
+iocage set defaultrouter6="2001:123:4:5678::1" apps2
+iocage set boot="on" apps2
+
+mkdir -p /iocage/jails/`iocage get host_hostuuid apps2`/root/usr/local/www/poudriere
+echo "/usr/local/share/poudriere/html /iocage/jails/`iocage get host_hostuuid apps2`/root/usr/local/www/poudriere nullfs ro 0 0" \
+	>> /iocage/jails/`iocage get host_hostuuid apps2`/fstab
+mkdir -p /iocage/jails/`iocage get host_hostuuid apps2`/root/usr/local/www/poudriere_logs
+echo "/zfs/poudriere/data/logs/bulk /iocage/jails/`iocage get host_hostuuid apps2`/root/usr/local/www/poudriere_logs nullfs ro 0 0" \
+	>> /iocage/jails/`iocage get host_hostuuid apps2`/fstab
+mkdir -p /iocage/jails/`iocage get host_hostuuid apps2`/root/usr/local/www/pkg
+echo "/zfs/poudriere/data/packages /iocage/jails/`iocage get host_hostuuid apps2`/root/usr/local/www/pkg nullfs ro 0 0" \
+	>> /iocage/jails/`iocage get host_hostuuid apps2`/fstab
+# XXX: remove eventually
+mkdir -p /iocage/jails/`iocage get host_hostuuid apps2`/root/zfs/data
+echo "/zfs/data /iocage/jails/`iocage get host_hostuuid apps2`/root/zfs/data nullfs ro 0 0" \
+	>> /iocage/jails/`iocage get host_hostuuid apps2`/fstab
+
+iocage start apps2
+iocage console apps2
+
 passwd
 
 # Both apps1 and apps2 will get the same steps from this point on with very minor changes
@@ -2057,7 +2058,7 @@ pkg install bash zsh portmaster tmux vim-lite pstree cmdwatch tree
 
 # Installing Dependencies:  Install Puppet, Git, Nginx, and Ruby Components
 
-pkg install puppet rubygem-puppet-lint git nginx rubygem-rake rubygem-passenger rubygem-bundler libvirt mysql56-client libxslt node sqlite3 postgresql94-client gcc47 gmake sudo foreman-proxy
+pkg install puppet rubygem-puppet-lint git nginx rubygem-rake rubygem-passenger rubygem-bundler libvirt mysql56-client libxslt node sqlite3 postgresql95-client gcc47 gmake sudo foreman-proxy
 
 # At this point, Puppet needs to be started so that all its SSL keys can be 
 # generated. This gives the chance to test that Puppet does work before anything
@@ -2083,7 +2084,7 @@ puppet cert --allow-dns-alt-names sign apps2.pa-us.mydomain.name
 # With initial setup of the Puppetmaster done, a RACK file that Nginx will use
 # to start the Ruby application will be needed. Copy/paste the example.
 
-mkdir -p /usr/local/etc/puppet/rack/public
+install -o puppet -g puppet -d /usr/local/etc/puppet/rack/public
 cat > /usr/local/etc/puppet/rack/config.ru << 'EOF'
 # Trimmed back FreeBSD Version of https://github.com/puppetlabs/puppet/blob/master/ext/rack/files/config.ru
 $0 = "master"
@@ -2096,7 +2097,10 @@ ARGV << "--vardir" << "/var/puppet"
 require 'puppet/util/command_line'
 run Puppet::Util::CommandLine.new.execute
 'EOF'
-chown -R puppet:puppet /usr/local/etc/puppet/rack
+
+# Manually create the 'foreman' user
+pw groupadd -n foreman -g 813
+pw useradd -n foreman -c "The Foreman,,," -u 813 -g foreman -d /opt/foreman -s /usr/sbin/nologin
 
 # Installing Foreman from Git
 mkdir /opt
@@ -2111,8 +2115,11 @@ echo "gem 'foreman_salt'" >> bundler.d/Gemfile.local.rb
 # Note: rubygem-libv8 doesn't recognize current gcc47 and requires a link
 # GCC and gmake are required to successfully build and install
 cd /usr/local/bin && ln g++47 g++ && cd -
-bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
-bundle install --path vendor/bundle
+install -o foreman -g foreman -d /opt/foreman/.bundle
+install -o foreman -g foreman -d /opt/foreman/vendor/bundle
+install -o foreman -g foreman /dev/null /opt/foreman/Gemfile.lock
+su -m foreman -c 'bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt'
+su -m foreman -c 'bundle install --path vendor/bundle'
 rm /usr/local/bin/g++
 
 # database.yml:  Copy the example database YAML file. Update with database information.
@@ -2197,10 +2204,6 @@ env RAILS_ENV=production bundle exec rake locale:pack
 # Run Foreman using Ruby's built-in WEBrick server to validate functionality.
 # It will be available at http://foreman:3000 and use the RAILS_ENV=development database.
 env RAILS_ENV=production bundle exec rails server
-
-# Manually create the 'foreman' user
-pw groupadd -n foreman -g 813
-pw useradd -n foreman -c "The Foreman,,," -u 813 -g foreman -d /opt/foreman -s /usr/sbin/nologin
 
 # Add Puppet group access to Foreman so it can read what it needs to read
 pw usermod foreman_proxy -G puppet
@@ -2452,15 +2455,14 @@ printf "/var/log/nginx/*.log\t\t\t644  7\t   *    @T00  JG    /var/run/nginx.pid
 # If the puppetmaster service is still running from earlier testing, stop it now
 # Mark appropriate optiosn for hostname specific 
 service puppetmaster onestop
-echo 'puppetmaster_enable="NO"' >> /etc/rc.conf.local
-echo 'puppetmaster_rundir="/var/run/puppet"' >> /etc/rc.conf.local
-
-echo 'puppetmaster_flags="--config_file_name=puppet.conf.apps1.pa-us.mydomain.name --rundir=${puppetmaster_rundir}"' >> /etc/rc.conf.local
+sysrc -f /etc/rc.conf.local puppetmaster_enable=NO
+sysrc -f /etc/rc.conf.local puppetmaster_rundir=/var/run/puppet
+sysrc -f /etc/rc.conf.local puppetmaster_flags='--config_file_name=puppet.conf.apps1.pa-us.mydomain.name --rundir=${puppetmaster_rundir}'
 # or
-echo 'puppetmaster_flags="--config_file_name=puppet.conf.apps2.pa-us.mydomain.name --rundir=${puppetmaster_rundir}"' >> /etc/rc.conf.local
+sysrc -f /etc/rc.conf.local puppetmaster_flags='--config_file_name=puppet.conf.apps2.pa-us.mydomain.name --rundir=${puppetmaster_rundir}'
 
 # Enable nginx service and start it. At this point basic functionality is online.
-echo 'nginx_enable="YES"' >> /etc/rc.conf.local
+sysrc -f /etc/rc.conf.local nginx_enable=YES
 service nginx start
 
 # Enabling the Filebucket Viewer
@@ -2475,6 +2477,18 @@ service nginx start
 
 # With all the updates made, restart so that it takes effect.
 service nginx restart
+
+cd /usr/local/etc/foreman-proxy
+cat > settings.yml << 'EOF'
+---
+:foreman_url: http://foreman.pa-us.mydomain.name
+:daemon: true
+:http_port: 8000
+:virsh_network: default
+'EOF'
+
+sysrc -f /etc/rc.conf.local foreman_proxy_enable=YES
+service foreman-proxy start
 
 # For future maintenance, periodic jobs to prune old reports.
 mkdir -p /usr/local/etc/periodic/weekly
@@ -2510,44 +2524,150 @@ FOREMAN_HOME=/opt/foreman
 # Minor Updates (Example: 1.8 to 1.8.1)
 cd /opt/foreman
 git pull
-bundle update
+su -m foreman -c 'bundle update'
 passenger-config restart-app --name /opt/foreman/public
 
 # Foreman Upgrade Process
-# Major Updates (Example: 1.8 to 1.9)
+# Major Updates (Example: 1.9 to 1.10)
 rm /usr/local/etc/nginx/sites-enabled/foreman
 service nginx reload
 cd /opt/foreman
 git pull
-git checkout 1.9-stable
+git checkout 1.10-stable
 bundle update
 # If bundle update fails, attempt removal and reinstall of all gems
 #   cd /opt/foreman
 #   rm -r vendor/bundle
 #   rm Gemfile.lock
 #   cd /usr/local/bin && ln g++47 g++ && cd -
-#   mkdir vendor/bundle
-#   chown foreman:foreman vendor/bundle
-#   touch /opt/foreman/Gemfile.lock
-#   chown foreman:foreman /opt/foreman/Gemfile.lock
-#   bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
+#   install -o foreman -g foreman -d /opt/foreman/.bundle
+#   install -o foreman -g foreman -d /opt/foreman/vendor/bundle
+#   install -o foreman -g foreman /dev/null /opt/foreman/Gemfile.lock
+#   su -m foreman -c 'bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt'
 #   su -m foreman -c 'bundle install --path vendor/bundle'
 #   rm /usr/local/bin/g++
 # Database backup for major upgrades before any database migration (on database jail)
 su - pgsql
-cd /zfs/local/pgsql_backups
+cd /usr/local/pgsql/backups
 pg_dump -Fc foreman > $(/bin/date "+%Y%m%d")-foreman18.dump
 # Back on Foreman
 env RAILS_ENV=production bundle exec rake apipie:cache
 env RAILS_ENV=production bundle exec rake db:migrate
 env RAILS_ENV=production bundle exec rake db:seed
 env RAILS_ENV=production bundle exec rake assets:precompile
-env RAILS_ENV=production bundle exec rake locale:pack
 # Fix Permissions
 chgrp -R foreman /opt/foreman
 # Enable site and restart Nginx
 cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/foreman foreman
 service nginx reload
+
+################################################################################
+##                           Salt Master Server                               ##
+################################################################################
+
+iocage create tag=salt release=10.2-RELEASE
+iocage set vnet=on salt
+iocage set interfaces='vnet1:bridge1' salt
+iocage set hostname="salt.pa-us.mydomain.name" salt
+iocage set ip4_addr="vnet1|10.100.102.13/24" salt
+iocage set defaultrouter="10.100.102.1" salt
+iocage set ip6_addr="vnet1|2001:123:4:5678::13/64" salt
+iocage set defaultrouter6="2001:123:4:5678::1" salt
+iocage set boot="on" salt
+iocage set priority="50" salt
+iocage start salt
+iocage console salt
+
+passwd
+
+pkg install bash zsh portmaster tmux vim-lite pstree cmdwatch tree
+
+# Install other utilities
+pkg install git
+
+# Install Foreman Proxy and utilities
+pkg install foreman-proxy sudo
+
+# Install and enable Salt
+pkg install sysutils/py-salt sysutils/rubygem-smart_proxy_salt
+sysrc -f /etc/rc.conf.local salt_master_enable=YES
+
+# Create a Salt Master user
+pw groupadd -n saltmaster -g 4505
+pw useradd -n saltmaster -c "Salt Master Daemon,,," -u 4505 -g saltmaster -d /usr/local/etc/salt -s /sbin/nologin
+
+# Create directory for Salt Master
+install -o saltmaster -g saltmaster -d /var/log/salt
+install -o saltmaster -g saltmaster -d /usr/local/etc/salt
+install -o saltmaster -g saltmaster -d /usr/local/etc/salt.git
+cd /usr/local/etc/salt.git
+su -m saltmaster -c 'git --bare init'
+
+git remote add origin file:///usr/local/etc/salt.git
+git push --set-upstream origin master
+
+# Set Salt Master to run as dedicated user
+sed -i '' -e 's/.*user:.*/user: saltmaster/' /usr/local/etc/salt/master
+
+# Shrink noise of state output
+sed -i '' -e 's/^state_output:.*/state_output: mixed/' -e 's/.*state_output:.*/state_output: mixed/' /usr/local/etc/salt/master
+
+# Increase timeout on long running commands
+sed -i '' -e 's/^timeout:.*/timeout: 60/' -e 's/^#timeout:.*/timeout: 60/' /usr/local/etc/salt/master
+
+# Start Salt
+service salt_master start
+
+# Configure Foreman Salt Proxy
+cat > /usr/local/etc/foreman-proxy/settings.yml << 'EOF'
+---
+:foreman_url: http://foreman.pa-us.mydomain.name
+:daemon: true
+:http_port: 8000
+:bind_host: salt.pa-us.mydomain.name
+:virsh_network: default
+'EOF'
+cat > /usr/local/etc/foreman-proxy/settings.d/salt.yml << 'EOF'
+---
+:enabled: true
+:autosign_file: /usr/local/etc/salt/autosign.conf
+:salt_command_user: saltmaster
+'EOF'
+
+# Give Foreman proxy the ability to run salt commands
+echo 'Cmnd_Alias SALT = /usr/local/bin/salt, /usr/local/bin/salt-key' >> /usr/local/etc/sudoers.d/foreman_proxy
+echo 'foreman_proxy ALL=(ALL) NOPASSWD: SALT' >> /usr/local/etc/sudoers.d/foreman_proxy
+echo 'Defaults:foreman_proxy \!requiretty' >> /usr/local/etc/sudoers.d/foreman_proxy
+
+# Make foreman_proxy a member of the Saltmaster group for read access to /usr/local/etc/salt
+pw usermod foreman_proxy -G saltmaster
+
+# Configure Foreman information for Smart Proxy
+cat > /usr/local/etc/salt/foreman.yaml << 'EOF'
+---
+:proto: http
+:host: foreman.pa-us.mydomain.name
+:port: 80
+:ssl_ca: ""
+:ssl_cert: ""
+:ssl_key: ""
+:timeout:  10
+:salt:  /usr/local/bin/salt
+:upload_grains:  true
+'EOF'
+
+# Configure the Salt 'master' file per http://theforeman.org/plugins/foreman_salt/2.0/
+# Then:
+touch /usr/local/etc/salt/autosign.conf
+chgrp foreman_proxy /usr/local/etc/salt/autosign.conf
+chmod g+w /usr/local/etc/salt/autosign.conf
+
+# Enable and Start the service
+sysrc -f /etc/rc.conf.local foreman_proxy_enable=YES
+service foreman-proxy start
+
+# XXX: Add to crontab to uplaod reports from SaltStack to Foreman
+*/10 * * * * /usr/local/sbin/upload-salt-reports >>/var/log/foreman-proxy/salt-cron.log 2>&1
 
 ################################################################################
 ##                      APPS Jail: Carbon Jail Backend                        ##
@@ -2556,9 +2676,18 @@ service nginx reload
 # www.flagword.net/2014/01/installing-and-configuring-graphite-with-collectd-on-freebsd/
 # forums.freebsd.org/viewtopic.php?f=39&t=45652
 
-ezjail-admin create -f lan carbon.pa-us.mydomain.name 10.100.102.19,2001:123:4:5678::19
-echo '/zfs/poudriere/data/packages /zfs/jails/carbon.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.carbon_pa_us_mydomain_name
-ezjail-admin console -f carbon.pa-us.mydomain.name
+iocage create tag=carbon release=10.2-RELEASE
+iocage set vnet=on carbon
+iocage set interfaces='vnet1:bridge1' carbon
+iocage set hostname="carbon.pa-us.mydomain.name" carbon
+iocage set ip4_addr="vnet1|10.100.102.19/24" carbon
+iocage set defaultrouter="10.100.102.1" carbon
+iocage set ip6_addr="vnet1|2001:123:4:5678::19/64" carbon
+iocage set defaultrouter6="2001:123:4:5678::1" carbon
+iocage set boot="on" carbon
+iocage start carbon
+iocage console carbon
+
 passwd
 
 pkg install bash zsh portmaster tmux vim-lite pstree cmdwatch tree
@@ -2566,11 +2695,11 @@ pkg install bash zsh portmaster tmux vim-lite pstree cmdwatch tree
 # Install specific packages
 pkg install www/py-graphite-web www/uwsgi databases/py-psycopg2
 
-# Create carbon and carbon relay users
+# Create carbon user
 pw groupadd -n carbon -g 2003
 pw useradd -n carbon -c "Carbon Daemon,,," -u 2003 -g carbon -d /nonexistent -s /sbin/nologin
 
-# Configure Carbon and Carbon Relay
+# Configure Carbon
 cd /usr/local/etc/carbon
 patch /usr/local/etc/carbon/carbon.conf << 'EOF'
 40c40
@@ -2596,7 +2725,7 @@ patch /usr/local/etc/carbon/storage-schemas.conf << 'EOF'
 # find /var/db/carbon/whisper -name "*.bak" -exec rm '{}' \;
 
 # Enable carbon services
-echo 'carbon_enable="YES"' >> /etc/rc.conf.local
+sysrc -f /etc/rc.conf.local carbon_enable="YES"
 
 # Update permissions so carbon user can write to it's database directory
 chown -R carbon:carbon /var/db/carbon
@@ -2645,10 +2774,10 @@ python2 /usr/local/lib/python2.7/site-packages/graphite/manage.py syncdb
 # Change the ownership of the user database so the webapp can write to it:
 chown -R www:www /var/db/graphite/ /var/log/graphite/
 
-echo 'uwsgi_enable="YES"' >> /etc/rc.conf.local
-echo 'uwsgi_profiles="graphite"' >> /etc/rc.conf.local
-echo 'uwsgi_graphite_enable="YES"' >> /etc/rc.conf.local
-echo 'uwsgi_graphite_flags="-L -M -p 2 --socket :8000 --gid 80 --uid 80 --python-path /usr/local/lib/python2.7/site-packages/ --file /usr/local/etc/graphite/graphite.wsgi"' >> /etc/rc.conf.local
+sysrc -f /etc/rc.conf.local uwsgi_enable=YES
+sysrc -f /etc/rc.conf.local uwsgi_profiles=graphite
+sysrc -f /etc/rc.conf.local uwsgi_graphite_enable=YES
+sysrc -f /etc/rc.conf.local uwsgi_graphite_flags="-L -M -p 2 --socket :8000 --gid 80 --uid 80 --python-path /usr/local/lib/python2.7/site-packages/ --file /usr/local/etc/graphite/graphite.wsgi"
 
 # Start UWSGI application server
 service uwsgi start
@@ -2678,8 +2807,8 @@ cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/graphite graph
 # On the Host, do an rsync of all the graphite-web content to the web front end
 # jails so nginx is able to serve any static content. This should also be done
 # after every update of the www/py-graphite-web port
-rsync -authic --progress --delete /zfs/jails/carbon.pa-us.mydomain.name/usr/local/share/graphite-web/ /zfs/jails/apps1.pa-us.mydomain.name/usr/local/share/graphite-web
-rsync -authic --progress --delete /zfs/jails/carbon.pa-us.mydomain.name/usr/local/share/graphite-web/ /zfs/jails/apps2.pa-us.mydomain.name/usr/local/share/graphite-web
+rsync -authic --progress --delete /iocage/jails/`iocage get host_hostuuid carbon`/root/usr/local/share/graphite-web/ /iocage/jails/`iocage get host_hostuuid apps1`/root/usr/local/share/graphite-web
+rsync -authic --progress --delete /iocage/jails/`iocage get host_hostuuid carbon`/root/usr/local/share/graphite-web/ /iocage/jails/`iocage get host_hostuuid apps2`/root/usr/local/share/graphite-web
 
 # Start reload Nginx
 service nginx reload
@@ -2693,13 +2822,24 @@ service nginx reload
 # http://wiki.serviio.org/doku.php?id=build_ffmpeg_linux
 ################################################################################
 
-ezjail-admin create -f lan serviio.pa-us.mydomain.name 10.100.102.14,2001:123:4:5678::14
-mkdir -p /zfs/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_media
-mkdir -p /zfs/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_photo_albums
-echo '/zfs/homedirs/common_media /zfs/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_media nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
-echo '/zfs/homedirs/common_photo_albums /zfs/jails/serviio.pa-us.mydomain.name/zfs/homedirs/common_photo_albums nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
-echo '/zfs/poudriere/data/packages /zfs/jails/serviio.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.serviio_pa_us_mydomain_name
-ezjail-admin console -f serviio.pa-us.mydomain.name
+iocage create tag=serviio release=10.2-RELEASE
+iocage set vnet=on serviio
+iocage set interfaces='vnet1:bridge1' serviio
+iocage set hostname="serviio.pa-us.mydomain.name" serviio
+iocage set ip4_addr="vnet1|10.100.102.14/24" serviio
+iocage set defaultrouter="10.100.102.1" serviio
+iocage set ip6_addr="vnet1|2001:123:4:5678::14/64" serviio
+iocage set defaultrouter6="2001:123:4:5678::1" serviio
+iocage set boot="on" serviio
+mkdir -p /iocage/jails/`iocage get host_hostuuid serviio`/root/zfs/homedirs/common_media
+mkdir -p /iocage/jails/`iocage get host_hostuuid serviio`/root/zfs/homedirs/common_photos
+echo "/zfs/homedirs/common_media /iocage/jails/`iocage get host_hostuuid serviio`/root/zfs/homedirs/common_media nullfs ro 0 0" \
+	>> /iocage/jails/`iocage get host_hostuuid serviio`/fstab
+echo "/zfs/homedirs/common_photos /iocage/jails/`iocage get host_hostuuid serviio`/root/zfs/homedirs/common_photos nullfs ro 0 0" \
+	>> /iocage/jails/`iocage get host_hostuuid serviio`/fstab
+iocage start serviio
+iocage console serviio
+
 passwd
 
 pkg install bash zsh portmaster tmux vim-lite pstree cmdwatch tree
@@ -2721,6 +2861,7 @@ service serviio start
 #portmaster lang/php56 ftp/php56-curl textproc/php56-xml converters/php56-mbstring devel/php56-json textproc/php56-simplexml textproc/php56-dom
 pkg install php56 php56-curl php56-xml php56-mbstring php56-json php56-simplexml php56-dom
 
+sed -i '' -e 's/listen = 127.0.0.1:9000/listen = 9000/' /usr/local/etc/php-fpm.conf
 sed -i '' -e 's/;listen.allowed_clients = 127.0.0.1/listen.allowed_clients = 10.100.102.11,10.100.102.12/' /usr/local/etc/php-fpm.conf
 
 cd /tmp && fetch https://github.com/SwoopX/Web-UI-for-Serviio/archive/Serviio-1.5.zip
@@ -2816,7 +2957,7 @@ apachectl start
 
 ################################################################################
 ##----------------------------------------------------------------------------##
-##                Lan Service Jail Configuration (NAMED/TFTPD)                ##
+##                          BIND Jail Configuration                           ##
 ##----------------------------------------------------------------------------##
 ################################################################################
 # References:
@@ -2824,11 +2965,19 @@ apachectl start
 # http://www.wonkity.com/~wblock/docs/html/pxe.html
 # https://forums.freebsd.org/viewtopic.php?&t=33849
 
-ezjail-admin create -f lan lanser.pa-us.mydomain.name 10.100.102.15,2001:123:4:5678::15
-mkdir -p /zfs/jails/lanser.pa-us.mydomain.name/zfs/data
-echo '/zfs/poudriere/data/packages /zfs/jails/lanser.pa-us.mydomain.name/pkgrepo nullfs ro 0 0' >> /etc/fstab.lanser_pa_us_mydomain_name
-echo '/zfs/data /zfs/jails/lanser.pa-us.mydomain.name/zfs/data nullfs rw 0 0' >> /etc/fstab.lanser_pa_us_mydomain_name
-ezjail-admin console -f lanser.pa-us.mydomain.name
+iocage create tag=bind release=10.2-RELEASE
+iocage set vnet=on bind
+iocage set interfaces='vnet1:bridge1' bind
+iocage set hostname="bind.pa-us.mydomain.name" bind
+iocage set ip4_addr="vnet1|10.100.102.15/24" bind
+iocage set defaultrouter="10.100.102.1" bind
+iocage set ip6_addr="vnet1|2001:123:4:5678::15/64" bind
+iocage set defaultrouter6="2001:123:4:5678::1" bind
+iocage set boot="on" bind
+iocage set priority="10" bind
+iocage start bind
+iocage console bind
+
 passwd
 
 pkg install bash zsh portmaster tmux vim-lite pstree cmdwatch tree
@@ -2840,67 +2989,41 @@ echo 'named_enable="YES"' >> /etc/rc.conf.local
 # scp configs/named.conf root@lanser:/etc/namedb/
 # scp -r configs/myzonefiles root@lanser:/usr/local/etc/namedb/dynamic
 chown bind /usr/local/etc/namedb/dynamic/*
+install -o bind -g bind -d /var/log/named
 service named start
 
-# Install TFTPD
-pkg install ftp/tftp-hpa
-# Get syslinux-6.03
-cd /root
-fetch --no-verify-peer https://www.kernel.org/pub/linux/utils/boot/syslinux/syslinux-6.03.zip
-mkdir syslinux-6.03
-unzip -d syslinux-6.03 syslinux-6.03.zip
-rm syslinux-6.03.zip
-# Populate tftpboot directory with bare minimum files needed from syslinux package
-mkdir -p /zfs/data/tftpboot/images
-mkdir -p /zfs/data/tftpboot/pxelinux.cfg
-cp -v \
-	syslinux-6.03/bios/com32/chain/chain.c32 \
-	syslinux-6.03/bios/gpxe/gpxelinux.0 \
-	syslinux-6.03/bios/core/pxelinux.0 \
-	syslinux-6.03/bios/com32/elflink/ldlinux/ldlinux.c32 \
-	syslinux-6.03/bios/com32/lib/libcom32.c32 \
-	syslinux-6.03/bios/core/lpxelinux.0 \
-	syslinux-6.03/bios/memdisk/memdisk \
-	syslinux-6.03/bios/com32/menu/menu.c32 \
-	syslinux-6.03/bios/com32/modules/reboot.c32 \
-	syslinux-6.03/bios/com32/menu/vesamenu.c32 \
-	/zfs/data/tftpboot
-# Get Ubuntu netboot installer
-fetch http://archive.ubuntu.com/ubuntu/dists/saucy/main/installer-amd64/current/images/netboot/netboot.tar.gz
-tar xvzf netboot.tar.gz
-mv ubuntu-installer /zfs/data/tftpboot/
-# Get mfsBSD images for testing
-cd /zfs/data/tftpboot/images
-fetch http://mfsbsd.vx.sk/files/images/10/amd64/mfsbsd-10.1-RELEASE-amd64.img
-# Populate default configuration using the above
-cat > /zfs/data/tftpboot/pxelinux.cfg/default << 'EOF'
-ui vesamenu.c32
-menu title Network Boot Menu
-timeout 100
+################################################################################
+##----------------------------------------------------------------------------##
+##                       ELK Stack Jail Configuration                         ##
+##----------------------------------------------------------------------------##
+################################################################################
 
-label localboot
-  menu label Boot from Hard Drive
-  kernel chain.c32
-  append hd0
+iocage create tag=logstash release=10.2-RELEASE
+iocage set vnet=on logstash
+iocage set interfaces='vnet1:bridge1' logstash
+iocage set hostname="logstash.pa-us.mydomain.name" logstash
+iocage set ip4_addr="vnet1|10.100.102.16/24" logstash
+iocage set defaultrouter="10.100.102.1" logstash
+iocage set ip6_addr="vnet1|2001:123:4:5678::16/64" logstash
+iocage set defaultrouter6="2001:123:4:5678::1" logstash
+iocage set boot="on" logstash
+mkdir -p /iocage/jails/`iocage get host_hostuuid logstash`/root/logshare
+echo "/var/log /iocage/jails/`iocage get host_hostuuid logstash`/root/logshare nullfs ro 0 0" \
+	>> /iocage/jails/`iocage get host_hostuuid logstash`/fstab
+iocage start logstash
+iocage console logstash
 
-menu begin ubuntu
-	menu title Network Install Ubuntu 13.10 to Hard Disk
-	include ubuntu-installer/amd64/pxelinux.cfg/default
-menu end
+passwd
 
-label mfsbsd64
-  menu label Load mfsBSD 10.1-RELEASE amd64
-  kernel memdisk
-  initrd images/mfsbsd-10.1-RELEASE-amd64.img raw
+pkg install bash zsh portmaster tmux vim-lite pstree cmdwatch tree
 
-label reboot
-  menu label Reboot
-  kernel reboot.c32
-'EOF'
-# Enable and start tftpd
-echo 'tftpd_enable="YES"' >> /etc/rc.conf.local
-echo 'tftpd_flags="-p -s /zfs/data/tftpboot -B 1024"' >> /etc/rc.conf.local
-service tftpd start
+pkg install logstash kibana43 elasticsearch2
+
+sed -i '' -e '/embedded/ s|false|true|' /usr/local/etc/logstash/logstash.conf
+sed -i '' -e '/path/ s|/var/log/messages|/logshare/all.log|' /usr/local/etc/logstash/logstash.conf
+
+sysrc -f /etc/rc.conf.local elasticsearch_enable=YES logstash_enable=YES kibana_enable=YES
+service elasticsearch start; service kibana start; service logstash start
 
 ################################################################################
 ##----------------------------------------------------------------------------##
@@ -3116,7 +3239,6 @@ service auditdistd start
 ################################################################################
 
 portsnap fetch update
-ezjail-admin update -P
 
 ################################################################################
 # OR - Shorter version...
@@ -3143,18 +3265,16 @@ chmod 555 /usr/local/sbin/portsup
 
 # Small Updates, I.E. 9.1-RELEASE to 9.1-RELEASE-p6
 freebsd-update fetch
-sed -i '' -e 's/ezjail_enable/#ezjail_enable/' /etc/rc.conf
 shutdown -r now
 freebsd-update install
-env UNAME_r=10.1-RELEASE-p9 ezjail-admin update -u
+# for each jail
+env UNAME_r=10.2-RELEASE iocage update <jail>
 poudriere jail -u -j 101amd64
 poudriere jail -u -j 101i386
 poudriere jail -u -j 93amd64
 poudriere jail -u -j 93i386
 poudriere jail -u -j 84amd64
 poudriere jail -u -j 84i386
-sed -i '' -e 's/#ezjail_enable/ezjail_enable/' /etc/rc.conf
-service ezjail start
 
 # Big Updates, I.E. 9.2-RELEASE to 10.0-RELEASE
 ## Backup Old /etc
