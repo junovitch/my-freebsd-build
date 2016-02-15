@@ -1459,11 +1459,18 @@ service samba_server start
 # Install Poudriere
 pkg install ports-mgmt/poudriere-devel
 
+# Install ccache
+pkg install devel/ccache
+
 # Backup and change default configuration variables
 cd /usr/local/etc && cp poudriere.conf.sample poudriere.conf
 sed -i '' -e 's^.*ZPOOL=.*^ZPOOL=zroot^' poudriere.conf
 sed -i '' -e 's^.*FREEBSD_HOST=.*^FREEBSD_HOST=http://ftp.freebsd.org^' poudriere.conf
 sed -i '' -e 's^.*BUILD_AS_NON_ROOT=.*^BUILD_AS_NON_ROOT=yes^' poudriere.conf
+
+# Enable ccache
+install -o nobody -g nogroup -d /usr/obj/ccache
+sed -i '' -e 's^.*CCACHE_DIR=.*^CCACHE_DIR=/usr/obj/ccache^' poudriere.conf
 
 # Remove current ports tree and set Poudriere to use existing ports repo
 rm -r /usr/ports/*
@@ -1513,6 +1520,7 @@ ports-mgmt/pkg
 ports-mgmt/pkg-devel
 ports-mgmt/portmaster
 ports-mgmt/poudriere-devel
+devel/ccache
 ports-mgmt/dialog4ports
 ports-mgmt/portlint
 devel/rclint
