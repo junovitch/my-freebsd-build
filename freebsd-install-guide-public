@@ -447,7 +447,7 @@ server:
 	interface: 192.168.102.2
 	interface: 2001:123:4:5678::2
 	# ACCESS CONTROL/SECURITY
-	access-control: 10.100.0.0/16 allow
+	access-control: 10.0.0.0/8 allow
 	access-control: 192.168.0.0/16 allow
 	access-control: 2001:123:4567:890::/64 allow
 	access-control: 2001:123:4:5678::/64 allow
@@ -457,12 +457,14 @@ server:
 	# LOGGING
 	verbosity: 1
 	# LOCAL DOMAINS
+	local-zone: "10.in-addr.arpa." nodefault
+	local-zone: "168.192.in-addr.arpa." nodefault
 	private-domain: "mydomain.name"
-	private-domain: "100.10.in-addr.arpa."
+	private-domain: "10.in-addr.arpa."
 	private-domain: "168.192.in-addr.arpa."
-	domain-insecure: "100.10.in-addr.arpa."
+	domain-insecure: "10.in-addr.arpa."
 	domain-insecure: "168.192.in-addr.arpa."
-	private-address: 10.100.0.0/16
+	private-address: 10.0.0.0/8
 	private-address: 192.168.0.0/16
 	# ENABLE STATISTICS
 	statistics-interval: 0
@@ -494,7 +496,7 @@ forward-zone:
 
 cat > /usr/local/etc/unbound/reverse.conf << 'EOF'
 stub-zone:
-	name: "100.10.in-addr.arpa."
+	name: "10.in-addr.arpa."
 	stub-addr: 10.100.102.15@5353
 
 stub-zone:
