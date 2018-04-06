@@ -496,7 +496,7 @@ pkg install tree
 # Vim-lite - Handles most text editing, very useful for syntax highlighting.
 ################################################################################
 
-pkg install vim-lite
+pkg install vim-console
 
 ################################################################################
 # Checkbashisms - Checks for potential Bash specific commands in scripts that
@@ -1070,7 +1070,7 @@ net-mgmt/iftop
 sysutils/cmdwatch
 sysutils/tree
 security/clamav
-editors/vim-lite
+editors/vim-console
 devel/checkbashisms
 sysutils/ipmitool
 sysutils/nut
@@ -1473,7 +1473,7 @@ iocell console foreman
 
 passwd
 
-pkg install bash zsh tmux vim-lite pstree cmdwatch tree
+pkg install bash zsh tmux vim-console pstree cmdwatch tree
 
 #
 # PART 1: Database config
@@ -1986,7 +1986,7 @@ iocell console salt
 
 passwd
 
-pkg install bash zsh tmux vim-lite pstree cmdwatch tree
+pkg install bash zsh tmux vim-console pstree cmdwatch tree
 
 # Install other utilities
 pkg install git
@@ -2110,7 +2110,7 @@ iocell console serviio
 
 passwd
 
-pkg install bash zsh tmux vim-lite pstree cmdwatch tree
+pkg install bash zsh tmux vim-console pstree cmdwatch tree
 
 # Setup FFMPEG options per guidance in the helpful links then start Serviio build.
 # cd /usr/ports/multimedia/ffmpeg && make config WITH_RTMP=YES WITH_X11GRAB=YES WITH_FAAC=YES WITH_LAME=YES WITH_AMR_NB=YES WITH_AMR_WB=YES WITH_ASS=YES
@@ -2144,7 +2144,7 @@ iocell console logstash
 
 passwd
 
-pkg install bash zsh tmux vim-lite pstree cmdwatch tree
+pkg install bash zsh tmux vim-console pstree cmdwatch tree
 
 pkg install logstash kibana5 elasticsearch5
 
@@ -2176,7 +2176,7 @@ iocell console unifi
 
 passwd
 
-pkg install bash zsh tmux vim-lite pstree cmdwatch tree
+pkg install bash zsh tmux vim-console pstree cmdwatch tree
 
 pkg install unifi5
 sysrc -f /etc/rc.conf.local unifi_enable=YES
