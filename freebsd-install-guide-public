@@ -1851,7 +1851,7 @@ cp -v \
 	/usr/local/tftp
 # Get Ubuntu netboot installer
 cd /usr/local/tftp
-fetch http://archive.ubuntu.com/ubuntu/dists/xenial/main/installer-amd64/current/images/netboot/netboot.tar.gz
+fetch http://archive.ubuntu.com/ubuntu/dists/bionic/main/installer-amd64/current/images/netboot/netboot.tar.gz
 tar xvzf netboot.tar.gz
 rm netboot.tar.gz
 # Get mfsBSD images for testing
@@ -1863,6 +1863,7 @@ fetch http://mfsbsd.vx.sk/files/images/11/mfsbsd-11.1-RELEASE-amd64.img
 cat > /usr/local/tftp/pxelinux.cfg/default << 'EOF'
 ui vesamenu.c32
 menu title Network Boot Menu
+# menu background <image.png>
 timeout 100
 
 label localboot
@@ -1871,12 +1872,12 @@ label localboot
   append hd0
 
 label auto_ubuntu
-  menu label Auto Kickstart Net Install Kubuntu 16.04
+  menu label Auto Kickstart Net Install Ubuntu 18.04
   kernel ubuntu-installer/amd64/linux
-  append ks=http://kickstart.pa-us.mydomain.name/kubuntu.cfg initrd=ubuntu-installer/amd64/initrd.gz locale=en_US.UTF-8 console-setup/layoutcode=us quiet netcfg/get_hostname=
+  append ks=http://kickstart.pa-us.mydomain.name/ubuntu.cfg initrd=ubuntu-installer/amd64/initrd.gz locale=en_US.UTF-8 console-setup/layoutcode=us quiet netcfg/get_hostname=
 
 menu begin manual_ubuntu
-	menu title Manual Net Install Ubuntu 16.04
+	menu title Manual Net Install Ubuntu 18.04
 	include ubuntu-installer/amd64/pxelinux.cfg/default
 menu end
 
@@ -1896,12 +1897,13 @@ label reboot
 'EOF'
 
 # Enable and start tftpd
+chmod -R +r /usr/local/tftp/*
 sysrc -f /etc/rc.conf.local tftpd_enable=YES
 service tftpd start
 
 # Populate initial Ubuntu kickstart file
 mkdir /usr/local/www/kickstart
-cat > /usr/local/www/kickstart/kubuntu.cfg << 'EOF'
+cat > /usr/local/www/kickstart/ubuntu.cfg << 'EOF'
 # Language
 lang en_US.UTF-8
 langsupport en_US
@@ -1922,9 +1924,10 @@ user jason --fullname "Jason Unovitch" --iscrypted --password <PASSWORD HASH HER
 firewall --disabled
 network --bootproto=dhcp
 # Partitioning
+bootloader --location=mbr
 zerombr yes
-clearpart --all --initlabel
-part / --fstype ext4 --size 1 --grow  --asprimary
+clearpart --all
+part / --fstype=btrfs --size 1 --grow  --asprimary
 part swap --size 8192
 # Extra packages
 preseed --owner ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula boolean true
