@@ -941,7 +941,7 @@ service nfsd start
 # Enable jail friendly SMB support with Samba.
 ################################################################################
 
-pkg install samba46
+pkg install samba47
 
 sysrc kld_list+=aio
 kldload aio
@@ -1086,7 +1086,8 @@ net/unison@nox11
 sysutils/zfs-stats
 sysutils/zfstools
 sysutils/beadm
-net/samba46
+net/samba47
+net/samba48
 sysutils/iocell
 sysutils/vm-bhyve
 sysutils/grub2-bhyve
