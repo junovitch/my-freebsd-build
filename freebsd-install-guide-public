@@ -796,6 +796,7 @@ pkg install rsync
 ################################################################################
 
 pkg install unison-nox11
+pkg install unison248-nox11
 
 ################################################################################
 # Setup of Unison for use
@@ -813,7 +814,7 @@ pkg install unison-nox11
 
 cat > /root/bin/unison_sync.sh << 'EOF'
 #!/bin/sh
-unison=/usr/local/bin/unison
+unison=/usr/local/bin/unison248
 unison_args="-auto -batch -prefer newer -owner -group -fastcheck true"
 
 paths=`ls /zfs/homedirs`
@@ -1080,7 +1081,8 @@ sysutils/smartmontools
 sysutils/ncdu
 sysutils/duff
 net/rsync
-net/unison-nox11
+net/unison248@nox11
+net/unison@nox11
 sysutils/zfs-stats
 sysutils/zfstools
 sysutils/beadm
