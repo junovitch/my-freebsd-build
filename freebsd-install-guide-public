@@ -644,6 +644,13 @@ pkg install panicmail
 echo 'panicmail_enable="YES"' >> /etc/rc.conf
 
 ################################################################################
+# DTraceToolkit - Experimental scripts for investigating issues
+# /usr/share/dtrace already has scripts that are FreeBSD tested
+################################################################################
+
+pkg install mksh dtrace-toolkit
+
+################################################################################
 # Cleanup periodic messages for readability on a phone.
 ################################################################################
 
@@ -1093,6 +1100,8 @@ sysutils/vm-bhyve
 sysutils/grub2-bhyve
 security/sudo
 benchmarks/iperf
+shells/mksh
+sysutils/DTraceToolkit
 mail/mutt
 irc/irssi
 ########## Serviio Jail ##########
