@@ -1044,11 +1044,7 @@ cat > /usr/local/etc/poudriere.d/make.conf << 'EOF'
 DEFAULT_VERSIONS= pgsql=10
 multimedia_ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 security_gnutls_UNSET+=TPM
-www_rubygem-passenger_UNSET+=APACHE22
-www_rubygem-passenger_SET+=NGINX
 www_nginx_SET+=PASSENGER HTTP_FANCYINDEX
-www_npm_UNSET+=NODE
-www_npm_SET+=NODE4
 'EOF'
 
 # Setup a package list of all ports used on host and in jails
@@ -1113,12 +1109,13 @@ devel/git
 devel/ruby-gems
 devel/rubygem-rake
 www/nginx
-www/rubygem-passenger
+www/rubygem-passenger@nginx
 sysutils/rubygem-bundler
 devel/libvirt
 textproc/libxslt
-www/node4
+www/node
 www/npm
+lang/phantomjs
 databases/postgresql10-server
 databases/postgresql10-client
 net/foreman-proxy
@@ -1539,7 +1536,7 @@ pg_restore --dbname=foreman pgdump_foreman_2015-01-10T03:01:34
 # PART 2: Foreman config
 #
 
-pkg install git nginx rubygem-rake rubygem-passenger rubygem-bundler libvirt libxslt node4 npm postgresql10-client sudo foreman-proxy
+pkg install git nginx rubygem-passenger-nginx postgresql10-client sudo foreman-proxy
 
 # Manually create the 'foreman' user
 pw groupadd -n foreman -g 813
@@ -1548,19 +1545,29 @@ pw useradd -n foreman -c "The Foreman,,," -u 813 -g foreman -d /opt/foreman -s /
 # Installing Foreman from Git
 mkdir /opt
 cd /opt
-git clone https://github.com/theforeman/foreman.git -b 1.15-stable
+git clone https://github.com/theforeman/foreman.git -b 1.16-stable
 cd foreman
 cp config/settings.yaml.example config/settings.yaml
 
 # Enable download of Foreman Salt Plugins
-# XXX: fix why this makes db:migrate fail
-# XXX echo "gem 'foreman_salt', '>= 8.0.0'" >> bundler.d/Gemfile.local.rb
+# XXX: rails 5 style migrations can be used on 1.17-stable/rails 5 combo, pin old versions for now
+# echo "gem 'foreman_salt', " >> bundler.d/Gemfile.local.rb
+echo "gem 'foreman-tasks', '>= 0.10', '< 0.11.0'" >> bundler.d/Gemfile.local.rb
+echo "gem 'foreman_salt', '~> 9'" >> bundler.d/Gemfile.local.rb
 
-# Download and install
+# install rubygems components and dependent libraries for first part of install
+pkg install rubygem-bundler rubygem-rake libvirt libxslt
 bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
 bundle install --path vendor --without mysql2 sqlite test
-sed -i '' -e 's|"node"|"/usr/local/bin/node"|' vendor/ruby/2.3/gems/execjs-2.7.0/lib/execjs/runtimes.rb
+sed -i '' -e 's|"node"|"/usr/local/bin/node"|' vendor/ruby/2.4/gems/execjs-2.7.0/lib/execjs/runtimes.rb
+
+# install node/npm for second part of install
+# also install phantomjs as npm returns no binary for plat/arch and "Try to install PhantomJS globally"
+pkg install node npm phantomjs
+# gyp returns "Error: Can't find Python executable "python", you can set the PYTHON env variable."
+setenv PYTHON python2.7
 npm install
+# XXX: if 'ajv-keywords@3.2.0 requires a peer of ajv@^6.0.0' do `npm install ajv && npm install`
 
 # database.yml:  Copy the example database YAML file. Update with database information.
 cd /opt/foreman/config
@@ -1630,11 +1637,10 @@ chmod 640 settings.yaml
 chmod 640 database.yml
 
 # Setup production database
+cd /opt/foreman
 env RAILS_ENV=production bundle exec rake db:migrate
 env RAILS_ENV=production bundle exec rake db:seed
-
-# Before going into a production environment, Foreman must precompile
-# assets for production.
+# Before going into a production environment, precompile assets for production
 env RAILS_ENV=production bundle exec rake apipie:cache
 env RAILS_ENV=production bundle exec rake assets:precompile
 env RAILS_ENV=production bundle exec rake webpack:compile
@@ -1674,7 +1680,7 @@ events {
 http {
     include                  /usr/local/etc/nginx/sites-enabled/*;
 
-    passenger_root           /usr/local/lib/ruby/gems/2.3/gems/passenger-5.1.11/;
+    passenger_root           /usr/local/lib/ruby/gems/2.4/gems/passenger-5.3.1/;
     passenger_ruby           /usr/local/bin/ruby;
     passenger_max_pool_size  10;
     passenger_pool_idle_time 300;
@@ -1794,18 +1800,18 @@ npm update
 passenger-config restart-app --name /opt/foreman/public
 
 # Foreman Upgrade Process
-# Major Updates (Example: 1.14 to 1.15)
+# Major Updates (Example: 1.15 to 1.16)
 rm /usr/local/etc/nginx/sites-enabled/foreman
 service nginx reload
 cd /opt/foreman
 git pull
-git checkout 1.15-stable
+git checkout 1.16-stable
 bundle update
 npm update
 # If bundle update fails, attempt removal and reinstall of all gems
 #   cd /opt/foreman
 #   rm -r vendor/ruby node_modules
-#   rm Gemfile.lock package-log.json
+#   rm Gemfile.lock package-lock.json
 #   bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
 #   bundle install --path vendor --without mysql2 sqlite test
 #   npm install
@@ -1814,7 +1820,7 @@ npm update
 # Optional: Database backup for major upgrades before any database migration
 su - postgres
 cd /var/db/postgres/backups
-pg_dump -Fc foreman > $(/bin/date "+%Y%m%d")-foreman1.14.dump
+pg_dump -Fc foreman > $(/bin/date "+%Y%m%d")-foreman1.15.dump
 # Required:
 env RAILS_ENV=production bundle exec rake db:migrate
 env RAILS_ENV=production bundle exec rake db:seed
