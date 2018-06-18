@@ -1049,7 +1049,6 @@ www_rubygem-passenger_SET+=NGINX
 www_nginx_SET+=PASSENGER HTTP_FANCYINDEX
 www_npm_UNSET+=NODE
 www_npm_SET+=NODE4
-dns_unbound_SET+=LIBEVENT
 'EOF'
 
 # Setup a package list of all ports used on host and in jails
