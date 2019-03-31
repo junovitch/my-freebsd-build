@@ -651,6 +651,19 @@ echo 'panicmail_enable="YES"' >> /etc/rc.conf
 pkg install mksh dtrace-toolkit
 
 ################################################################################
+# CPU microcode update port (FreeBSD 12+ only)
+#
+# https://www.thomas-krenn.com/en/wiki/Update_Intel_Microcode_on_FreeBSD
+################################################################################
+
+pkg install devcpu-data
+sysrc microcode_update_enable='YES'
+service microcode_update start
+
+sysrc -f /boot/loader.conf cpu_microcode_load='YES'
+sysrc -f /boot/loader.conf cpu_microcode_name='/boot/firmware/intel-ucode.bin'
+
+################################################################################
 # Cleanup periodic messages for readability on a phone.
 ################################################################################
 
@@ -846,12 +859,6 @@ printf "1\t*\t*\t*\t*\t/root/bin/unison_sync.sh\n" >> /var/cron/tabs/root
 pkg install zfs-stats
 
 ################################################################################
-# Beadm
-################################################################################
-
-pkg install beadm
-
-################################################################################
 ##----------------------------------------------------------------------------##
 ##                    Configure Host System NFS Support                       ##
 ##----------------------------------------------------------------------------##
@@ -1021,16 +1028,14 @@ sed -i '' -e 's^.*CCACHE_DIR=.*^CCACHE_DIR=/usr/obj/ccache^' poudriere.conf
 rm -r /usr/ports/*
 poudriere ports -c -F -f none -M /usr/ports -p default
 
-# Setup 12.0-CURRENT build environments
-poudriere jail -c -j 120amd64 -v head -a amd64 -m svn+https
-poudriere jail -c -j 120i386 -v head -a i386 -m svn+https
+# Setup 12.0-RELEASE build environments
+# poudriere jail -c -j 120amd64 -v 12.0-STABLE -a amd64 -m src=/usr/src
+poudriere jail -c -j 120amd64 -v 12.0-RELASE -a amd64 -m http
+poudriere jail -c -j 120i386 -v 12.0-RELEASE -a i386 -m http
 
-# Setup 11.1-RELEASE build environments
-poudriere jails -c -j 111amd64 -v 11.1-RELEASE -a amd64
-poudriere jails -c -j 111i386 -v 11.1-RELEASE -a i386
-# Setup alternate build environments for testing ports
-poudriere jails -c -j 103amd64 -v 10.3-RELEASE -a amd64
-poudriere jails -c -j 103i386 -v 10.3-RELEASE -a i386
+# Setup 11.2-RELEASE build environments
+poudriere jail -c -j 112amd64 -v 11.2-RELEASE -a amd64 -m http
+poudriere jail -c -j 112i386 -v 11.2-RELEASE -a i386 -m http
 
 # Additional info on setup for build environments for cross building ports
 # http://blogs.freebsdish.org/brd/2015/08/25/building-arm-packages-with-poudriere-the-simple-way/
@@ -1079,6 +1084,7 @@ sysutils/ipmitool
 sysutils/nut
 security/logcheck
 sysutils/panicmail
+sysutils/devcpu-data
 sysutils/smartmontools
 sysutils/ncdu
 sysutils/duff
@@ -1087,7 +1093,6 @@ net/unison248@nox11
 net/unison@nox11
 sysutils/zfs-stats
 sysutils/zfstools
-sysutils/beadm
 net/samba47
 net/samba48
 sysutils/iocell
@@ -1124,11 +1129,6 @@ ftp/tftp-hpa
 sysutils/py-salt
 sysutils/rubygem-smart_proxy_salt
 devel/py-setproctitle
-########## ELK Stack Jail ##########
-sysutils/logstash
-sysutils/logstash-forwarder
-textproc/kibana5
-textproc/elasticsearch2
 ########## Mail Server Jails ##########
 mail/dovecot2
 mail/dovecot2-pigeonhole
@@ -1140,7 +1140,7 @@ mail/getmail
 mkdir -p /usr/local/etc/pkg/repos
 cat >> /usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
 myrepo: {
-  url: "file:///zfs/poudriere/data/packages/111amd64-default",
+  url: "file:///zfs/poudriere/data/packages/120amd64-default",
 }
 FreeBSD: {
   enabled: no
@@ -1171,9 +1171,8 @@ pkg check -r poudriere-devel
 # Cron entries to automate
 echo 'MAILTO=jason' >> /var/cron/tabs/root
 echo 'PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin' >> /var/cron/tabs/root
-printf "0\t13\t*\t*\twed\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 103amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 103i386\n" >> /var/cron/tabs/root
-printf "0\t13\t*\t*\tthu\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 111amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 111i386\n" >> /var/cron/tabs/root
-printf "0\t35\t*\t*\tfri\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 120amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 120i386\n" >> /var/cron/tabs/root
+printf "0\t13\t*\t*\tthu\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 112amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 112i386\n" >> /var/cron/tabs/root
+printf "0\t13\t*\t*\tfri\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 120amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 120i386\n" >> /var/cron/tabs/root
 
 # Helpful testing scripts
 cat > /home/jason/bin/bulkall.sh << 'EOF'
@@ -1316,14 +1315,14 @@ echo '#security.jail.allow_raw_sockets=1' >> /etc/sysctl.conf
 ################################################################################
 
 # Fetch release and set defaults
-iocell fetch release=11.1-RELEASE
+iocell fetch release=11.2-RELEASE
 iocell set compression=lz4 default
 
 # Set for centralized syslog
-perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.100.102.2^g' /iocell/releases/11.1-RELEASE/root/etc/syslog.conf
+perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.100.102.2^g' /iocell/releases/11.2-RELEASE/root/etc/syslog.conf
 
 # Set up remaining baseline for all jail's rc.conf
-cat >> /iocell/releases/11.1-RELEASE/root/etc/rc.conf.local << 'EOF'
+cat >> /iocell/releases/11.2-RELEASE/root/etc/rc.conf.local << 'EOF'
 syslogd_flags="-s -v -v"
 sshd_enable="YES"
 clear_tmp_enable="YES"
@@ -1331,7 +1330,7 @@ clear_tmp_enable="YES"
 
 # Configure baseline periodic.conf for all jail templates.
 # periodic.conf.local will be used for any things specific to one jail only.
-cat >> /iocell/releases/11.1-RELEASE/root/etc/periodic.conf << 'EOF'
+cat >> /iocell/releases/11.2-RELEASE/root/etc/periodic.conf << 'EOF'
 daily_output="/var/log/daily.log"
 weekly_output="/var/log/weekly.log"
 monthly_output="/var/log/monthly.log"
@@ -1419,7 +1418,7 @@ monthly_jail_periodic_enable="YES"
 # VIMAGE test jail
 ################################################################################
 
-iocell create tag=test-jail11 release=11.1-RELEASE
+iocell create tag=test-jail11 release=11.2-RELEASE
 iocell set vnet=on test-jail11
 iocell set host_hostname="test-jail11.pa-us.mydomain.name" test-jail11
 iocell set interfaces='vnet0:bridge0' test-jail11
@@ -1433,9 +1432,10 @@ iocell console test-jail11
 # Snippet that applies after creation of each jail
 ################################################################################
 
+mkdir -p /usr/local/etc/pkg/repos
 cat >> /usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
 myrepo: {
-  url: "http://10.100.102.2/pkgrepo/111amd64-default",
+  url: "http://10.100.102.2/pkgrepo/112amd64-default",
   enabled: yes
 }
 FreeBSD: {
@@ -1466,7 +1466,7 @@ service salt_minion start
 # All state files are under /var/puppet
 ################################################################################
 
-iocell create tag=foreman release=11.1-RELEASE
+iocell create tag=foreman release=11.2-RELEASE
 iocell set vnet=on foreman
 iocell set interfaces='vnet1:bridge1' foreman
 iocell set host_hostname="foreman.pa-us.mydomain.name" foreman
@@ -1545,20 +1545,17 @@ pw useradd -n foreman -c "The Foreman,,," -u 813 -g foreman -d /opt/foreman -s /
 # Installing Foreman from Git
 mkdir /opt
 cd /opt
-git clone https://github.com/theforeman/foreman.git -b 1.16-stable
+git clone https://github.com/theforeman/foreman.git -b 1.18-stable
 cd foreman
 cp config/settings.yaml.example config/settings.yaml
 
 # Enable download of Foreman Salt Plugins
-# XXX: rails 5 style migrations can be used on 1.17-stable/rails 5 combo, pin old versions for now
-# echo "gem 'foreman_salt', " >> bundler.d/Gemfile.local.rb
-echo "gem 'foreman-tasks', '>= 0.10', '< 0.11.0'" >> bundler.d/Gemfile.local.rb
-echo "gem 'foreman_salt', '~> 9'" >> bundler.d/Gemfile.local.rb
+echo "gem 'foreman_salt'" >> bundler.d/Gemfile.local.rb
 
 # install rubygems components and dependent libraries for first part of install
 pkg install rubygem-bundler rubygem-rake libvirt libxslt
 bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
-bundle install --path vendor --without mysql2 sqlite test
+bundle install --path vendor --without journald mysql2 sqlite test
 sed -i '' -e 's|"node"|"/usr/local/bin/node"|' vendor/ruby/2.4/gems/execjs-2.7.0/lib/execjs/runtimes.rb
 
 # install node/npm for second part of install
@@ -1680,7 +1677,7 @@ events {
 http {
     include                  /usr/local/etc/nginx/sites-enabled/*;
 
-    passenger_root           /usr/local/lib/ruby/gems/2.4/gems/passenger-5.3.1/;
+    passenger_root           /usr/local/lib/ruby/gems/2.4/gems/passenger-5.3.4/;
     passenger_ruby           /usr/local/bin/ruby;
     passenger_max_pool_size  10;
     passenger_pool_idle_time 300;
@@ -1800,12 +1797,12 @@ npm update
 passenger-config restart-app --name /opt/foreman/public
 
 # Foreman Upgrade Process
-# Major Updates (Example: 1.15 to 1.16)
+# Major Updates (Example: 1.17 to 1.18)
 rm /usr/local/etc/nginx/sites-enabled/foreman
 service nginx reload
 cd /opt/foreman
 git pull
-git checkout 1.16-stable
+git checkout 1.18-stable
 bundle update
 npm update
 # If bundle update fails, attempt removal and reinstall of all gems
@@ -1813,7 +1810,7 @@ npm update
 #   rm -r vendor/ruby node_modules
 #   rm Gemfile.lock package-lock.json
 #   bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
-#   bundle install --path vendor --without mysql2 sqlite test
+#   bundle install --path vendor --without journald mysql2 sqlite test
 #   npm install
 
 # Both Minor/Major Updates
@@ -1873,8 +1870,7 @@ tar xvzf netboot.tar.gz
 rm netboot.tar.gz
 # Get mfsBSD images for testing
 cd /usr/local/tftp/images
-fetch http://mfsbsd.vx.sk/files/images/10/amd64/mfsbsd-10.3-RELEASE-amd64.img
-fetch http://mfsbsd.vx.sk/files/images/11/mfsbsd-11.1-RELEASE-amd64.img
+fetch http://mfsbsd.vx.sk/files/images/11/mfsbsd-11.2-RELEASE-amd64.img
 
 # Populate default configuration using the above
 cat > /usr/local/tftp/pxelinux.cfg/default << 'EOF'
@@ -1899,14 +1895,9 @@ menu begin manual_ubuntu
 menu end
 
 label mfsbsd64_11
-  menu label Load mfsBSD 11.1-RELEASE amd64
+  menu label Load mfsBSD 11.2-RELEASE amd64
   kernel memdisk
-  initrd images/mfsbsd-11.1-RELEASE-amd64.img raw
-
-label mfsbsd64_10
-  menu label Load mfsBSD 10.3-RELEASE amd64
-  kernel memdisk
-  initrd images/mfsbsd-10.3-RELEASE-amd64.img raw
+  initrd images/mfsbsd-11.2-RELEASE-amd64.img raw
 
 label reboot
   menu label Reboot
@@ -1992,7 +1983,7 @@ service nginx reload
 ##                           Salt Master Server                               ##
 ################################################################################
 
-iocell create tag=salt release=11.1-RELEASE
+iocell create tag=salt release=11.2-RELEASE
 iocell set vnet=on salt
 iocell set interfaces='vnet1:bridge1' salt
 iocell set host_hostname="salt.pa-us.mydomain.name" salt
@@ -2111,7 +2102,7 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin:/root/bin
 # http://wiki.serviio.org/doku.php?id=build_ffmpeg_linux
 ################################################################################
 
-iocell create tag=serviio release=11.1-RELEASE
+iocell create tag=serviio release=11.2-RELEASE
 iocell set vnet=on serviio
 iocell set interfaces='vnet1:bridge1' serviio
 iocell set host_hostname="serviio.pa-us.mydomain.name" serviio
@@ -2143,47 +2134,10 @@ echo 'serviio_args="-Dserviio.advertisementDuration=15 -Dserviio.libraryPollerFr
 service serviio start
 
 ################################################################################
-##----------------------------------------------------------------------------##
-##                       ELK Stack Jail Configuration                         ##
-##----------------------------------------------------------------------------##
-################################################################################
-
-iocell create tag=logstash release=11.1-RELEASE
-iocell set vnet=on logstash
-iocell set interfaces='vnet1:bridge1' logstash
-iocell set host_hostname="logstash.pa-us.mydomain.name" logstash
-iocell set ip4_addr="vnet1|10.100.102.26/24" logstash
-iocell set defaultrouter="10.100.102.1" logstash
-iocell set ip6_addr="vnet1|accept_rtadv" logstash
-iocell set boot="on" logstash
-mkdir -p /iocell/jails/`iocell get host_hostuuid logstash`/root/logshare
-echo "/var/log /iocell/jails/`iocell get host_hostuuid logstash`/root/logshare nullfs ro 0 0" \
-	>> /iocell/jails/`iocell get host_hostuuid logstash`/fstab
-iocell start logstash
-iocell console logstash
-
-passwd
-
-pkg install bash zsh tmux vim-console pstree cmdwatch tree
-
-pkg install logstash kibana5 elasticsearch5
-
-sed -i '' -e '/path/ s|/var/log/messages|/logshare/all.log|' /usr/local/etc/logstash/logstash.conf
-sed -i '' -e 's|# elasticsearch|elasticsearch|' /usr/local/etc/logstash/logstash.conf
-
-sed -i '' -e 's|#server.port|server.port|' /usr/local/etc/kibana.yml
-sed -i '' -e 's|#server.host.*|server.host: "10.100.102.26"|' /usr/local/etc/kibana.yml
-
-sed -i '' -e 's|#network.host.*|network.host: localhost|' /usr/local/etc/elasticsearch/elasticsearch.yml
-
-sysrc -f /etc/rc.conf.local elasticsearch_enable=YES logstash_enable=YES kibana_enable=YES
-service elasticsearch start; service kibana start; service logstash start
-
-################################################################################
 ##                   Unifi Controller Jail Configuration                      ##
 ################################################################################
 
-iocell create tag=unifi release=11.1-RELEASE
+iocell create tag=unifi release=11.2-RELEASE
 iocell set vnet=on unifi
 iocell set interfaces='vnet1:bridge1' unifi
 iocell set host_hostname="unifi.pa-us.mydomain.name" unifi
@@ -2387,41 +2341,30 @@ ezjail-admin archive -A
 service ezjail start
 
 ################################################################################
-# Tracking CURRENT on host with Boot Environments
+# Tracking CURRENT/STABLE on host with Boot Environments
 ################################################################################
 # Update /usr/src and build it
 cd /usr/src
-svnlite up
-make -j `sysctl -n hw.ncpu` buildworld && make -j `sysctl -n hw.ncpu` buildkernel
+git pull
+nice make -j `sysctl -n hw.ncpu` buildworld && nice make -j `sysctl -n hw.ncpu` buildkernel
 # Install in new BE
-beadm list
-beadm create <newBE>
-beadm mount <newBE> /mnt
+bectl list
+bectl create <newBE>
+bectl mount <newBE> /mnt
 make installkernel DESTDIR=/mnt
-beadm unmount <newBE>
-beadm list
-beadm activate <newBE>
-# With PKG
-beadm create <newBE>
-beadm mount <newBE> /mnt
-pkg -r /mnt install -g 'FreeBSD-*'
-beadm unmount <newBE>
-beadm list
-beadm activate <newBE>
+bectl unmount <newBE>
+bectl list
+bectl activate <newBE>
 # Reboot into the new kernel
 shutdown -r now
-# After reboot
-pkg upgrade -r myrepo -fy
 # Now update Poudriere and build a new set of packages
-poudriere jail -u -j 110amd64 && \
-poudriere jail -u -j 110i386 && \
-poudriere bulk -j 110amd64 -f /zfs/poudriere/pkg_list && \
-poudriere bulk -j 110i386 -f /zfs/poudriere/pkg_list
+poudriere jail -u -j 120amd64 && \
+poudriere bulk -j 120amd64 -f /zfs/poudriere/pkg_list
 # At this point, if the kernel has been reliable, upgrade config files and userland
-cd /usr/src/head
-etcupdate -s /usr/src/head -D "" -p
+cd /usr/src
+etcupdate -s /usr/src -D "" -p
 make installworld
-etcupdate -s /usr/src/head -D ""
+etcupdate -s /usr/src -D ""
 # Update all packages
 pkg-static upgrade -fy -r myrepo
 # Do any local patches for rc.d scripts and so forth
@@ -2431,8 +2374,8 @@ shutdown -r now
 # After reinstall of packages and a reboot
 make -DBATCH_DELETE_OLD_FILES delete-old delete-old-libs
 # Make a snapshot
-beadm list
-beadm create <beName@snapshot>
+bectl list
+bectl create <beName@snapshot>
 
 ################################################################################
 # CONSOLE USE ONLY
