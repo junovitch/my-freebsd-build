@@ -372,55 +372,55 @@ service ntpd start
 # Also see this link for notes and examples on the new syntax as of Jan 2013
 # http://forums.freebsd.org/showthread.php?t=36745
 ################################################################################
-
-pkg install opensmtpd
-
-cd /usr/local/etc/mail/
-
-cat > smtpd.conf << 'EOF'
-# This is the smtpd server system-wide configuration file.
-# See smtpd.conf(5) for more information.
-
-# To accept external mail, replace with: listen on all
-listen on localhost
-listen on 10.100.102.2
-
-# If you edit the file, you have to run "smtpctl update table aliases"
-table aliases file:/etc/mail/aliases
-table secrets db:/usr/local/etc/mail/secrets.db
-table trusted_IPs { 10.0.0.0/8 }
-
-# Uncomment the following to accept external mail for domain "example.org"
-#accept from any for domain "example.org" alias <aliases> deliver to mbox
-accept for local alias <aliases> deliver to mbox
-accept from local for domain "gmail.com" relay via tls+auth://gmail_login@smtp.gmail.com:587 auth <secrets>
-accept from source <trusted_IPs> for domain "mydomain.name" alias <aliases> deliver to mbox
-'EOF'
-
-touch secrets
-chmod 640 secrets
-chown root:_smtpd secrets
-echo 'gmail_login  jason.unovitch:CHANGETHISTOTHEPASSWORD' >> secrets
-/usr/local/libexec/opensmtpd/makemap secrets
-
-perl -pwi -e 's^# root:\tme\@my.domain^root:\tjason.unovitch\@gmail.com^' /etc/mail/aliases
-smtpctl update table aliases
-
-echo '' >> /etc/rc.conf
-echo '# Disable Sendmail MTA' >> /etc/rc.conf
-echo 'sendmail_enable="NO"' >> /etc/rc.conf
-echo 'sendmail_submit_enable="NO"' >> /etc/rc.conf
-echo 'sendmail_outbound_enable="NO"' >> /etc/rc.conf
-echo 'sendmail_msp_queue_enable="NO"' >> /etc/rc.conf
-echo '' >> /etc/rc.conf
-echo '# Enable OpenSMTPD MTA' >> /etc/rc.conf
-echo 'smtpd_enable="YES"' >> /etc/rc.conf
-
-service sendmail stop
-service smtpd start
-
-echo "Test message" | mail -s "Test Email" root
-
+#
+#pkg install opensmtpd
+#
+#cd /usr/local/etc/mail/
+#
+#cat > smtpd.conf << 'EOF'
+## This is the smtpd server system-wide configuration file.
+## See smtpd.conf(5) for more information.
+#
+## To accept external mail, replace with: listen on all
+#listen on localhost
+#listen on 10.100.102.2
+#
+## If you edit the file, you have to run "smtpctl update table aliases"
+#table aliases file:/etc/mail/aliases
+#table secrets db:/usr/local/etc/mail/secrets.db
+#table trusted_IPs { 10.0.0.0/8 }
+#
+## Uncomment the following to accept external mail for domain "example.org"
+##accept from any for domain "example.org" alias <aliases> deliver to mbox
+#accept for local alias <aliases> deliver to mbox
+#accept from local for domain "gmail.com" relay via tls+auth://gmail_login@smtp.gmail.com:587 auth <secrets>
+#accept from source <trusted_IPs> for domain "mydomain.name" alias <aliases> deliver to mbox
+#'EOF'
+#
+#touch secrets
+#chmod 640 secrets
+#chown root:_smtpd secrets
+#echo 'gmail_login  jason.unovitch:CHANGETHISTOTHEPASSWORD' >> secrets
+#/usr/local/libexec/opensmtpd/makemap secrets
+#
+#perl -pwi -e 's^# root:\tme\@my.domain^root:\tjason.unovitch\@gmail.com^' /etc/mail/aliases
+#smtpctl update table aliases
+#
+#echo '' >> /etc/rc.conf
+#echo '# Disable Sendmail MTA' >> /etc/rc.conf
+#echo 'sendmail_enable="NO"' >> /etc/rc.conf
+#echo 'sendmail_submit_enable="NO"' >> /etc/rc.conf
+#echo 'sendmail_outbound_enable="NO"' >> /etc/rc.conf
+#echo 'sendmail_msp_queue_enable="NO"' >> /etc/rc.conf
+#echo '' >> /etc/rc.conf
+#echo '# Enable OpenSMTPD MTA' >> /etc/rc.conf
+#echo 'smtpd_enable="YES"' >> /etc/rc.conf
+#
+#service sendmail stop
+#service smtpd start
+#
+#echo "Test message" | mail -s "Test Email" root
+#
 ################################################################################
 # OpenVPN Certificate Authority
 ################################################################################
@@ -664,6 +664,15 @@ sysrc -f /boot/loader.conf cpu_microcode_load='YES'
 sysrc -f /boot/loader.conf cpu_microcode_name='/boot/firmware/intel-ucode.bin'
 
 ################################################################################
+# LADVD
+################################################################################
+
+pkg install ladvd
+sysrc ladvd_enable='YES'
+sysrc ladvd_flags='-r -L -z -m em1 -c US'
+service ladvd start
+
+################################################################################
 # Cleanup periodic messages for readability on a phone.
 ################################################################################
 
@@ -765,7 +774,7 @@ pkg install zfstools
 # crontab -e
 zfs set com.sun:auto-snapshot=true zroot/ROOT
 zfs set com.sun:auto-snapshot=true zroot/homedirs
-zfs set com.sun:auto-snapshot=true zroot/iocell/jails
+zfs set com.sun:auto-snapshot=true zroot/iocage/jails
 
 ################################################################################
 # Smartd package for basic disk management and status checking.  We'll set up
@@ -955,10 +964,7 @@ service nfsd start
 # Enable jail friendly SMB support with Samba.
 ################################################################################
 
-pkg install samba47
-
-sysrc kld_list+=aio
-kldload aio
+pkg install samba48
 
 cat > /usr/local/etc/smb4.conf << 'EOF'
 [global]
@@ -1029,9 +1035,10 @@ rm -r /usr/ports/*
 poudriere ports -c -F -f none -M /usr/ports -p default
 
 # Setup 12.0-RELEASE build environments
-# poudriere jail -c -j 120amd64 -v 12.0-STABLE -a amd64 -m src=/usr/src
-poudriere jail -c -j 120amd64 -v 12.0-RELASE -a amd64 -m http
+poudriere jail -c -j 120amd64 -v 12.0-RELEASE -a amd64 -m http
 poudriere jail -c -j 120i386 -v 12.0-RELEASE -a i386 -m http
+# Setup 12-STABLE build environment
+poudriere jail -c -j 12xamd64 -v 12.0-STABLE -a amd64 -m src=/usr/src
 
 # Setup 11.2-RELEASE build environments
 poudriere jail -c -j 112amd64 -v 11.2-RELEASE -a amd64 -m http
@@ -1046,7 +1053,7 @@ poudriere jail -c -j 112i386 -v 11.2-RELEASE -a i386 -m http
 
 # Setup make.conf variables for build jail
 cat > /usr/local/etc/poudriere.d/make.conf << 'EOF'
-DEFAULT_VERSIONS= pgsql=10
+DEFAULT_VERSIONS= pgsql=11
 multimedia_ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 security_gnutls_UNSET+=TPM
 www_nginx_SET+=PASSENGER HTTP_FANCYINDEX
@@ -1085,6 +1092,7 @@ sysutils/nut
 security/logcheck
 sysutils/panicmail
 sysutils/devcpu-data
+net/ladvd
 sysutils/smartmontools
 sysutils/ncdu
 sysutils/duff
@@ -1093,9 +1101,8 @@ net/unison248@nox11
 net/unison@nox11
 sysutils/zfs-stats
 sysutils/zfstools
-net/samba47
 net/samba48
-sysutils/iocell
+sysutils/iocage
 sysutils/vm-bhyve
 sysutils/grub2-bhyve
 security/sudo
@@ -1120,15 +1127,23 @@ devel/libvirt
 textproc/libxslt
 www/node
 www/npm
-lang/phantomjs
-databases/postgresql10-server
-databases/postgresql10-client
+databases/postgresql11-server
+databases/postgresql11-client
 net/foreman-proxy
 ftp/tftp-hpa
 ########## Salt Jail ##########
-sysutils/py-salt
+sysutils/py-salt@py27
+sysutils/py-salt@py36
 sysutils/rubygem-smart_proxy_salt
-devel/py-setproctitle
+devel/py-setproctitle@py27
+devel/py-setproctitle@py36
+devel/py-yaml@py27
+sysutils/lsyncd
+########## ELK Stack Jail ##########
+sysutils/logstash6
+sysutils/logstash-forwarder
+textproc/kibana6
+textproc/elasticsearch6
 ########## Mail Server Jails ##########
 mail/dovecot2
 mail/dovecot2-pigeonhole
@@ -1138,9 +1153,9 @@ mail/getmail
 
 # Allow host to install from Poudriere Repo
 mkdir -p /usr/local/etc/pkg/repos
-cat >> /usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
+cat > /usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
 myrepo: {
-  url: "file:///zfs/poudriere/data/packages/120amd64-default",
+  url: "file:///zfs/poudriere/data/packages/12xamd64-default",
 }
 FreeBSD: {
   enabled: no
@@ -1171,8 +1186,9 @@ pkg check -r poudriere-devel
 # Cron entries to automate
 echo 'MAILTO=jason' >> /var/cron/tabs/root
 echo 'PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin' >> /var/cron/tabs/root
-printf "0\t13\t*\t*\tthu\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 112amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 112i386\n" >> /var/cron/tabs/root
-printf "0\t13\t*\t*\tfri\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 120amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 120i386\n" >> /var/cron/tabs/root
+printf "0\t13\t*\t*\tmon,thu\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 112amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 112i386\n" >> /var/cron/tabs/root
+printf "0\t13\t*\t*\ttue,fri\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 120amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 120i386\n" >> /var/cron/tabs/root
+printf "0\t13\t*\t*\tsat,sun,wed\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 12xamd64\n" >> /var/cron/tabs/root
 
 # Helpful testing scripts
 cat > /home/jason/bin/bulkall.sh << 'EOF'
@@ -1203,7 +1219,7 @@ done
 pkg install nginx-lite
 
 cat > /usr/local/etc/nginx/nginx.conf << 'EOF'
-worker_processes 1;
+worker_processes 2;
 
 events {
     worker_connections  1024;
@@ -1231,8 +1247,9 @@ http {
         }
 
     server {
-        listen       80 accept_filter=httpready;
-        server_name  xts-bsd.pa-us.mydomain.name xts-bsd accept_filter=httpready;
+        listen       80 accept_filter=httpready reuseport;
+        listen       [::]:80 accept_filter=httpready reuseport;
+        server_name  xts-bsd.pa-us.mydomain.name xts-bsd;
         root         /usr/local/share/poudriere/html;
 
         # Allow caching static resources
@@ -1283,8 +1300,8 @@ service nginx start
 ##----------------------------------------------------------------------------##
 ################################################################################
 
-pkg install iocell
-iocell activate zroot
+pkg install py36-iocage
+iocage activate zroot
 
 # Persistance configuration for VIMAGE
 cat >> /etc/rc.conf << 'EOF'
@@ -1302,8 +1319,9 @@ ifconfig bridge1 addm em1 up
 
 # Enable jails in rc.conf
 echo '' >> /etc/rc.conf
-echo '# Iocell config' >> /etc/rc.conf
-echo 'iocell_enable="YES"' >> /etc/rc.conf
+echo '# Iocage Config' >> /etc/rc.conf
+echo 'iocage_enable="YES"' >> /etc/rc.conf
+echo 'fdescfs /dev/fd fdescfs rw 0 0' >> /etc/fstab
 
 # Put commented block for enabling raw sockets in sysctl.conf if needed later on
 echo '' >> /etc/sysctl.conf
@@ -1315,22 +1333,34 @@ echo '#security.jail.allow_raw_sockets=1' >> /etc/sysctl.conf
 ################################################################################
 
 # Fetch release and set defaults
-iocell fetch release=11.2-RELEASE
-iocell set compression=lz4 default
+iocage fetch -r 12.0-RELEASE
 
 # Set for centralized syslog
-perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.100.102.2^g' /iocell/releases/11.2-RELEASE/root/etc/syslog.conf
+perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.100.102.2^g' /zroot/iocage/releases/12.0-RELEASE/root/etc/syslog.conf
 
 # Set up remaining baseline for all jail's rc.conf
-cat >> /iocell/releases/11.2-RELEASE/root/etc/rc.conf.local << 'EOF'
+cat > /zroot/iocage/releases/12.0-RELEASE/root/etc/rc.conf << 'EOF'
 syslogd_flags="-s -v -v"
 sshd_enable="YES"
 clear_tmp_enable="YES"
+
+# Disable Sendmail by default
+sendmail_enable="NONE"
+sendmail_submit_enable="NO"
+sendmail_outbound_enable="NO"
+sendmail_msp_queue_enable="NO"
+
+# Enable IPv6
+ipv6_activate_all_interfaces="YES"
+# XXX: iocage version -- Version 1.0 RELEASE 2018/12 -- still needs this
+# set else the interface ends up in IFDISABLED without ACCEPT_RTADV set
+ifconfig_epair0b_ipv6="inet6 accept_rtadv"
+ifconfig_epair1b_ipv6="inet6 accept_rtadv"
 'EOF'
 
 # Configure baseline periodic.conf for all jail templates.
 # periodic.conf.local will be used for any things specific to one jail only.
-cat >> /iocell/releases/11.2-RELEASE/root/etc/periodic.conf << 'EOF'
+cat >> /zroot/iocage/releases/12.0-RELEASE/root/etc/periodic.conf << 'EOF'
 daily_output="/var/log/daily.log"
 weekly_output="/var/log/weekly.log"
 monthly_output="/var/log/monthly.log"
@@ -1354,6 +1384,17 @@ daily_status_security_kernelmsg_enable="NO"
 ##### Checks to enable for all jails
 daily_clean_tmps_enable="YES"
 daily_status_security_pkg_checksum_enable="YES"
+'EOF'
+
+mkdir -p /zroot/iocage/releases/12.0-RELEASE/root/usr/local/etc/pkg/repos/
+cat >> /zroot/iocage/releases/12.0-RELEASE/root/usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
+myrepo: {
+  url: "http://10.100.102.2/pkgrepo/120amd64-default",
+  enabled: yes
+}
+FreeBSD: {
+  enabled: no
+}
 'EOF'
 
 ################################################################################
@@ -1418,33 +1459,21 @@ monthly_jail_periodic_enable="YES"
 # VIMAGE test jail
 ################################################################################
 
-iocell create tag=test-jail11 release=11.2-RELEASE
-iocell set vnet=on test-jail11
-iocell set host_hostname="test-jail11.pa-us.mydomain.name" test-jail11
-iocell set interfaces='vnet0:bridge0' test-jail11
-iocell set ip4_addr="vnet0|192.168.102.50/24" test-jail11
-iocell set defaultrouter="192.168.102.1" test-jail11
-iocell set ip6_addr="vnet0|accept_rtadv" test-jail11
-iocell start test-jail11
-iocell console test-jail11
+iocage create -n test-jail12 -r 12.0-RELEASE
+iocage set vnet=on \
+  interfaces='vnet0:bridge0' \
+  ip4_addr="vnet0|192.168.102.50/24" \
+  defaultrouter="192.168.102.1" \
+  ip6_addr="vnet0|accept_rtadv" test-jail12
+iocage start test-jail12
+iocage console test-jail12
 
 ################################################################################
 # Snippet that applies after creation of each jail
 ################################################################################
 
-mkdir -p /usr/local/etc/pkg/repos
-cat >> /usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
-myrepo: {
-  url: "http://10.100.102.2/pkgrepo/112amd64-default",
-  enabled: yes
-}
-FreeBSD: {
-  enabled: no
-}
-'EOF'
-
-pkg install py27-salt
-sysrc -f /etc/rc.conf.local salt_minion_enable=YES
+pkg install py36-salt
+sysrc salt_minion_enable=YES
 cat > /usr/local/etc/salt/minion << 'EOF'
 grains:
   roles:
@@ -1466,20 +1495,21 @@ service salt_minion start
 # All state files are under /var/puppet
 ################################################################################
 
-iocell create tag=foreman release=11.2-RELEASE
-iocell set vnet=on foreman
-iocell set interfaces='vnet1:bridge1' foreman
-iocell set host_hostname="foreman.pa-us.mydomain.name" foreman
-iocell set ip4_addr="vnet1|10.100.102.21/24" foreman
-iocell set defaultrouter="10.100.102.1" foreman
-iocell set ip6_addr="vnet1|accept_rtadv" foreman
-iocell set boot="on" foreman
-iocell set allow_sysvipc=1 foreman
+iocage create -n foreman -r 12.0-RELEASE
+iocage set vnet=on boot="on" \
+  interfaces='vnet1:bridge1' \
+  ip4_addr="vnet1|10.100.102.11/24" \
+  defaultrouter='10.100.102.1' \
+  ip6_addr="vnet1|accept_rtadv" \
+  allow_sysvipc=1 foreman
+iocage start foreman
+iocage console foreman
 
-iocell start foreman
-iocell console foreman
-
+# Set baseline environment
 passwd
+
+sysrc hostname='foreman.pa-us.mydomain.name'
+hostname foreman.pa-us.mydomain.name
 
 pkg install bash zsh tmux vim-console pstree cmdwatch tree
 
@@ -1488,7 +1518,7 @@ pkg install bash zsh tmux vim-console pstree cmdwatch tree
 #
 
 # Install PostgreSQL with default options
-pkg install postgresql10-server
+pkg install postgresql11-server
 
 cat >> /etc/login.conf << 'EOF'
 postgres:\
@@ -1499,8 +1529,8 @@ postgres:\
 cap_mkdb /etc/login.conf
 
 # Enable and start PostgreSQL
-sysrc -f /etc/rc.conf.local postgresql_enable=YES
-sysrc -f /etc/rc.conf.local postgresql_class=postgres
+sysrc postgresql_enable="YES"
+sysrc postgresql_class="postgres"
 service postgresql initdb
 service postgresql start
 
@@ -1536,7 +1566,7 @@ pg_restore --dbname=foreman pgdump_foreman_2015-01-10T03:01:34
 # PART 2: Foreman config
 #
 
-pkg install git nginx rubygem-passenger-nginx postgresql10-client sudo foreman-proxy
+pkg install git nginx rubygem-passenger-nginx postgresql11-client sudo foreman-proxy
 
 # Manually create the 'foreman' user
 pw groupadd -n foreman -g 813
@@ -1545,7 +1575,7 @@ pw useradd -n foreman -c "The Foreman,,," -u 813 -g foreman -d /opt/foreman -s /
 # Installing Foreman from Git
 mkdir /opt
 cd /opt
-git clone https://github.com/theforeman/foreman.git -b 1.18-stable
+git clone https://github.com/theforeman/foreman.git -b 1.22-stable
 cd foreman
 cp config/settings.yaml.example config/settings.yaml
 
@@ -1554,17 +1584,19 @@ echo "gem 'foreman_salt'" >> bundler.d/Gemfile.local.rb
 
 # install rubygems components and dependent libraries for first part of install
 pkg install rubygem-bundler rubygem-rake libvirt libxslt
-bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
-bundle install --path vendor --without journald mysql2 sqlite test
-sed -i '' -e 's|"node"|"/usr/local/bin/node"|' vendor/ruby/2.4/gems/execjs-2.7.0/lib/execjs/runtimes.rb
+# XXX: libvirt is broken on new ruby/bundler due to bundler adding errant escape characters:
+# /usr/local/bin/ruby25 -I /usr/local/lib/ruby/site_ruby/2.5 -r ./siteconf20190608-12909-okoe7p.rb extconf.rb --with-libvirt-include\=/usr/local/include/libvirt\ --with-libvirt-lib\=/usr/local/lib/libvirt
+# bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
+# Exclude libvirt for now:
+bundle install --path vendor --without journald mysql2 sqlite test libvirt
+# modify so nginx can find javascript runtime
+sed -i '' -e 's|"node"|"/usr/local/bin/node"|' vendor/ruby/2.5/gems/execjs-2.7.0/lib/execjs/runtimes.rb
 
 # install node/npm for second part of install
-# also install phantomjs as npm returns no binary for plat/arch and "Try to install PhantomJS globally"
-pkg install node npm phantomjs
+pkg install node npm
 # gyp returns "Error: Can't find Python executable "python", you can set the PYTHON env variable."
 setenv PYTHON python2.7
 npm install
-# XXX: if 'ajv-keywords@3.2.0 requires a peer of ajv@^6.0.0' do `npm install ajv && npm install`
 
 # database.yml:  Copy the example database YAML file. Update with database information.
 cd /opt/foreman/config
@@ -1617,11 +1649,10 @@ cat > settings.yaml << 'EOF'
 # because they are cached at startup.
 :unattended: true
 :login: true
-:require_ssl: true
-:locations_enabled: false
-:organizations_enabled: false
+:require_ssl: false
 :support_jsonp: false
 :mark_translated: false
+:hsts_enabled: false
 :ssl_ca_file: ""
 :ssl_certificate: /opt/foreman/config/foreman.crt
 :ssl_priv_key: /opt/foreman/config/foreman.key
@@ -1630,8 +1661,7 @@ cat > settings.yaml << 'EOF'
 'EOF'
 
 # Update access perms on these files
-chmod 640 settings.yaml
-chmod 640 database.yml
+chmod 640 settings.yaml database.yml foreman.key foreman.crt
 
 # Setup production database
 cd /opt/foreman
@@ -1641,6 +1671,8 @@ env RAILS_ENV=production bundle exec rake db:seed
 env RAILS_ENV=production bundle exec rake apipie:cache
 env RAILS_ENV=production bundle exec rake assets:precompile
 env RAILS_ENV=production bundle exec rake webpack:compile
+# XXX: will probably fail as foreman-tasks may not install all dependencies properly retry after doing this npm install
+npm install babel-plugin-module-resolver react-router-bootstrap react-router-dom react-redux redux
 env RAILS_ENV=production bundle exec rake locale:pack
 
 # Fix permissions on everything so far
@@ -1664,7 +1696,7 @@ mkdir /usr/local/etc/nginx/sites-available
 
 cat > /usr/local/etc/nginx/nginx.conf << 'EOF'
 user              www www;
-worker_processes  1;
+worker_processes  2;
 error_log         /var/log/nginx/error.log notice;
 pid               /var/run/nginx.pid;
 
@@ -1677,7 +1709,7 @@ events {
 http {
     include                  /usr/local/etc/nginx/sites-enabled/*;
 
-    passenger_root           /usr/local/lib/ruby/gems/2.4/gems/passenger-5.3.4/;
+    passenger_root           /usr/local/lib/ruby/gems/2.5/gems/passenger-6.0.2/;
     passenger_ruby           /usr/local/bin/ruby;
     passenger_max_pool_size  10;
     passenger_pool_idle_time 300;
@@ -1702,21 +1734,19 @@ http {
         text/plain                            log;
     }
 
-    ssl_session_cache          shared:SSL:10m;
-    ssl_session_timeout        35m;
-    ssl_protocols              TLSv1 TLSv1.1 TLSv1.2;
-    ssl_ciphers                ALL:!aNULL:!eNULL:!DES:!3DES:!IDEA:!SEED:!DSS:!PSK:!RC4:!MD5:+HIGH:+MEDIUM:!LOW:!SSLv2:!EXP;
-    ssl_prefer_server_ciphers  on;
-    ssl_verify_client          optional;
-    ssl_verify_depth           1;
+    ssl_session_cache          off;
+    ssl_session_tickets        off;
+    ssl_protocols              TLSv1.3 TLSv1.2;
+    ssl_ciphers                TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256;
 }
 'EOF'
 
 # Create sites-available config file and follow up with sites-enabled symlink
 cat > /usr/local/etc/nginx/sites-available/foreman << 'EOF'
     server {
-        listen       80 default_server accept_filter=httpready;
-        server_name  foreman.pa-us.mydomain.name foreman accept_filter=httpready;
+        listen       80 default_server accept_filter=httpready reuseport;
+        listen       [::]:80 default_server accept_filter=httpready reuseport;
+        server_name  foreman.pa-us.mydomain.name foreman;
 
         passenger_enabled          on;
         passenger_user             foreman;
@@ -1726,8 +1756,9 @@ cat > /usr/local/etc/nginx/sites-available/foreman << 'EOF'
         root                       /opt/foreman/public;
     }
     server {
-        listen       443 ssl accept_filter=dataready;
-        server_name  foreman.pa-us.mydomain.name foreman accept_filter=dataready;
+        listen       443 ssl http2 accept_filter=dataready reuseport;
+        listen       [::]:443 ssl http2 accept_filter=dataready reuseport;
+        server_name  foreman.pa-us.mydomain.name foreman;
 
         passenger_enabled          on;
         passenger_set_header       X_CLIENT_S_DN $ssl_client_s_dn;
@@ -1744,27 +1775,26 @@ cat > /usr/local/etc/nginx/sites-available/foreman << 'EOF'
 'EOF'
 cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/foreman foreman
 
-# Create the log directory to prevent issues on startup.
-mkdir /var/log/nginx
-
 # Enable a daily log file rotation via newsyslog.conf
 mkdir -p /usr/local/etc/newsyslog.conf.d
 printf "/var/log/nginx/*.log\t\t\t644  7\t   *    @T00  JG    /var/run/nginx.pid  30\n" >> /usr/local/etc/newsyslog.conf.d/nginx.conf
 
 # Enable nginx service and start it. At this point basic functionality is online.
-sysrc -f /etc/rc.conf.local nginx_enable=YES
+sysrc nginx_enable=YES
 service nginx start
 
 cd /usr/local/etc/foreman-proxy
 cat > settings.yml << 'EOF'
 ---
+:enabled: http
 :foreman_url: http://foreman.pa-us.mydomain.name
 :daemon: true
+:bind_host: ['0.0.0.0','::']
 :http_port: 8000
 :virsh_network: default
 'EOF'
 
-sysrc -f /etc/rc.conf.local foreman_proxy_enable=YES
+sysrc foreman_proxy_enable=YES
 service foreman-proxy start
 
 # And cron jobs for everything else
@@ -1870,7 +1900,8 @@ tar xvzf netboot.tar.gz
 rm netboot.tar.gz
 # Get mfsBSD images for testing
 cd /usr/local/tftp/images
-fetch http://mfsbsd.vx.sk/files/images/11/mfsbsd-11.2-RELEASE-amd64.img
+fetch https://mfsbsd.vx.sk/files/images/11/amd64/mfsbsd-11.2-RELEASE-amd64.img
+fetch https://mfsbsd.vx.sk/files/images/12/amd64/mfsbsd-12.0-RELEASE-amd64.img
 
 # Populate default configuration using the above
 cat > /usr/local/tftp/pxelinux.cfg/default << 'EOF'
@@ -1894,6 +1925,11 @@ menu begin manual_ubuntu
 	include ubuntu-installer/amd64/pxelinux.cfg/default
 menu end
 
+label mfsbsd64_12
+  menu label Load mfsBSD 12.0-RELEASE amd64
+  kernel memdisk
+  initrd images/mfsbsd-12.0-RELEASE-amd64.img raw
+
 label mfsbsd64_11
   menu label Load mfsBSD 11.2-RELEASE amd64
   kernel memdisk
@@ -1906,7 +1942,7 @@ label reboot
 
 # Enable and start tftpd
 chmod -R +r /usr/local/tftp/*
-sysrc -f /etc/rc.conf.local tftpd_enable=YES
+sysrc tftpd_enable=YES
 service tftpd start
 
 # Populate initial Ubuntu kickstart file
@@ -1964,6 +2000,7 @@ rm -f /etc/apt/apt.conf
 cat > /usr/local/etc/nginx/sites-available/kickstart << 'EOF'
     server {
         listen       80;
+        listen       [::]:80;
         server_name  kickstart.pa-us.mydomain.name kickstart;
 
         access_log   /var/log/nginx/kickstart_access.log;
@@ -1983,31 +2020,31 @@ service nginx reload
 ##                           Salt Master Server                               ##
 ################################################################################
 
-iocell create tag=salt release=11.2-RELEASE
-iocell set vnet=on salt
-iocell set interfaces='vnet1:bridge1' salt
-iocell set host_hostname="salt.pa-us.mydomain.name" salt
-iocell set ip4_addr="vnet1|10.100.102.23/24" salt
-iocell set defaultrouter="10.100.102.1" salt
-iocell set ip6_addr="vnet1|accept_rtadv" salt
-iocell set boot="on" salt
-iocell set priority="50" salt
-iocell start salt
-iocell console salt
+iocage create -n salt01 -r 12.0-RELEASE
+iocage set vnet=on \
+  priority="90" boot="on" \
+  interfaces='vnet1:bridge1' \
+  ip4_addr="vnet1|10.100.102.13/24" \
+  defaultrouter='10.100.102.1' \
+  ip6_addr="vnet1|accept_rtadv" salt01
+iocage start salt01
+iocage console salt01
 
+# Set baseline environment
 passwd
+
+sysrc hostname='salt01.pa-us.mydomain.name'
+sysrc defaultrouter="10.100.102.1" && route add default 10.100.102.1
+hostname salt01.pa-us.mydomain.name
 
 pkg install bash zsh tmux vim-console pstree cmdwatch tree
 
-# Install other utilities
+# Install git
 pkg install git
 
-# Install Foreman Proxy and utilities
-pkg install foreman-proxy sudo
-
 # Install and enable Salt
-pkg install py27-salt rubygem-smart_proxy_salt py27-setproctitle
-sysrc -f /etc/rc.conf.local salt_master_enable=YES
+pkg install py36-salt py36-setproctitle
+sysrc salt_master_enable=YES
 
 # Create a Salt Master user
 pw groupadd -n saltmaster -g 4505
@@ -2026,7 +2063,7 @@ su -m saltmaster -c 'git remote add origin file:///usr/local/etc/salt.git'
 su -m saltmaster -c 'git push --set-upstream origin master'
 
 # Set Salt Master to run as dedicated user
-sed -i '' -e 's/.*user:.*/user: saltmaster/' /usr/local/etc/salt/master
+sed -i '' -e 's/#user:.*/user: saltmaster/' /usr/local/etc/salt/master
 
 # Shrink noise of state output
 sed -i '' -e 's/^state_output:.*/state_output: mixed/' -e 's/.*state_output:.*/state_output: mixed/' /usr/local/etc/salt/master
@@ -2038,13 +2075,17 @@ sed -i '' -e 's/^timeout:.*/timeout: 60/' -e 's/^#timeout:.*/timeout: 60/' /usr/
 service salt_master start
 
 # XXX: return to here:
+# Install Foreman Proxy and utilities
+pkg install foreman-proxy rubygem-smart_proxy_salt sudo
+
 # Configure Foreman Salt Proxy
 cat > /usr/local/etc/foreman-proxy/settings.yml << 'EOF'
 ---
+:enabled: http
 :foreman_url: http://foreman.pa-us.mydomain.name
 :daemon: true
+:bind_host: ['0.0.0.0','::']
 :http_port: 8000
-:bind_host: salt.pa-us.mydomain.name
 :virsh_network: default
 'EOF'
 cat > /usr/local/etc/foreman-proxy/settings.d/salt.yml << 'EOF'
@@ -2083,15 +2124,83 @@ chgrp foreman_proxy /usr/local/etc/salt/autosign.conf
 chmod g+w /usr/local/etc/salt/autosign.conf
 
 # Enable and Start the service
-sysrc -f /etc/rc.conf.local foreman_proxy_enable=YES
+sysrc foreman_proxy_enable=YES
 service foreman-proxy start
 
-# Add to crontab to upload reports from SaltStack to Foreman
-sed -i '' -e 's|^LOCK_FILE = .*|LOCK_FILE = "/var/run/salt/master/salt-report-upload.lock"|' /usr/local/sbin/upload-salt-reports
-install -o saltmaster -g saltmaster /dev/null /var/log/foreman-proxy/salt-cron.log
-crontab -e -u saltmaster
-PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin:/root/bin
-*/30 * * * * (salt '*' state.highstate; /usr/local/sbin/upload-salt-reports) >>/var/log/foreman-proxy/salt-cron.log 2>&1
+## Add to crontab to upload reports from SaltStack to Foreman
+#sed -i '' -e 's|^LOCK_FILE = .*|LOCK_FILE = "/var/run/salt/master/salt-report-upload.lock"|' /usr/local/sbin/upload-salt-reports
+#install -o saltmaster -g saltmaster /dev/null /var/log/foreman-proxy/salt-cron.log
+#crontab -e -u saltmaster
+#PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin:/root/bin
+#*/30 * * * * (salt '*' state.highstate; /usr/local/sbin/upload-salt-reports) >>/var/log/foreman-proxy/salt-cron.log 2>&1
+
+# sync to secondary master server (idea from http://dapurberita.info/index.php/2019/03/19/install-lsyncd-freebsd-12/)
+# MASTER
+# * first generate needed ssh keys and ensure able to log in
+#ssh-keygen ...
+# SLAVE(S)
+# * copy pub component to /root/.ssh/authorized_keys
+# * enable login to root with ssh keys
+sed -i '' -e 's/.*PermitRootLogin.*/PermitRootLogin without-password/' /etc/ssh/sshd_config
+service sshd restart
+# * install rsync only
+pkg install rsync
+# MASTER
+#ssh <hostname> # ensure login works
+
+# install lsyncd and rsync
+pkg install lsyncd rsync
+
+# configure lsyncd
+cat > /usr/local/etc/lsyncd.conf << 'EOF'
+settings {
+  logfile    = "/var/log/lsyncd.log",
+  statusFile = "/var/log/lsyncd.status",
+  statusInterval = 1,
+  maxProcesses = 2,
+  insist = 1,
+}
+sync {
+  default.rsync,
+  delay = 0,
+  source = "/usr/local/etc/salt",
+  target = "10.100.82.13:/usr/local/etc/salt",
+  exclude = {
+    '/.ssh',
+    '/last_uploaded',
+    '/minion_id',
+    '/minion.d',
+    '/pki/minion',
+    '*.sample',
+    '*.swp',
+    '*.tmp'
+  },
+  rsync = {
+    binary = "/usr/local/bin/rsync",
+    archive  = true,
+    compress = true,
+    verbose = true
+  },
+  delete = true
+}
+sync {
+  default.rsync,
+  delay = 0,
+  source = "/usr/local/etc/salt-formulas",
+  target = "10.100.82.13:/usr/local/etc/salt-formulas",
+  rsync = {
+    binary = "/usr/local/bin/rsync",
+    archive  = true,
+    compress = true,
+    verbose = true
+  },
+  delete = true
+}
+'EOF'
+
+# enable and start lsyncd
+sysrc lsyncd_enable=YES
+service lsyncd start
 
 ################################################################################
 ##                       Serviio Jail Configuration                           ##
@@ -2102,24 +2211,29 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin:/root/bin
 # http://wiki.serviio.org/doku.php?id=build_ffmpeg_linux
 ################################################################################
 
-iocell create tag=serviio release=11.2-RELEASE
-iocell set vnet=on serviio
-iocell set interfaces='vnet1:bridge1' serviio
-iocell set host_hostname="serviio.pa-us.mydomain.name" serviio
-iocell set ip4_addr="vnet1|10.100.102.24/24" serviio
-iocell set defaultrouter="10.100.102.1" serviio
-iocell set ip6_addr="vnet1|accept_rtadv" serviio
-iocell set boot="on" serviio
-mkdir -p /iocell/jails/`iocell get host_hostuuid serviio`/root/zfs/homedirs/common_media
-mkdir -p /iocell/jails/`iocell get host_hostuuid serviio`/root/zfs/homedirs/common_photos
-echo "/zfs/homedirs/common_media /iocell/jails/`iocell get host_hostuuid serviio`/root/zfs/homedirs/common_media nullfs ro 0 0" \
-	>> /iocell/jails/`iocell get host_hostuuid serviio`/fstab
-echo "/zfs/homedirs/common_photos /iocell/jails/`iocell get host_hostuuid serviio`/root/zfs/homedirs/common_photos nullfs ro 0 0" \
-	>> /iocell/jails/`iocell get host_hostuuid serviio`/fstab
-iocell start serviio
-iocell console serviio
+iocage create -n serviio -r 12.0-RELEASE
+iocage set vnet=on boot="on" \
+  interfaces='vnet1:bridge1' \
+  ip4_addr="vnet1|10.100.102.14/24" \
+  defaultrouter='10.100.102.1' \
+  ip6_addr="vnet1|accept_rtadv" serviio
 
+mkdir -p /zroot/iocage/jails/serviio/root/zfs/homedirs/common_media
+mkdir -p /zroot/iocage/jails/serviio/root/zfs/homedirs/common_photos
+echo "/zfs/homedirs/common_media /zroot/iocage/jails/serviio/root/zfs/homedirs/common_media nullfs ro 0 0" \
+	>> /zroot/iocage/jails/serviio/fstab
+echo "/zfs/homedirs/common_photos /zroot/iocage/jails/serviio/root/zfs/homedirs/common_photos nullfs ro 0 0" \
+	>> /zroot/iocage/jails/serviio/fstab
+
+iocage start serviio
+iocage console serviio
+
+# Set baseline environment
 passwd
+
+sysrc hostname="serviio.pa-us.mydomain.name"
+sysrc defaultrouter="10.100.102.1" && route add default 10.100.102.1
+hostname serviio.pa-us.mydomain.name
 
 pkg install bash zsh tmux vim-console pstree cmdwatch tree
 
@@ -2128,33 +2242,207 @@ pkg install bash zsh tmux vim-console pstree cmdwatch tree
 pkg install serviio dcraw
 
 # Enable and start it.
-echo 'serviio_enable="YES"' >> /etc/rc.conf.local
-echo 'serviio_lang="en_US.UTF-8"' >> /etc/rc.conf.local
-echo 'serviio_args="-Dserviio.advertisementDuration=15 -Dserviio.libraryPollerFrequency=5"' >> /etc/rc.conf.local
+sysrc serviio_enable="YES"
+sysrc serviio_lang="en_US.UTF-8"
+sysrc serviio_args="-Dserviio.advertisementDuration=15 -Dserviio.libraryPollerFrequency=5"
 service serviio start
+
+# /var/db/serviio contains all critical data to move if migrating to new jail
 
 ################################################################################
 ##                   Unifi Controller Jail Configuration                      ##
 ################################################################################
 
-iocell create tag=unifi release=11.2-RELEASE
-iocell set vnet=on unifi
-iocell set interfaces='vnet1:bridge1' unifi
-iocell set host_hostname="unifi.pa-us.mydomain.name" unifi
-iocell set ip4_addr="vnet1|10.100.102.28/24" unifi
-iocell set defaultrouter="10.100.102.1" unifi
-iocell set ip6_addr="vnet1|accept_rtadv" unifi
-iocell set boot="on" unifi
-iocell start unifi
-iocell console unifi
+iocage create -n unifi -r 12.0-RELEASE
+iocage set vnet=on boot="on" \
+  interfaces='vnet1:bridge1' \
+  ip4_addr="vnet1|10.100.102.18/24" \
+  defaultrouter='10.100.102.1' \
+  ip6_addr="vnet1|accept_rtadv" unifi
 
+iocage start unifi
+iocage console unifi
+
+# Set baseline environment
 passwd
+
+sysrc hostname="unifi.pa-us.mydomain.name"
+sysrc defaultrouter="10.100.102.1" && route add default 10.100.102.1
+hostname unifi.pa-us.mydomain.name
 
 pkg install bash zsh tmux vim-console pstree cmdwatch tree
 
 pkg install unifi5
-sysrc -f /etc/rc.conf.local unifi_enable=YES
+sysrc unifi_enable=YES
 service unifi start
+
+# /usr/local/share/java/unifi/data contains all critical data to move if migrating to new jail
+
+################################################################################
+##----------------------------------------------------------------------------##
+##                       ELK Stack Jail Configuration                         ##
+##----------------------------------------------------------------------------##
+################################################################################
+
+iocage create -n logstash -r 12.0-RELEASE
+iocage set vnet=on boot="on" \
+  mount_procfs=1 \
+  interfaces='vnet1:bridge1' \
+  ip4_addr="vnet1|10.100.102.16/24" \
+  ip6_addr="vnet1|accept_rtadv" logstash
+
+mkdir -p /zroot/iocage/jails/logstash/root/logshare
+echo "/var/log /zroot/iocage/jails/logstash/root/logshare nullfs ro 0 0" \
+	>> /zroot/iocage/jails/logstash/fstab
+
+iocage start logstash
+iocage console logstash
+
+# Set baseline environment
+passwd
+
+sysrc hostname="logstash.pa-us.mydomain.name"
+sysrc defaultrouter="10.100.102.1" && route add default 10.100.102.1
+hostname logstash.pa-us.mydomain.name
+
+pkg install bash zsh tmux vim-console pstree cmdwatch tree
+
+pkg install logstash6 kibana6 elasticsearch6
+
+# Most config based on: https://github.com/patrickjennings/logstash-pfsense
+cat > /usr/local/etc/logstash/logstash.conf << 'EOF'
+# tcp syslog stream via 5140
+input {
+  tcp {
+    type => "syslog"
+    port => 5140
+  }
+}
+# udp syslogs stream via 5140
+input {
+  udp {
+    type => "syslog"
+    port => 5140
+  }
+}
+
+filter {
+  if [type] == "syslog" {
+    #change to pfSense ip address
+    if [host] =~ /10\.100\.82\.1/ {
+      mutate {
+        add_tag => ["PFSense", "Ready"]
+      }
+    }
+    if [host] =~ /10\.100\.102\.1/ {
+      mutate {
+        add_tag => ["PFSense", "Ready"]
+      }
+    }
+    if "Ready" not in [tags] {
+      mutate {
+        add_tag => [ "syslog" ]
+      }
+    }
+  }
+}
+filter {
+  if [type] == "syslog" {
+    mutate {
+      remove_tag => "Ready"
+    }
+  }
+}
+filter {
+  if "syslog" in [tags] {
+    grok {
+      match => { "message" => "%{SYSLOGTIMESTAMP:syslog_timestamp} %{SYSLOGHOST:syslog_hostname} %{DATA:syslog_program}(?:\[%{POSINT:syslog_pid}\])?: %{GREEDYDATA:syslog_message}" }
+      add_field => [ "received_at", "%{@timestamp}" ]
+      add_field => [ "received_from", "%{host}" ]
+    }
+    syslog_pri { }
+    date {
+      match => [ "syslog_timestamp", "MMM  d HH:mm:ss", "MMM  dd HH:mm:ss" ]
+      locale => "en"
+    }
+    if !("_grokparsefailure" in [tags]) {
+      mutate {
+        replace => [ "@source_host", "%{syslog_hostname}" ]
+        replace => [ "@message", "%{syslog_message}" ]
+      }
+    }
+    mutate {
+      remove_field => [ "syslog_hostname", "syslog_message", "syslog_timestamp" ]
+    }
+  }
+}
+filter {
+  if "PFSense" in [tags] {
+    grok {
+      add_tag => [ "firewall" ]
+      match => [ "message", "<(?<evtid>.*)>(?<datetime>(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(?:(?:0[1-9])|(?:[12][0-9])|(?:3[01])|[1-9]) (?:2[0123]|[01]?[0-9]):(?:[0-5][0-9]):(?:[0-5][0-9])) (?<prog>.*?): (?<msg>.*)" ]
+    }
+    mutate {
+      gsub => ["datetime","  "," "]
+    }
+    date {
+      match => [ "datetime", "MMM dd HH:mm:ss" ]
+      timezone => "America/New_York"
+    }
+    mutate {
+      replace => [ "message", "%{msg}" ]
+    }
+    mutate {
+      remove_field => [ "msg", "datetime" ]
+    }
+    if [prog] =~ /^filterlog$/ {
+      mutate {
+        remove_field => [ "msg", "datetime" ]
+      }
+      grok {
+        patterns_dir => "/usr/local/etc/logstash/patterns"
+        match => [ "message", "%{PFSENSE_LOG_DATA}%{PFSENSE_IP_SPECIFIC_DATA}%{PFSENSE_IP_DATA}%{PFSENSE_PROTOCOL_DATA}",
+           "message", "%{PFSENSE_LOG_DATA}%{PFSENSE_IPv4_SPECIFIC_DATA_ECN}%{PFSENSE_IP_DATA}%{PFSENSE_PROTOCOL_DATA}" ]
+      }
+      mutate {
+        lowercase => [ 'proto' ]
+      }
+      geoip {
+        add_tag => [ "GeoIP" ]
+        source => "src_ip"
+      }
+    }
+  }
+}
+
+output {
+  if [type] == "syslog" {
+    elasticsearch {
+        hosts => [ "localhost:9200" ]
+        index => "logstash-pfsense-%{+YYYY.MM.dd}"
+    }
+  }
+}
+'EOF'
+
+mkdir patterns
+fetch https://raw.githubusercontent.com/patrickjennings/logstash-pfsense/master/patterns/pfsense2-4.grok -o patters/pfsense2-4.grok
+
+sed -i '' -e 's|#server.port|server.port|' /usr/local/etc/kibana/kibana.yml
+sed -i '' -e 's|#server.host.*|server.host: "0.0.0.0"|' /usr/local/etc/kibana/kibana.yml
+# also had to fix xpack thing https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=231179
+# fixed manually for now
+
+sed -i '' -e 's|#network.host.*|network.host: localhost|' /usr/local/etc/elasticsearch/elasticsearch.yml
+
+sysrc elasticsearch_enable=YES logstash_enable=YES kibana_enable=YES
+/usr/local/etc/rc.d/elasticsearch start; service kibana start; service logstash start
+
+# now import json dashboards from the github into kibana web interfaces
+fetch https://raw.githubusercontent.com/patrickjennings/logstash-pfsense/master/kibana/dashboard.json
+fetch https://raw.githubusercontent.com/patrickjennings/logstash-pfsense/master/kibana/visualizations.json
+
+# /var/db/elasticsearch contains critical data
 
 ################################################################################
 ##----------------------------------------------------------------------------##
@@ -2273,7 +2561,7 @@ freebsd-update fetch
 shutdown -r now
 freebsd-update install
 # for each jail
-env UNAME_r=10.2-RELEASE iocell update <jail>
+env UNAME_r=10.2-RELEASE iocage update <jail>
 poudriere jail -u -j 101amd64
 poudriere jail -u -j 101i386
 poudriere jail -u -j 93amd64
@@ -2357,22 +2645,23 @@ bectl list
 bectl activate <newBE>
 # Reboot into the new kernel
 shutdown -r now
-# Now update Poudriere and build a new set of packages
-poudriere jail -u -j 120amd64 && \
-poudriere bulk -j 120amd64 -f /zfs/poudriere/pkg_list
 # At this point, if the kernel has been reliable, upgrade config files and userland
 cd /usr/src
-etcupdate -s /usr/src -D "" -p
+etcupdate -s /usr/src -p
 make installworld
-etcupdate -s /usr/src -D ""
-# Update all packages
+etcupdate -s /usr/src
+# Quick way - just update packages using last build
+pkg upgrade
+# Alternate - thorough rebuild all packages and remove old libs/deps, could
+# be useful after __FreeBSD_version increment or major updates like compiler
+poudriere jail -u -j 12xamd64
+poudriere bulk -j 12xamd64 -f /zfs/poudriere/pkg_list
 pkg-static upgrade -fy -r myrepo
-# Do any local patches for rc.d scripts and so forth
 pkg check -r
-# Reboot into the new userland
-shutdown -r now
-# After reinstall of packages and a reboot
 make -DBATCH_DELETE_OLD_FILES delete-old delete-old-libs
+pkg autoremove
+# Reboot into the new userland and upgraded packages
+shutdown -r now
 # Make a snapshot
 bectl list
 bectl create <beName@snapshot>
