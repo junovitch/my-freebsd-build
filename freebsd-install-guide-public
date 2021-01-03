@@ -17,7 +17,7 @@
 # the find and replace section and the initial configuration section you can
 # probably copy and paste most of what you see here straight into a terminal. 
 #
-# Written in 2012-2018 by Jason Unovitch
+# Written in 2012-2020 by Jason Unovitch
 #   jason.unovitch@gmail.com
 #   https://github.com/junovitch
 #
@@ -964,7 +964,7 @@ service nfsd start
 # Enable jail friendly SMB support with Samba.
 ################################################################################
 
-pkg install samba48
+pkg install samba410
 
 cat > /usr/local/etc/smb4.conf << 'EOF'
 [global]
@@ -1034,15 +1034,15 @@ sed -i '' -e 's^.*CCACHE_DIR=.*^CCACHE_DIR=/usr/obj/ccache^' poudriere.conf
 rm -r /usr/ports/*
 poudriere ports -c -F -f none -M /usr/ports -p default
 
-# Setup 12.0-RELEASE build environments
-poudriere jail -c -j 120amd64 -v 12.0-RELEASE -a amd64 -m http
-poudriere jail -c -j 120i386 -v 12.0-RELEASE -a i386 -m http
+# Setup 12.1-RELEASE build environments
+poudriere jail -c -j 121amd64 -v 12.1-RELEASE -a amd64 -m http
+poudriere jail -c -j 121i386 -v 12.1-RELEASE -a i386 -m http
 # Setup 12-STABLE build environment
-poudriere jail -c -j 12xamd64 -v 12.0-STABLE -a amd64 -m src=/usr/src
+poudriere jail -c -j 12xamd64 -v 12.1-STABLE -a amd64 -m src=/usr/src
 
-# Setup 11.2-RELEASE build environments
-poudriere jail -c -j 112amd64 -v 11.2-RELEASE -a amd64 -m http
-poudriere jail -c -j 112i386 -v 11.2-RELEASE -a i386 -m http
+# Setup 11.3-RELEASE build environments
+poudriere jail -c -j 113amd64 -v 11.3-RELEASE -a amd64 -m http
+poudriere jail -c -j 113i386 -v 11.3-RELEASE -a i386 -m http
 
 # Additional info on setup for build environments for cross building ports
 # http://blogs.freebsdish.org/brd/2015/08/25/building-arm-packages-with-poudriere-the-simple-way/
@@ -1053,7 +1053,7 @@ poudriere jail -c -j 112i386 -v 11.2-RELEASE -a i386 -m http
 
 # Setup make.conf variables for build jail
 cat > /usr/local/etc/poudriere.d/make.conf << 'EOF'
-DEFAULT_VERSIONS= pgsql=11
+DEFAULT_VERSIONS= pgsql=11 python=3.7
 multimedia_ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 security_gnutls_UNSET+=TPM
 www_nginx_SET+=PASSENGER HTTP_FANCYINDEX
@@ -1063,7 +1063,7 @@ www_nginx_SET+=PASSENGER HTTP_FANCYINDEX
 cat > /zfs/poudriere/pkg_list << 'EOF'
 ########## Host and Jail programs ##########
 ports-mgmt/pkg
-ports-mgmt/pkg-devel
+#ports-mgmt/pkg-devel
 ports-mgmt/poudriere-devel
 www/nginx-lite
 devel/ccache
@@ -1101,14 +1101,14 @@ net/unison248@nox11
 net/unison@nox11
 sysutils/zfs-stats
 sysutils/zfstools
-net/samba48
+net/samba410
 sysutils/iocage
 sysutils/vm-bhyve
 sysutils/grub2-bhyve
 security/sudo
 benchmarks/iperf
 shells/mksh
-sysutils/DTraceToolkit
+sysutils/dtrace-toolkit
 mail/mutt
 irc/irssi
 ########## Serviio Jail ##########
@@ -1125,30 +1125,24 @@ www/rubygem-passenger@nginx
 sysutils/rubygem-bundler
 devel/libvirt
 textproc/libxslt
-www/node
-www/npm
+www/node12
+www/npm-node12
 databases/postgresql11-server
 databases/postgresql11-client
 net/foreman-proxy
+devel/rubygem-dynflow
+sysutils/rubygem-smart_proxy_dynflow
 ftp/tftp-hpa
 ########## Salt Jail ##########
-sysutils/py-salt@py27
-sysutils/py-salt@py36
+sysutils/py-salt
 sysutils/rubygem-smart_proxy_salt
-devel/py-setproctitle@py27
-devel/py-setproctitle@py36
-devel/py-yaml@py27
+devel/py-setproctitle
 sysutils/lsyncd
-########## ELK Stack Jail ##########
-sysutils/logstash6
-sysutils/logstash-forwarder
-textproc/kibana6
+########## Graylog Jail ##########
+sysutils/graylog
 textproc/elasticsearch6
-########## Mail Server Jails ##########
-mail/dovecot2
-mail/dovecot2-pigeonhole
-security/amavisd-new
-mail/getmail
+databases/mongodb36
+sysutils/pwgen
 'EOF'
 
 # Allow host to install from Poudriere Repo
@@ -1186,8 +1180,8 @@ pkg check -r poudriere-devel
 # Cron entries to automate
 echo 'MAILTO=jason' >> /var/cron/tabs/root
 echo 'PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin' >> /var/cron/tabs/root
-printf "0\t13\t*\t*\tmon,thu\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 112amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 112i386\n" >> /var/cron/tabs/root
-printf "0\t13\t*\t*\ttue,fri\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 120amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 120i386\n" >> /var/cron/tabs/root
+printf "0\t13\t*\t*\tmon,thu\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 113amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 113i386\n" >> /var/cron/tabs/root
+printf "0\t13\t*\t*\ttue,fri\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 121amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 121i386\n" >> /var/cron/tabs/root
 printf "0\t13\t*\t*\tsat,sun,wed\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 12xamd64\n" >> /var/cron/tabs/root
 
 # Helpful testing scripts
@@ -1228,7 +1222,7 @@ events {
 http {
 	include            mime.types;
 	default_type       application/octet-stream;
-	sendfile           off;
+	sendfile           on;
 	tcp_nopush         on;
 	keepalive_timeout  65;
 	tcp_nodelay        on;
@@ -1300,7 +1294,7 @@ service nginx start
 ##----------------------------------------------------------------------------##
 ################################################################################
 
-pkg install py36-iocage
+pkg install py37-iocage
 iocage activate zroot
 
 # Persistance configuration for VIMAGE
@@ -1333,13 +1327,13 @@ echo '#security.jail.allow_raw_sockets=1' >> /etc/sysctl.conf
 ################################################################################
 
 # Fetch release and set defaults
-iocage fetch -r 12.0-RELEASE
+iocage fetch -r 12.1-RELEASE
 
 # Set for centralized syslog
-perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.100.102.2^g' /zroot/iocage/releases/12.0-RELEASE/root/etc/syslog.conf
+perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.100.102.2^g' /zroot/iocage/releases/12.1-RELEASE/root/etc/syslog.conf
 
 # Set up remaining baseline for all jail's rc.conf
-cat > /zroot/iocage/releases/12.0-RELEASE/root/etc/rc.conf << 'EOF'
+cat > /zroot/iocage/releases/12.1-RELEASE/root/etc/rc.conf << 'EOF'
 syslogd_flags="-s -v -v"
 sshd_enable="YES"
 clear_tmp_enable="YES"
@@ -1360,7 +1354,7 @@ ifconfig_epair1b_ipv6="inet6 accept_rtadv"
 
 # Configure baseline periodic.conf for all jail templates.
 # periodic.conf.local will be used for any things specific to one jail only.
-cat >> /zroot/iocage/releases/12.0-RELEASE/root/etc/periodic.conf << 'EOF'
+cat >> /zroot/iocage/releases/12.1-RELEASE/root/etc/periodic.conf << 'EOF'
 daily_output="/var/log/daily.log"
 weekly_output="/var/log/weekly.log"
 monthly_output="/var/log/monthly.log"
@@ -1386,10 +1380,10 @@ daily_clean_tmps_enable="YES"
 daily_status_security_pkg_checksum_enable="YES"
 'EOF'
 
-mkdir -p /zroot/iocage/releases/12.0-RELEASE/root/usr/local/etc/pkg/repos/
-cat >> /zroot/iocage/releases/12.0-RELEASE/root/usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
+mkdir -p /zroot/iocage/releases/12.1-RELEASE/root/usr/local/etc/pkg/repos/
+cat >> /zroot/iocage/releases/12.1-RELEASE/root/usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
 myrepo: {
-  url: "http://10.100.102.2/pkgrepo/120amd64-default",
+  url: "http://10.100.102.2/pkgrepo/121amd64-default",
   enabled: yes
 }
 FreeBSD: {
@@ -1459,7 +1453,7 @@ monthly_jail_periodic_enable="YES"
 # VIMAGE test jail
 ################################################################################
 
-iocage create -n test-jail12 -r 12.0-RELEASE
+iocage create -n test-jail12 -r 12.1-RELEASE
 iocage set vnet=on \
   interfaces='vnet0:bridge0' \
   ip4_addr="vnet0|192.168.102.50/24" \
@@ -1472,7 +1466,7 @@ iocage console test-jail12
 # Snippet that applies after creation of each jail
 ################################################################################
 
-pkg install py36-salt
+pkg install py37-salt
 sysrc salt_minion_enable=YES
 cat > /usr/local/etc/salt/minion << 'EOF'
 grains:
@@ -1495,7 +1489,7 @@ service salt_minion start
 # All state files are under /var/puppet
 ################################################################################
 
-iocage create -n foreman -r 12.0-RELEASE
+iocage create -n foreman -r 12.1-RELEASE
 iocage set vnet=on boot="on" \
   interfaces='vnet1:bridge1' \
   ip4_addr="vnet1|10.100.102.11/24" \
@@ -1575,27 +1569,52 @@ pw useradd -n foreman -c "The Foreman,,," -u 813 -g foreman -d /opt/foreman -s /
 # Installing Foreman from Git
 mkdir /opt
 cd /opt
-git clone https://github.com/theforeman/foreman.git -b 1.22-stable
+git clone https://github.com/theforeman/foreman.git -b 1.23-stable
 cd foreman
 cp config/settings.yaml.example config/settings.yaml
 
-# Enable download of Foreman Salt Plugins
-echo "gem 'foreman_salt'" >> bundler.d/Gemfile.local.rb
+# Enable download of Foreman Salt Plugins and correct Foreman-tasks for 1.23
+echo "gem 'foreman_salt', '~> 12.0'" > bundler.d/Gemfile.local.rb
+echo "gem 'foreman-tasks', '~> 0.15.0'" >> bundler.d/Gemfile.local.rb
+echo "gem 'foreman_remote_execution', '~> 1.8.0'" >> bundler.d/Gemfile.local.rb
 
 # install rubygems components and dependent libraries for first part of install
 pkg install rubygem-bundler rubygem-rake libvirt libxslt
-# XXX: libvirt is broken on new ruby/bundler due to bundler adding errant escape characters:
-# /usr/local/bin/ruby25 -I /usr/local/lib/ruby/site_ruby/2.5 -r ./siteconf20190608-12909-okoe7p.rb extconf.rb --with-libvirt-include\=/usr/local/include/libvirt\ --with-libvirt-lib\=/usr/local/lib/libvirt
-# bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
-# Exclude libvirt for now:
-bundle install --path vendor --without journald mysql2 sqlite test libvirt
-# modify so nginx can find javascript runtime
-sed -i '' -e 's|"node"|"/usr/local/bin/node"|' vendor/ruby/2.5/gems/execjs-2.7.0/lib/execjs/runtimes.rb
+
+# XXX: patch bunder adding errant escape charters (fixed in bundler 2.1)
+# https://github.com/bundler/bundler/pull/7023/commits/70cb2f0767395a7ae9f5955eab1b16f30cf05930
+patch /usr/local/lib/ruby/gems/2.6/gems/bundler-2.0.2/lib/bundler/installer/gem_installer.rb << 'EOF'
+--- /usr/local/lib/ruby/gems/2.6/gems/bundler-2.0.2/lib/bundler/installer/gem_installer.rb.orig 2019-11-28 11:03:39.477493000 +0000
++++ /usr/local/lib/ruby/gems/2.6/gems/bundler-2.0.2/lib/bundler/installer/gem_installer.rb      2019-11-28 11:04:24.271609000 +0000
+@@ -1,5 +1,7 @@
+ # frozen_string_literal: true
+  
++require "shellwords"
++
+ module Bundler
+   class GemInstaller
+     attr_reader :spec, :standalone, :worker, :force, :installer
+@@ -56,7 +58,9 @@
+  
+     def spec_settings
+       # Fetch the build settings, if there are any
+-      Bundler.settings["build.#{spec.name}"]
++      if settings = Bundler.settings["build.#{spec.name}"]
++        Shellwords.shellsplit(settings)
++      end
+     end
+ 
+     def install
+'EOF'
+
+bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
+bundle config --local build.nokogiri --use-system-libraries --with-xml2-include=/usr/local/include/libxml2 --with-xml2-lib=/usr/local/lib
+bundle install --path vendor --without journald mysql2 sqlite test
 
 # install node/npm for second part of install
-pkg install node npm
-# gyp returns "Error: Can't find Python executable "python", you can set the PYTHON env variable."
-setenv PYTHON python2.7
+pkg install node12 npm-node12
+# modify so nginx can find javascript runtime
+sed -i '' -e 's|"node"|"/usr/local/bin/node"|' vendor/ruby/2.6/gems/execjs-2.7.0/lib/execjs/runtimes.rb
 npm install
 
 # database.yml:  Copy the example database YAML file. Update with database information.
@@ -1640,7 +1659,7 @@ production:
 'EOF'
 
 # Gen SSL keys
-openssl req -newkey rsa:2048 -nodes -keyout foreman.key -x509 -days 1095 -out foreman.crt
+openssl req -newkey rsa:4096 -nodes -keyout foreman.key -x509 -days 1095 -out foreman.crt
 
 # Update settings.yaml file
 cat > settings.yaml << 'EOF'
@@ -1667,12 +1686,11 @@ chmod 640 settings.yaml database.yml foreman.key foreman.crt
 cd /opt/foreman
 env RAILS_ENV=production bundle exec rake db:migrate
 env RAILS_ENV=production bundle exec rake db:seed
-# Before going into a production environment, precompile assets for production
 env RAILS_ENV=production bundle exec rake apipie:cache
 env RAILS_ENV=production bundle exec rake assets:precompile
+# XXX: npm probably won't install all deps and this next command will fail, if so do:
+# npm install babel-plugin-lodash
 env RAILS_ENV=production bundle exec rake webpack:compile
-# XXX: will probably fail as foreman-tasks may not install all dependencies properly retry after doing this npm install
-npm install babel-plugin-module-resolver react-router-bootstrap react-router-dom react-redux redux
 env RAILS_ENV=production bundle exec rake locale:pack
 
 # Fix permissions on everything so far
@@ -1709,14 +1727,16 @@ events {
 http {
     include                  /usr/local/etc/nginx/sites-enabled/*;
 
-    passenger_root           /usr/local/lib/ruby/gems/2.5/gems/passenger-6.0.2/;
-    passenger_ruby           /usr/local/bin/ruby;
+    passenger_root           /usr/local/lib/ruby/gems/2.6/gems/passenger-6.0.4/;
+    passenger_ruby           /usr/local/bin/ruby26;
     passenger_max_pool_size  10;
     passenger_pool_idle_time 300;
+    passenger_sticky_sessions on;
+    passenger_friendly_error_pages on;
 
     include            mime.types;
     default_type       application/octet-stream;
-    sendfile           off;
+    sendfile           on;
     tcp_nopush         on;
     keepalive_timeout  65;
     tcp_nodelay        on;
@@ -1779,6 +1799,36 @@ cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/foreman forema
 mkdir -p /usr/local/etc/newsyslog.conf.d
 printf "/var/log/nginx/*.log\t\t\t644  7\t   *    @T00  JG    /var/run/nginx.pid  30\n" >> /usr/local/etc/newsyslog.conf.d/nginx.conf
 
+# Enable and start dynflow workers for async tasks
+# XXX pidfile check fails
+cat > /usr/local/etc/rc.d/foreman-tasks << 'EOF'
+#!/bin/sh
+
+# PROVIDE: foreman-tasks
+# BEFORE: nginx
+#
+. /etc/rc.subr
+
+name="foreman_tasks"
+rcvar="foreman_tasks_enable"
+
+command="/usr/local/bin/bundle"
+command_interpreter="/usr/local/bin/ruby26"
+command_args="exec ruby vendor/ruby/2.6/gems/foreman-tasks-0.15.11/bin/dynflow-executor start"
+
+foreman_tasks_env="RAILS_ENV=production"
+foreman_tasks_chdir="/opt/foreman"
+foreman_tasks_enable=${foreman_tasks_enable:-"NO"}
+foreman_tasks_user=${foreman_tasks_user-"foreman"}
+load_rc_config "${name}"
+
+run_rc_command "$1"
+'EOF'
+
+chmod 555 /usr/local/etc/rc.d/foreman-tasks
+sysrc foreman_tasks_enable=YES
+service foreman-tasks start
+
 # Enable nginx service and start it. At this point basic functionality is online.
 sysrc nginx_enable=YES
 service nginx start
@@ -1818,50 +1868,50 @@ FOREMAN_HOME=/opt/foreman
 'EOF'
 
 # Foreman Upgrade Process
-# Minor Updates (Example: 1.14.2 to 1.14.3)
+# Step 1: Prep for upate
+rm /usr/local/etc/nginx/sites-enabled/foreman
+service nginx reload
 cd /opt/foreman
+
+# Step 2a: Minor Updates (Example: 1.22.1 to 1.22.2)
 git reset --hard HEAD
 git pull
 bundle update
 npm update
-passenger-config restart-app --name /opt/foreman/public
 
 # Foreman Upgrade Process
-# Major Updates (Example: 1.17 to 1.18)
-rm /usr/local/etc/nginx/sites-enabled/foreman
-service nginx reload
-cd /opt/foreman
+# Step 2b: Major Updates (Example: 1.22.x to 1.23.x)
 git pull
-git checkout 1.18-stable
-bundle update
-npm update
-# If bundle update fails, attempt removal and reinstall of all gems
-#   cd /opt/foreman
-#   rm -r vendor/ruby node_modules
-#   rm Gemfile.lock package-lock.json
-#   bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
-#   bundle install --path vendor --without journald mysql2 sqlite test
-#   npm install
+git checkout 1.23-stable
+rm -r vendor/ruby node_modules
+rm Gemfile.lock package-lock.json
+# verify bundler.d/Gemfile.local.rb versions and update if needed
+bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
+bundle config --local build.nokogiri --use-system-libraries --with-xml2-include=/usr/local/include/libxml2 --with-xml2-lib=/usr/local/lib
+bundle install --path vendor --without journald mysql2 sqlite test
+sed -i '' -e 's|"node"|"/usr/local/bin/node"|' vendor/ruby/2.6/gems/execjs-2.7.0/lib/execjs/runtimes.rb
+npm install
 
-# Both Minor/Major Updates
-# Optional: Database backup for major upgrades before any database migration
+# Step 3: Database updates/content generation for both minor/major updates
+# Optional step database backup before any database migration
 su - postgres
 cd /var/db/postgres/backups
-pg_dump -Fc foreman > $(/bin/date "+%Y%m%d")-foreman1.15.dump
-# Required:
+pg_dump -Fc foreman > $(/bin/date "+%Y%m%d")-foreman1.22.dump
+exit
+# Required database updates/content generation
 env RAILS_ENV=production bundle exec rake db:migrate
 env RAILS_ENV=production bundle exec rake db:seed
 env RAILS_ENV=production bundle exec rake apipie:cache
 env RAILS_ENV=production bundle exec rake assets:precompile
 env RAILS_ENV=production bundle exec rake webpack:compile
 env RAILS_ENV=production bundle exec rake locale:pack
-# Fix Permissions
+# Step 4: Fix Permissions
 chgrp -R foreman /opt/foreman
 find /opt/foreman/tmp -type d -exec chmod g+rw {} \;
 find /opt/foreman/tmp -type f -exec chmod g+rw {} \;
 find /opt/foreman/log -type d -exec chmod g+rw {} \;
 find /opt/foreman/log -type f -exec chmod g+rw {} \;
-# Enable site and restart Nginx
+# Step 5: Enable site and restart Nginx
 cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/foreman foreman
 service nginx reload
 
@@ -2020,7 +2070,7 @@ service nginx reload
 ##                           Salt Master Server                               ##
 ################################################################################
 
-iocage create -n salt01 -r 12.0-RELEASE
+iocage create -n salt01 -r 12.1-RELEASE
 iocage set vnet=on \
   priority="90" boot="on" \
   interfaces='vnet1:bridge1' \
@@ -2043,7 +2093,7 @@ pkg install bash zsh tmux vim-console pstree cmdwatch tree
 pkg install git
 
 # Install and enable Salt
-pkg install py36-salt py36-setproctitle
+pkg install py37-salt py37-setproctitle
 sysrc salt_master_enable=YES
 
 # Create a Salt Master user
@@ -2074,7 +2124,6 @@ sed -i '' -e 's/^timeout:.*/timeout: 60/' -e 's/^#timeout:.*/timeout: 60/' /usr/
 # Start Salt
 service salt_master start
 
-# XXX: return to here:
 # Install Foreman Proxy and utilities
 pkg install foreman-proxy rubygem-smart_proxy_salt sudo
 
@@ -2127,12 +2176,40 @@ chmod g+w /usr/local/etc/salt/autosign.conf
 sysrc foreman_proxy_enable=YES
 service foreman-proxy start
 
-## Add to crontab to upload reports from SaltStack to Foreman
-#sed -i '' -e 's|^LOCK_FILE = .*|LOCK_FILE = "/var/run/salt/master/salt-report-upload.lock"|' /usr/local/sbin/upload-salt-reports
-#install -o saltmaster -g saltmaster /dev/null /var/log/foreman-proxy/salt-cron.log
-#crontab -e -u saltmaster
-#PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin:/root/bin
-#*/30 * * * * (salt '*' state.highstate; /usr/local/sbin/upload-salt-reports) >>/var/log/foreman-proxy/salt-cron.log 2>&1
+# TODO: upstream, patch out for py3 support
+2to3-3.7 -w /usr/local/sbin/upload-salt-reports
+sed -i '' -e 's/%s/{}/g' /usr/local/sbin/upload-salt-reports
+sed -i '' -e 's/" % (/".format(/g' /usr/local/sbin/upload-salt-reports
+
+# TODO: upstream, patch out failure to upload reports
+patch /usr/local/lib/python3.7/site-packages/salt/utils/stringutils.py << 'EOF'
+--- /usr/local/lib/python3.7/site-packages/salt/utils/stringutils.py.orig       Sat Nov  9 20:09:47 2019
++++ /usr/local/lib/python3.7/site-packages/salt/utils/stringutils.py    Sat Nov  9 20:10:28 2019
+@@ -496,14 +496,16 @@
+     Wrapper around print() that suppresses tracebacks on broken pipes (i.e.
+     when salt output is piped to less and less is stopped prematurely).
+     '''
+     while retries:
+         try:
+             try:
+                 print(msg)
++            except TypeError:
++                to_bytes(msg)
+             except UnicodeEncodeError:
+                 print(msg.encode('utf-8'))
+         except IOError as exc:
+             err = "{0}".format(exc)
+             if exc.errno != errno.EPIPE:
+                 if (
+                     ("temporarily unavailable" in err or
+'EOF'
+
+# Add to crontab to upload reports from SaltStack to Foreman
+sed -i '' -e 's|^LOCK_FILE = .*|LOCK_FILE = "/var/run/salt/master/salt-report-upload.lock"|' /usr/local/sbin/upload-salt-reports
+cat > /var/cron/tabs/saltmaster << 'EOF'
+*/30 * * * * (/usr/local/bin/salt -b 25\% '*' state.highstate; nice /usr/local/sbin/upload-salt-reports) >> /var/log/salt/salt-cron.log 2>&1
+'EOF'
+chmod 600 /var/cron/tabs/saltmaster
 
 # sync to secondary master server (idea from http://dapurberita.info/index.php/2019/03/19/install-lsyncd-freebsd-12/)
 # MASTER
@@ -2211,7 +2288,7 @@ service lsyncd start
 # http://wiki.serviio.org/doku.php?id=build_ffmpeg_linux
 ################################################################################
 
-iocage create -n serviio -r 12.0-RELEASE
+iocage create -n serviio -r 12.1-RELEASE
 iocage set vnet=on boot="on" \
   interfaces='vnet1:bridge1' \
   ip4_addr="vnet1|10.100.102.14/24" \
@@ -2253,8 +2330,9 @@ service serviio start
 ##                   Unifi Controller Jail Configuration                      ##
 ################################################################################
 
-iocage create -n unifi -r 12.0-RELEASE
-iocage set vnet=on boot="on" \
+iocage create -n unifi -r 12.1-RELEASE
+iocage set vnet=on \
+  priority="80" boot="on" \
   interfaces='vnet1:bridge1' \
   ip4_addr="vnet1|10.100.102.18/24" \
   defaultrouter='10.100.102.1' \
@@ -2280,167 +2358,65 @@ service unifi start
 
 ################################################################################
 ##----------------------------------------------------------------------------##
-##                       ELK Stack Jail Configuration                         ##
+##                        Graylog Jail Configuration                          ##
 ##----------------------------------------------------------------------------##
 ################################################################################
 
-iocage create -n logstash -r 12.0-RELEASE
+iocage create -n graylog -r 12.1-RELEASE
 iocage set vnet=on boot="on" \
   mount_procfs=1 \
   interfaces='vnet1:bridge1' \
   ip4_addr="vnet1|10.100.102.16/24" \
-  ip6_addr="vnet1|accept_rtadv" logstash
+  ip6_addr="vnet1|accept_rtadv" graylog
 
-mkdir -p /zroot/iocage/jails/logstash/root/logshare
-echo "/var/log /zroot/iocage/jails/logstash/root/logshare nullfs ro 0 0" \
-	>> /zroot/iocage/jails/logstash/fstab
-
-iocage start logstash
-iocage console logstash
+iocage start graylog
+iocage console graylog
 
 # Set baseline environment
 passwd
 
-sysrc hostname="logstash.pa-us.mydomain.name"
+sysrc hostname="graylog.pa-us.mydomain.name"
 sysrc defaultrouter="10.100.102.1" && route add default 10.100.102.1
-hostname logstash.pa-us.mydomain.name
+hostname graylog.pa-us.mydomain.name
 
 pkg install bash zsh tmux vim-console pstree cmdwatch tree
 
-pkg install logstash6 kibana6 elasticsearch6
+pkg install graylog elasticsearch6 mongodb36 pwgen
 
-# Most config based on: https://github.com/patrickjennings/logstash-pfsense
-cat > /usr/local/etc/logstash/logstash.conf << 'EOF'
-# tcp syslog stream via 5140
-input {
-  tcp {
-    type => "syslog"
-    port => 5140
-  }
-}
-# udp syslogs stream via 5140
-input {
-  udp {
-    type => "syslog"
-    port => 5140
-  }
-}
+# Set elasticsearch cluster name
+sed -i '' -e 's/.*cluster\.name:.*/cluster.name: graylog/' /usr/local/etc/elasticsearch/elasticsearch.yml
 
-filter {
-  if [type] == "syslog" {
-    #change to pfSense ip address
-    if [host] =~ /10\.100\.82\.1/ {
-      mutate {
-        add_tag => ["PFSense", "Ready"]
-      }
-    }
-    if [host] =~ /10\.100\.102\.1/ {
-      mutate {
-        add_tag => ["PFSense", "Ready"]
-      }
-    }
-    if "Ready" not in [tags] {
-      mutate {
-        add_tag => [ "syslog" ]
-      }
-    }
-  }
-}
-filter {
-  if [type] == "syslog" {
-    mutate {
-      remove_tag => "Ready"
-    }
-  }
-}
-filter {
-  if "syslog" in [tags] {
-    grok {
-      match => { "message" => "%{SYSLOGTIMESTAMP:syslog_timestamp} %{SYSLOGHOST:syslog_hostname} %{DATA:syslog_program}(?:\[%{POSINT:syslog_pid}\])?: %{GREEDYDATA:syslog_message}" }
-      add_field => [ "received_at", "%{@timestamp}" ]
-      add_field => [ "received_from", "%{host}" ]
-    }
-    syslog_pri { }
-    date {
-      match => [ "syslog_timestamp", "MMM  d HH:mm:ss", "MMM  dd HH:mm:ss" ]
-      locale => "en"
-    }
-    if !("_grokparsefailure" in [tags]) {
-      mutate {
-        replace => [ "@source_host", "%{syslog_hostname}" ]
-        replace => [ "@message", "%{syslog_message}" ]
-      }
-    }
-    mutate {
-      remove_field => [ "syslog_hostname", "syslog_message", "syslog_timestamp" ]
-    }
-  }
-}
-filter {
-  if "PFSense" in [tags] {
-    grok {
-      add_tag => [ "firewall" ]
-      match => [ "message", "<(?<evtid>.*)>(?<datetime>(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(?:(?:0[1-9])|(?:[12][0-9])|(?:3[01])|[1-9]) (?:2[0123]|[01]?[0-9]):(?:[0-5][0-9]):(?:[0-5][0-9])) (?<prog>.*?): (?<msg>.*)" ]
-    }
-    mutate {
-      gsub => ["datetime","  "," "]
-    }
-    date {
-      match => [ "datetime", "MMM dd HH:mm:ss" ]
-      timezone => "America/New_York"
-    }
-    mutate {
-      replace => [ "message", "%{msg}" ]
-    }
-    mutate {
-      remove_field => [ "msg", "datetime" ]
-    }
-    if [prog] =~ /^filterlog$/ {
-      mutate {
-        remove_field => [ "msg", "datetime" ]
-      }
-      grok {
-        patterns_dir => "/usr/local/etc/logstash/patterns"
-        match => [ "message", "%{PFSENSE_LOG_DATA}%{PFSENSE_IP_SPECIFIC_DATA}%{PFSENSE_IP_DATA}%{PFSENSE_PROTOCOL_DATA}",
-           "message", "%{PFSENSE_LOG_DATA}%{PFSENSE_IPv4_SPECIFIC_DATA_ECN}%{PFSENSE_IP_DATA}%{PFSENSE_PROTOCOL_DATA}" ]
-      }
-      mutate {
-        lowercase => [ 'proto' ]
-      }
-      geoip {
-        add_tag => [ "GeoIP" ]
-        source => "src_ip"
-      }
-    }
-  }
-}
+# Stage graylog configuration
+cd /usr/local/etc/graylog
+cp graylog.conf.example graylog.conf
+cp log4j2.xml.example log4j2.xml
+mkdir server
+chown graylog:graylog *
 
-output {
-  if [type] == "syslog" {
-    elasticsearch {
-        hosts => [ "localhost:9200" ]
-        index => "logstash-pfsense-%{+YYYY.MM.dd}"
-    }
-  }
-}
-'EOF'
+# Pick a password for the 'admin' user initial login
+set ROOT_SHA2=`echo -n INSERT_PASSWORD_HERE | sha256`
+sed -i '' -e "s|.*root_password_sha2 = .*|root_password_sha2 = $ROOT_SHA2|" /usr/local/etc/graylog/graylog.conf
+unset ROOT_SHA2
 
-mkdir patterns
-fetch https://raw.githubusercontent.com/patrickjennings/logstash-pfsense/master/patterns/pfsense2-4.grok -o patters/pfsense2-4.grok
+# Set a random secret to secure/pepper the stored user passwords here
+set PWGEN=`pwgen -N 1 -s 96`
+sed -i '' -e "s|.*password_secret = .*|password_secret = $PWGEN|" /usr/local/etc/graylog/graylog.conf
+unset PWGEN
 
-sed -i '' -e 's|#server.port|server.port|' /usr/local/etc/kibana/kibana.yml
-sed -i '' -e 's|#server.host.*|server.host: "0.0.0.0"|' /usr/local/etc/kibana/kibana.yml
-# also had to fix xpack thing https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=231179
-# fixed manually for now
+# Set to listen to the LAN and set default directories
+sed -i '' -e 's|.*http_bind_address = 127.0.0.1|http_bind_address = 0.0.0.0|' /usr/local/etc/graylog/graylog.conf
+sed -i '' -e 's|.*node_id_file = .*|node_id_file = /var/db/graylog/server/node-id|' /usr/local/etc/graylog/graylog.conf
+sed -i '' -e 's|.*bin_dir = .*|bin_dir = /var/db/graylog/bin|' /usr/local/etc/graylog/graylog.conf
+sed -i '' -e 's|.*data_dir = .*|data_dir = /var/db/graylog/data|' /usr/local/etc/graylog/graylog.conf
+sed -i '' -e 's|.*plugin_dir = .*|plugin_dir = /usr/local/share/graylog/plugin|' /usr/local/etc/graylog/graylog.conf
+sed -i '' -e 's|.*message_journal_dir = .*|message_journal_dir = /var/db/graylog/data/journal|' /usr/local/etc/graylog/graylog.conf
 
-sed -i '' -e 's|#network.host.*|network.host: localhost|' /usr/local/etc/elasticsearch/elasticsearch.yml
+# Stage directories
+cd /var/db/graylog
+install -d -o graylog -g graylog bin data data/journal server
 
-sysrc elasticsearch_enable=YES logstash_enable=YES kibana_enable=YES
-/usr/local/etc/rc.d/elasticsearch start; service kibana start; service logstash start
-
-# now import json dashboards from the github into kibana web interfaces
-fetch https://raw.githubusercontent.com/patrickjennings/logstash-pfsense/master/kibana/dashboard.json
-fetch https://raw.githubusercontent.com/patrickjennings/logstash-pfsense/master/kibana/visualizations.json
+sysrc elasticsearch_enable=YES graylog_enable=YES mongod_enable=YES
+service elasticsearch start; service graylog start; service mongod start
 
 # /var/db/elasticsearch contains critical data
 
@@ -2640,8 +2616,8 @@ bectl list
 bectl create <newBE>
 bectl mount <newBE> /mnt
 make installkernel DESTDIR=/mnt
-bectl unmount <newBE>
 bectl list
+bectl unmount <newBE>
 bectl activate <newBE>
 # Reboot into the new kernel
 shutdown -r now
