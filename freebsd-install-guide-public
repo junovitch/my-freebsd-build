@@ -235,7 +235,7 @@ kld_list="dtraceall accf_http accf_data"
 # General Network Configuration
 hostname="xts-bsd.pa-us.mydomain.name"
 sshd_enable="YES"
-defaultrouter="10.100.102.1"
+defaultrouter="10.102.2.1"
 rtsold_enable="YES"
 #XXX verify it works... ipv6_activate_all_interfaces="YES"
 
@@ -244,12 +244,12 @@ ifconfig_em0="SYNCDHCP"
 ifconfig_em0_ipv6="inet6 accept_rtadv"
 
 # LAN/Internal Interface Configuration
-ifconfig_em1="inet 10.100.102.2/24"
+ifconfig_em1="inet 10.102.2.2/24"
 ifconfig_em1_ipv6="inet6 accept_rtadv"
 
 # Syslog Configuration, bind (-b) to LAN Internal address
 syslogd_enable="YES"
-syslogd_flags="-v -v -b 10.100.102.2:syslog"
+syslogd_flags="-v -v -b 10.102.2.2:syslog"
 'EOF'
 
 ################################################################################
@@ -354,9 +354,7 @@ pkg install perl5
 # NTPD
 ################################################################################
 
-echo '' >> /etc/rc.conf
-echo '# NTPD' >> /etc/rc.conf
-echo 'ntpd_enable="YES"' >> /etc/rc.conf
+sysrc ntpd_enable='YES'
 
 service ntpd start
 
@@ -383,7 +381,7 @@ service ntpd start
 #
 ## To accept external mail, replace with: listen on all
 #listen on localhost
-#listen on 10.100.102.2
+#listen on 10.102.2.2
 #
 ## If you edit the file, you have to run "smtpctl update table aliases"
 #table aliases file:/etc/mail/aliases
@@ -541,20 +539,13 @@ echo 'nut_enable="YES"' >> /etc/rc.conf
 echo 'nut_upslog_enable="YES"' >> /etc/rc.conf
 echo 'nut_upsmon_enable="YES"' >> /etc/rc.conf
 
-# Configure ups.conf for USB monitoring
+# Configure ups.conf for SNMP for monitoring
 cd /usr/local/etc/nut
 cp ups.conf.sample ups.conf
-printf '[UPS]\n' >> ups.conf
-printf '\tdriver = usbhid-ups\n' >> ups.conf
-printf '\tport = auto\n' >> ups.conf
-
-# Configure ups.conf for SNMP for monitoring
-# Unused since firmware upgrade on SNMP card bricked the card
-#cd /usr/local/etc/nut
-#cp ups.conf.sample ups.conf
-#printf '[UPS]\n' >> ups.conf
-#printf '\tdriver = usbhid-ups\n' >> ups.conf
-#printf '\tport = auto\n' >> ups.conf
+printf "[UPS]\n" >> ups.conf
+printf "\tdriver = snmp-ups\n" >> ups.conf
+printf "\tport = 10.102.0.254\n" >> ups.conf
+printf "\tcommunity = MY-SNMP-RO\n" >> ups.conf
 
 # Copy default upsd.conf
 cp upsd.conf.sample upsd.conf
@@ -641,7 +632,7 @@ pkg install sudo
 ################################################################################
 
 pkg install panicmail
-echo 'panicmail_enable="YES"' >> /etc/rc.conf
+sysrc panicmail_enable='YES'
 
 ################################################################################
 # DTraceToolkit - Experimental scripts for investigating issues
@@ -718,13 +709,6 @@ printf "30\t5\t*\t*\ttue,sat\t/usr/sbin/freebsd-update cron\n" >> /var/cron/tabs
 sed -i '' -e '/^Components/ s/ src//' /etc/freebsd-update.conf
 
 ################################################################################
-# Make default syslog sizes a bit bigger and keep more of them
-################################################################################
-
-perl -pwi -e 's^100\t^2000\t^' /etc/newsyslog.conf
-perl -pwi -e 's^3|5|7\t^9\t^' /etc/newsyslog.conf
-
-################################################################################
 ##----------------------------------------------------------------------------##
 ##                  Programs Related to Host System Storage                   ##
 ##----------------------------------------------------------------------------##
@@ -737,8 +721,8 @@ perl -pwi -e 's^3|5|7\t^9\t^' /etc/newsyslog.conf
 ################################################################################
 
 printf '0\t4\t*\t*\tmon\t[ $(/bin/date +\\%%d) -le 7 ] && /sbin/zpool scrub zroot\n' >> /var/cron/tabs/root
-echo 'daily_status_zfs_enable="YES"' >> /etc/periodic.conf
-echo 'daily_scrub_zfs_enable="YES"' >> /etc/periodic.conf
+sysrc -f /etc/periodic.conf daily_status_zfs_enable='YES'
+sysrc -f /etc/periodic.conf daily_scrub_zfs_enable='YES'
 
 ################################################################################
 # Quick Rolling snapshot scripts for a month's worth of snapshot along with
@@ -783,8 +767,8 @@ zfs set com.sun:auto-snapshot=true zroot/iocage/jails
 # 
 # Basic explanation (enter `man smartd.conf` to get more detailed info)
 # DEVICESCAN infers checking all drives
-# "-I 194 -W 4,35,45" sends emails for changes of 4 degrees, info notices at 
-#	35 degrees, and critical message above 45 degrees
+# "-I 194 -W 5,45,55" sends emails for changes of 5 degrees, info notices at
+#	45 degrees, and critical message above 55 degrees
 # "-s (S/../.././05|L/../../5/06)" runs short check daily at 5AM, long check
 #	weekly at 6 am on Friday.
 ################################################################################
@@ -792,9 +776,9 @@ zfs set com.sun:auto-snapshot=true zroot/iocage/jails
 pkg install smartmontools
 
 cp /usr/local/etc/smartd.conf.sample /usr/local/etc/smartd.conf
-perl -pwi -e 's^\ADEVICESCAN\n^DEVICESCAN -a -o on -S on -I 194 -W 4,35,45 -R 5 -m root -s (S/../.././05|L/../../5/06)\n^' /usr/local/etc/smartd.conf
+perl -pwi -e 's^\ADEVICESCAN\n^DEVICESCAN -a -o on -S on -I 194 -W 5,45,55 -R 5 -m root -s (S/../.././05|L/../../5/06)\n^' /usr/local/etc/smartd.conf
 
-echo 'daily_status_smart_devices="/dev/ada0 /dev/ada1 /dev/ada2 /dev/ada3"' >> /etc/periodic.conf
+sysrc -f /etc/periodic.conf daily_status_smart_devices='/dev/ada0 /dev/ada1 /dev/ada2 /dev/ada3'
 
 echo '' >> /etc/rc.conf
 echo '# Smartd disk monitoring' >> /etc/rc.conf
@@ -815,6 +799,12 @@ pkg install ncdu
 pkg install duff
 
 ################################################################################
+# Mbuffer - zfs send/recv aid
+################################################################################
+
+pkg install mbuffer
+
+################################################################################
 # Rsync
 ################################################################################
 
@@ -825,13 +815,12 @@ pkg install rsync
 ################################################################################
 
 pkg install unison-nox11
-pkg install unison248-nox11
 
 ################################################################################
 # Setup of Unison for use
 # Prerequisites:
 # 1. Generate an SSH key for root.
-#    ssh-keygen -t ecdsa -b 521 -C "`whoami`@`hostname`-`date +%Y%m%d`"
+#    ssh-keygen -t ed25519 -C "`whoami`@`hostname`-`date +%Y%m%d`"
 # 2. Distribute this out to each host to be synced.
 # 3. Ensure root login enable on all clients. Update sshd_config to show:
 #    PermitRootLogin without-password
@@ -843,11 +832,11 @@ pkg install unison248-nox11
 
 cat > /root/bin/unison_sync.sh << 'EOF'
 #!/bin/sh
-unison=/usr/local/bin/unison248
-unison_args="-auto -batch -prefer newer -owner -group -fastcheck true"
+unison=/usr/local/bin/unison
+unison_args="-auto -batch -prefer newer -owner -group -times -contactquietly -clientHostName freenas"
 
-paths=`ls /zfs/homedirs`
-remotes="10.100.82.2"
+paths=`ls -r /zfs/homedirs`
+remotes="10.82.2.2"
 
 for r in $remotes; do
     for p in $paths; do
@@ -858,8 +847,8 @@ for r in $remotes; do
 done
 'EOF'
 
-# Add a unison hourly cron jobs
-printf "1\t*\t*\t*\t*\t/root/bin/unison_sync.sh\n" >> /var/cron/tabs/root
+# Add a nightly unison cron job
+printf "0\t5\t*\t*\t*\t/root/bin/unison_sync.sh\n" >> /var/cron/tabs/root
 
 ################################################################################
 # ZFS-Stats
@@ -880,26 +869,39 @@ touch /etc/exports
 echo '' >> /etc/rc.conf
 echo '# NFS V2/V3 Support' >> /etc/rc.conf
 echo '#rpcbind_enable="YES"' >> /etc/rc.conf
-echo '#rpcbind_flags="-h 10.100.102.2"' >> /etc/rc.conf
+echo '#rpcbind_flags="-h 10.102.2.2"' >> /etc/rc.conf
 echo '#nfs_server_enable="YES"' >> /etc/rc.conf
-echo '#nfs_server_flags="-u -t -n 4 -h 10.100.102.2"' >> /etc/rc.conf
+echo '#nfs_server_flags="-u -t -n 4 -h 10.102.2.2"' >> /etc/rc.conf
 echo '#mountd_enable="YES"' >> /etc/rc.conf
-echo '#mountd_flags="-r -h 10.100.102.2"' >> /etc/rc.conf
+echo '#mountd_flags="-r -h 10.102.2.2"' >> /etc/rc.conf
 echo '#rpc_lockd_enable="YES"' >> /etc/rc.conf
-echo '#rpc_lockd_flags="-h 10.100.102.2"' >> /etc/rc.conf
+echo '#rpc_lockd_flags="-h 10.102.2.2"' >> /etc/rc.conf
 echo '#rpc_statd_enable="YES"' >> /etc/rc.conf
-echo '#rpc_statd_flags="-h 10.100.102.2"' >> /etc/rc.conf
+echo '#rpc_statd_flags="-h 10.102.2.2"' >> /etc/rc.conf
 echo '' >> /etc/rc.conf
 echo '# NFSv4 Configuration' >> /etc/rc.conf
+echo '#nfs_server_enable="YES"' >> /etc/rc.conf
+echo '#nfsv4_server_enable="YES"' >> /etc/rc.conf
+echo '#nfsuserd_enable="YES"' >> /etc/rc.conf
+echo '#nfsuserd_flags="-domain mydomain.name"' >> /etc/rc.conf
+echo '#nfs_server_flags="-u -t -h 10.102.2.2"' >> /etc/rc.conf
+echo '#rpcbind_enable="YES"' >> /etc/rc.conf
+echo '#rpcbind_flags="-h 10.102.2.2"' >> /etc/rc.conf
+echo '#mountd_enable="YES"' >> /etc/rc.conf
+echo '#mountd_flags="-r -h 10.102.2.2"' >> /etc/rc.conf
+echo '' >> /etc/rc.conf
+echo '# NFSv4 only (13.0+ only) configuration' >> /etc/rc.conf
 echo 'nfs_server_enable="YES"' >> /etc/rc.conf
 echo 'nfsv4_server_enable="YES"' >> /etc/rc.conf
+echo 'nfsv4_server_only="YES"' >> /etc/rc.conf
 echo 'nfsuserd_enable="YES"' >> /etc/rc.conf
-echo 'nfsuserd_flags="-domain mydomain.name 2"' >> /etc/rc.conf
-echo 'nfs_server_flags="-u -t -h 10.100.102.2"' >> /etc/rc.conf
-echo 'rpcbind_enable="YES"' >> /etc/rc.conf
-echo 'rpcbind_flags="-h 10.100.102.2"' >> /etc/rc.conf
+echo 'nfsuserd_flags="-domain mydomain.name"' >> /etc/rc.conf
+echo 'nfs_server_flags="-u -t -h 10.102.2.2"' >> /etc/rc.conf
 echo 'mountd_enable="YES"' >> /etc/rc.conf
-echo 'mountd_flags="-r -h 10.100.102.2"' >> /etc/rc.conf
+
+echo '# Enable Linux clients using UID instead of name (10.1-RELEASE and up only)' >> /etc/sysctl.conf
+echo 'vfs.nfsd.enable_stringtouid=1' >> /etc/sysctl.conf
+sysctl vfs.nfsd.enable_stringtouid=1
 
 ################################################################################
 # Configure the /etc/exports file for NFSv4 mounts. This won't be required if
@@ -907,7 +909,7 @@ echo 'mountd_flags="-r -h 10.100.102.2"' >> /etc/rc.conf
 # http://forums.freebsd.org/showthread.php?p=135531
 ################################################################################
 
-echo 'V4: / -sec=sys -network 10.100.0.0 -mask 255.255.0.0' >> /etc/exports
+echo 'V4: / -sec=sys -network 10.0.0.0 -mask 255.0.0.0' >> /etc/exports
 
 ################################################################################
 # Enable the 'sharenfs' property on the ZFS set and sharing of /usr/home
@@ -918,20 +920,7 @@ echo 'V4: / -sec=sys -network 10.100.0.0 -mask 255.255.0.0' >> /etc/exports
 # permissions.
 ################################################################################
 
-zfs set sharenfs='-network 10.100.0.0 -mask 255.255.0.0 -maproot=root' zroot/homedirs
-
-################################################################################
-# Lock to NFSv4 only (optional)
-################################################################################
-
-echo '' >> /etc/sysctl.conf
-echo '# NFSv4 Support Only' >> /etc/sysctl.conf
-echo 'vfs.nfsd.server_min_nfsvers=4' >> /etc/sysctl.conf
-echo '' >> /etc/sysctl.conf
-echo '# Enable Linux clients using UID instead of name (10.1-RELEASE and up only)' >> /etc/sysctl.conf
-echo 'vfs.nfsd.enable_stringtouid=1' >> /etc/sysctl.conf
-sysctl vfs.nfsd.server_min_nfsvers=4
-sysctl vfs.nfsd.enable_stringtouid=1
+zfs set sharenfs='-network 10.0.0.0 -mask 255.0.0.0 -maproot=root' zroot/homedirs
 
 ################################################################################
 # Start & control NFS servers
@@ -939,7 +928,7 @@ sysctl vfs.nfsd.enable_stringtouid=1
 # For NFSv4, all services can be completely stopped with:
 # service nfsd stop ; service mountd stop ; service rpcbind stop ; service nfsuserd stop
 # All services can be started with:
-# service nfsd start
+# service nfsd start ; service nfsuserd start
 #
 # For NFSv2/v3, all services can be completely stopped with:
 # service statd stop ; service lockd stop ; service nfsd stop ; service mountd stop ; service rpcbind stop
@@ -954,7 +943,7 @@ sysctl vfs.nfsd.enable_stringtouid=1
 #
 ################################################################################
 
-service nfsd start
+service nfsd start ; service nfsuserd start
 
 ################################################################################
 ##----------------------------------------------------------------------------##
@@ -962,17 +951,20 @@ service nfsd start
 ##----------------------------------------------------------------------------##
 ################################################################################
 # Enable jail friendly SMB support with Samba.
+#
+# With Samba 4.12+, encryption will not be a speed hit so require it
+# https://blog.cryptomilk.org/2019/10/02/samba-and-gnutls/
 ################################################################################
 
-pkg install samba410
+pkg install samba413
 
 cat > /usr/local/etc/smb4.conf << 'EOF'
 [global]
-    interfaces = 10.100.102.2/32 127.0.0.1/32
-    hosts allow = 10.100.
+    hosts allow = 10.
     bind interfaces only = yes
     case sensitive = yes
     security = user
+    smb encrypt = required
 
     unix extensions = no
     nt acl support = yes
@@ -1034,15 +1026,16 @@ sed -i '' -e 's^.*CCACHE_DIR=.*^CCACHE_DIR=/usr/obj/ccache^' poudriere.conf
 rm -r /usr/ports/*
 poudriere ports -c -F -f none -M /usr/ports -p default
 
-# Setup 12.1-RELEASE build environments
-poudriere jail -c -j 121amd64 -v 12.1-RELEASE -a amd64 -m http
-poudriere jail -c -j 121i386 -v 12.1-RELEASE -a i386 -m http
-# Setup 12-STABLE build environment
-poudriere jail -c -j 12xamd64 -v 12.1-STABLE -a amd64 -m src=/usr/src
+# Setup 13-CURRENT build environment
+poudriere jail -c -j 13xamd64 -v 13.0-CURRENT -a amd64 -m src=/usr/src
 
-# Setup 11.3-RELEASE build environments
-poudriere jail -c -j 113amd64 -v 11.3-RELEASE -a amd64 -m http
-poudriere jail -c -j 113i386 -v 11.3-RELEASE -a i386 -m http
+# Setup 12.2-RELEASE build environments
+poudriere jail -c -j 122amd64 -v 12.2-RELEASE -a amd64 -m http
+poudriere jail -c -j 122i386 -v 12.2-RELEASE -a i386 -m http
+
+# Setup 11.4-RELEASE build environments
+poudriere jail -c -j 114amd64 -v 11.4-RELEASE -a amd64 -m http
+poudriere jail -c -j 114i386 -v 11.4-RELEASE -a i386 -m http
 
 # Additional info on setup for build environments for cross building ports
 # http://blogs.freebsdish.org/brd/2015/08/25/building-arm-packages-with-poudriere-the-simple-way/
@@ -1053,14 +1046,13 @@ poudriere jail -c -j 113i386 -v 11.3-RELEASE -a i386 -m http
 
 # Setup make.conf variables for build jail
 cat > /usr/local/etc/poudriere.d/make.conf << 'EOF'
-DEFAULT_VERSIONS= pgsql=11 python=3.7
 multimedia_ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 security_gnutls_UNSET+=TPM
 www_nginx_SET+=PASSENGER HTTP_FANCYINDEX
 'EOF'
 
 # Setup a package list of all ports used on host and in jails
-cat > /zfs/poudriere/pkg_list << 'EOF'
+cat > /usr/local/etc/poudriere.d/pkg_list << 'EOF'
 ########## Host and Jail programs ##########
 ports-mgmt/pkg
 #ports-mgmt/pkg-devel
@@ -1078,7 +1070,7 @@ shells/bash
 shells/zsh
 shells/fish
 dns/unbound
-mail/opensmtpd
+mail/dma
 security/openvpn
 sysutils/pstree
 net-mgmt/iftop
@@ -1096,15 +1088,14 @@ net/ladvd
 sysutils/smartmontools
 sysutils/ncdu
 sysutils/duff
+misc/mbuffer
 net/rsync
-net/unison248@nox11
 net/unison@nox11
 sysutils/zfs-stats
 sysutils/zfstools
-net/samba410
+net/samba412
+net/samba413
 sysutils/iocage
-sysutils/vm-bhyve
-sysutils/grub2-bhyve
 security/sudo
 benchmarks/iperf
 shells/mksh
@@ -1127,8 +1118,8 @@ devel/libvirt
 textproc/libxslt
 www/node12
 www/npm-node12
-databases/postgresql11-server
-databases/postgresql11-client
+databases/postgresql12-server
+databases/postgresql12-client
 net/foreman-proxy
 devel/rubygem-dynflow
 sysutils/rubygem-smart_proxy_dynflow
@@ -1149,7 +1140,8 @@ sysutils/pwgen
 mkdir -p /usr/local/etc/pkg/repos
 cat > /usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
 myrepo: {
-  url: "file:///zfs/poudriere/data/packages/12xamd64-default",
+  url: "http://10.102.2.2/pkgrepo/13xamd64-default",
+  enabled: yes
 }
 FreeBSD: {
   enabled: no
@@ -1180,9 +1172,9 @@ pkg check -r poudriere-devel
 # Cron entries to automate
 echo 'MAILTO=jason' >> /var/cron/tabs/root
 echo 'PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin' >> /var/cron/tabs/root
-printf "0\t13\t*\t*\tmon,thu\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 113amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 113i386\n" >> /var/cron/tabs/root
-printf "0\t13\t*\t*\ttue,fri\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 121amd64; nice poudriere bulk -f /zfs/poudriere/pkg_list -j 121i386\n" >> /var/cron/tabs/root
-printf "0\t13\t*\t*\tsat,sun,wed\tnice poudriere bulk -f /zfs/poudriere/pkg_list -j 12xamd64\n" >> /var/cron/tabs/root
+printf "0\t13\t*\t*\tmon\tnice poudriere bulk -f /usr/local/etc/poudriere.d/pkg_list -j 114amd64; nice poudriere bulk -f /usr/local/etc/poudriere.d/pkg_list -j 114i386\n" >> /var/cron/tabs/root
+printf "0\t13\t*\t*\ttue,thu\tnice poudriere bulk -f /usr/local/etc/poudriere.d/pkg_list -j 122amd64; nice poudriere bulk -f /usr/local/etc/poudriere.d/pkg_list -j 122i386\n" >> /var/cron/tabs/root
+printf "0\t13\t*\t*\twed,fri,sat,sun\tnice poudriere bulk -f /usr/local/etc/poudriere.d/pkg_list -j 13xamd64\n" >> /var/cron/tabs/root
 
 # Helpful testing scripts
 cat > /home/jason/bin/bulkall.sh << 'EOF'
@@ -1190,7 +1182,7 @@ cat > /home/jason/bin/bulkall.sh << 'EOF'
 port=$1
 for jail in $(poudriere jail -lnq | sort -n); do
 	if [ -z $port ]; then
-		poudriere bulk -j $jail -f /zfs/poudriere/pkg_list
+		poudriere bulk -j $jail -f /usr/local/etc/poudriere.d/pkg_list
 	elif [ -d /usr/ports/$port ]; then
 		poudriere bulk -j $jail $port
 	else
@@ -1327,13 +1319,13 @@ echo '#security.jail.allow_raw_sockets=1' >> /etc/sysctl.conf
 ################################################################################
 
 # Fetch release and set defaults
-iocage fetch -r 12.1-RELEASE
+iocage fetch -r 12.2-RELEASE
 
 # Set for centralized syslog
-perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.100.102.2^g' /zroot/iocage/releases/12.1-RELEASE/root/etc/syslog.conf
+perl -pwi -e 's^#*.*\t\t\t\t\t\t\@loghost^*.*\t\t\t\t\t\t\@10.102.2.2^g' /zroot/iocage/releases/12.2-RELEASE/root/etc/syslog.conf
 
 # Set up remaining baseline for all jail's rc.conf
-cat > /zroot/iocage/releases/12.1-RELEASE/root/etc/rc.conf << 'EOF'
+cat > /zroot/iocage/releases/12.2-RELEASE/root/etc/rc.conf << 'EOF'
 syslogd_flags="-s -v -v"
 sshd_enable="YES"
 clear_tmp_enable="YES"
@@ -1354,7 +1346,7 @@ ifconfig_epair1b_ipv6="inet6 accept_rtadv"
 
 # Configure baseline periodic.conf for all jail templates.
 # periodic.conf.local will be used for any things specific to one jail only.
-cat >> /zroot/iocage/releases/12.1-RELEASE/root/etc/periodic.conf << 'EOF'
+cat >> /zroot/iocage/releases/12.2-RELEASE/root/etc/periodic.conf << 'EOF'
 daily_output="/var/log/daily.log"
 weekly_output="/var/log/weekly.log"
 monthly_output="/var/log/monthly.log"
@@ -1380,10 +1372,10 @@ daily_clean_tmps_enable="YES"
 daily_status_security_pkg_checksum_enable="YES"
 'EOF'
 
-mkdir -p /zroot/iocage/releases/12.1-RELEASE/root/usr/local/etc/pkg/repos/
-cat >> /zroot/iocage/releases/12.1-RELEASE/root/usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
+mkdir -p /zroot/iocage/releases/12.2-RELEASE/root/usr/local/etc/pkg/repos/
+cat >> /zroot/iocage/releases/12.2-RELEASE/root/usr/local/etc/pkg/repos/myrepo.conf << 'EOF'
 myrepo: {
-  url: "http://10.100.102.2/pkgrepo/121amd64-default",
+  url: "http://10.102.2.2/pkgrepo/122amd64-default",
   enabled: yes
 }
 FreeBSD: {
@@ -1453,7 +1445,7 @@ monthly_jail_periodic_enable="YES"
 # VIMAGE test jail
 ################################################################################
 
-iocage create -n test-jail12 -r 12.1-RELEASE
+iocage create -n test-jail12 -r 12.2-RELEASE
 iocage set vnet=on \
   interfaces='vnet0:bridge0' \
   ip4_addr="vnet0|192.168.102.50/24" \
@@ -1489,20 +1481,21 @@ service salt_minion start
 # All state files are under /var/puppet
 ################################################################################
 
-iocage create -n foreman -r 12.1-RELEASE
+iocage create -n foreman-122 -r 12.2-RELEASE
 iocage set vnet=on boot="on" \
   interfaces='vnet1:bridge1' \
-  ip4_addr="vnet1|10.100.102.11/24" \
-  defaultrouter='10.100.102.1' \
+  ip4_addr="vnet1|10.102.2.11/24" \
+  defaultrouter='10.102.2.1' \
   ip6_addr="vnet1|accept_rtadv" \
-  allow_sysvipc=1 foreman
-iocage start foreman
-iocage console foreman
+  allow_sysvipc=1 foreman-122
+iocage start foreman-122
+iocage console foreman-122
 
 # Set baseline environment
 passwd
 
 sysrc hostname='foreman.pa-us.mydomain.name'
+sysrc defaultrouter="10.102.2.1" && route add default 10.102.2.1
 hostname foreman.pa-us.mydomain.name
 
 pkg install bash zsh tmux vim-console pstree cmdwatch tree
@@ -1512,7 +1505,7 @@ pkg install bash zsh tmux vim-console pstree cmdwatch tree
 #
 
 # Install PostgreSQL with default options
-pkg install postgresql11-server
+pkg install postgresql12-server
 
 cat >> /etc/login.conf << 'EOF'
 postgres:\
@@ -1528,8 +1521,8 @@ sysrc postgresql_class="postgres"
 service postgresql initdb
 service postgresql start
 
-echo 'daily_pgsql_backup_enable="YES"' >> /etc/periodic.conf.local
-echo 'daily_pgsql_vacuum_enable="YES"' >> /etc/periodic.conf.local
+sysrc -f /etc/periodic.conf.local daily_pgsql_backup_enable="YES"
+sysrc -f /etc/periodic.conf.local daily_pgsql_vacuum_enable="YES"
 
 # Create users and databases
 su - postgres
@@ -1549,7 +1542,7 @@ psql -c "ALTER USER foreman WITH ENCRYPTED PASSWORD 'foreman_password'"
 su - postgres
 cd /var/db/postgres/backups
 # Restore 1
-pg_restore pgdump_<db>_<date>
+pg_restore --dbname=<db> pgdump_<db>_<date>
 # Restore all (example for backups on 2015-01-10)
 gunzip -c pgglobals_2015-01-10T03:01:34.gz | psql
 dropdb foreman
@@ -1560,7 +1553,7 @@ pg_restore --dbname=foreman pgdump_foreman_2015-01-10T03:01:34
 # PART 2: Foreman config
 #
 
-pkg install git nginx rubygem-passenger-nginx postgresql11-client sudo foreman-proxy
+pkg install git nginx rubygem-passenger-nginx postgresql12-client sudo foreman-proxy
 
 # Manually create the 'foreman' user
 pw groupadd -n foreman -g 813
@@ -1569,47 +1562,24 @@ pw useradd -n foreman -c "The Foreman,,," -u 813 -g foreman -d /opt/foreman -s /
 # Installing Foreman from Git
 mkdir /opt
 cd /opt
-git clone https://github.com/theforeman/foreman.git -b 1.23-stable
+git clone https://github.com/theforeman/foreman.git -b 1.24-stable
 cd foreman
 cp config/settings.yaml.example config/settings.yaml
 
-# Enable download of Foreman Salt Plugins and correct Foreman-tasks for 1.23
-echo "gem 'foreman_salt', '~> 12.0'" > bundler.d/Gemfile.local.rb
-echo "gem 'foreman-tasks', '~> 0.15.0'" >> bundler.d/Gemfile.local.rb
-echo "gem 'foreman_remote_execution', '~> 1.8.0'" >> bundler.d/Gemfile.local.rb
+# Enable download of Foreman Salt Plugin (1.24 supporting version),
+# Foreman-tasks (1.0 is for Foreman 2.0 per support matrix), and
+# Foreman_remote_exeecution (2.0 is for foreman 1.24 per code)
+echo "gem 'foreman_salt', '~> 13.2'" > bundler.d/Gemfile.local.rb
+echo "gem 'foreman-tasks', '~> 0.17.0'" >> bundler.d/Gemfile.local.rb
+echo "gem 'foreman_remote_execution', '~> 2.0'" >> bundler.d/Gemfile.local.rb
 
 # install rubygems components and dependent libraries for first part of install
 pkg install rubygem-bundler rubygem-rake libvirt libxslt
-
-# XXX: patch bunder adding errant escape charters (fixed in bundler 2.1)
-# https://github.com/bundler/bundler/pull/7023/commits/70cb2f0767395a7ae9f5955eab1b16f30cf05930
-patch /usr/local/lib/ruby/gems/2.6/gems/bundler-2.0.2/lib/bundler/installer/gem_installer.rb << 'EOF'
---- /usr/local/lib/ruby/gems/2.6/gems/bundler-2.0.2/lib/bundler/installer/gem_installer.rb.orig 2019-11-28 11:03:39.477493000 +0000
-+++ /usr/local/lib/ruby/gems/2.6/gems/bundler-2.0.2/lib/bundler/installer/gem_installer.rb      2019-11-28 11:04:24.271609000 +0000
-@@ -1,5 +1,7 @@
- # frozen_string_literal: true
-  
-+require "shellwords"
-+
- module Bundler
-   class GemInstaller
-     attr_reader :spec, :standalone, :worker, :force, :installer
-@@ -56,7 +58,9 @@
-  
-     def spec_settings
-       # Fetch the build settings, if there are any
--      Bundler.settings["build.#{spec.name}"]
-+      if settings = Bundler.settings["build.#{spec.name}"]
-+        Shellwords.shellsplit(settings)
-+      end
-     end
- 
-     def install
-'EOF'
-
 bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
 bundle config --local build.nokogiri --use-system-libraries --with-xml2-include=/usr/local/include/libxml2 --with-xml2-lib=/usr/local/lib
-bundle install --path vendor --without journald mysql2 sqlite test
+bundle config --local path 'vendor'
+bundle config --local without 'journald mysql2 sqlite test'
+bundle install
 
 # install node/npm for second part of install
 pkg install node12 npm-node12
@@ -1652,7 +1622,7 @@ cat > email.yaml << 'EOF'
 production:
   delivery_method: :smtp
   smtp_settings:
-    address: 10.100.102.2
+    address: 10.102.2.2
     port: 25
     domain: mydomain.name
     authentication: :none
@@ -1685,11 +1655,16 @@ chmod 640 settings.yaml database.yml foreman.key foreman.crt
 # Setup production database
 cd /opt/foreman
 env RAILS_ENV=production bundle exec rake db:migrate
+# XXX: need to rename file due to bug and re-run db:seed after, else there will be
+# an error on 'ActiveRecord::RecordNotFound: Couldn't find JobTemplate'
+mv ./vendor/ruby/2.6/gems/foreman_salt-13.2.4/app/views/foreman_salt/job_templates/salt_run_state_highstate_-_ssh_default.erb ./vendor/ruby/2.6/gems/foreman_salt-13.2.4/app/views/foreman_salt/job_templates/salt_run_state_highstate_-_ssh_default.erb_
+env RAILS_ENV=production bundle exec rake db:seed
+mv ./vendor/ruby/2.6/gems/foreman_salt-13.2.4/app/views/foreman_salt/job_templates/salt_run_state_highstate_-_ssh_default.erb_ ./vendor/ruby/2.6/gems/foreman_salt-13.2.4/app/views/foreman_salt/job_templates/salt_run_state_highstate_-_ssh_default.erb
 env RAILS_ENV=production bundle exec rake db:seed
 env RAILS_ENV=production bundle exec rake apipie:cache
 env RAILS_ENV=production bundle exec rake assets:precompile
-# XXX: npm probably won't install all deps and this next command will fail, if so do:
-# npm install babel-plugin-lodash
+# XXX: npm probably didn't install packages needed so webpack compile will fail
+npm install humanize-duration react-html-parser
 env RAILS_ENV=production bundle exec rake webpack:compile
 env RAILS_ENV=production bundle exec rake locale:pack
 
@@ -1727,7 +1702,7 @@ events {
 http {
     include                  /usr/local/etc/nginx/sites-enabled/*;
 
-    passenger_root           /usr/local/lib/ruby/gems/2.6/gems/passenger-6.0.4/;
+    passenger_root           /usr/local/lib/ruby/gems/2.6/gems/passenger-6.0.6/;
     passenger_ruby           /usr/local/bin/ruby26;
     passenger_max_pool_size  10;
     passenger_pool_idle_time 300;
@@ -1814,7 +1789,7 @@ rcvar="foreman_tasks_enable"
 
 command="/usr/local/bin/bundle"
 command_interpreter="/usr/local/bin/ruby26"
-command_args="exec ruby vendor/ruby/2.6/gems/foreman-tasks-0.15.11/bin/dynflow-executor start"
+command_args="exec ruby vendor/ruby/2.6/gems/foreman-tasks-0.17.6/bin/dynflow-executor start"
 
 foreman_tasks_env="RAILS_ENV=production"
 foreman_tasks_chdir="/opt/foreman"
@@ -1846,6 +1821,7 @@ cat > settings.yml << 'EOF'
 
 sysrc foreman_proxy_enable=YES
 service foreman-proxy start
+# XXX: cannot load such file -- logging (LoadError) -- needs rubygem-logging dep upstreamed
 
 # And cron jobs for everything else
 touch /var/log/foreman-cron.log
@@ -2070,21 +2046,21 @@ service nginx reload
 ##                           Salt Master Server                               ##
 ################################################################################
 
-iocage create -n salt01 -r 12.1-RELEASE
+iocage create -n salt01-122 -r 12.2-RELEASE
 iocage set vnet=on \
   priority="90" boot="on" \
   interfaces='vnet1:bridge1' \
-  ip4_addr="vnet1|10.100.102.13/24" \
-  defaultrouter='10.100.102.1' \
-  ip6_addr="vnet1|accept_rtadv" salt01
-iocage start salt01
-iocage console salt01
+  ip4_addr="vnet1|10.102.2.13/24" \
+  defaultrouter='10.102.2.1' \
+  ip6_addr="vnet1|accept_rtadv" salt01-122
+iocage start salt01-122
+iocage console salt01-122
 
 # Set baseline environment
 passwd
 
 sysrc hostname='salt01.pa-us.mydomain.name'
-sysrc defaultrouter="10.100.102.1" && route add default 10.100.102.1
+sysrc defaultrouter="10.102.2.1" && route add default 10.102.2.1
 hostname salt01.pa-us.mydomain.name
 
 pkg install bash zsh tmux vim-console pstree cmdwatch tree
@@ -2176,34 +2152,6 @@ chmod g+w /usr/local/etc/salt/autosign.conf
 sysrc foreman_proxy_enable=YES
 service foreman-proxy start
 
-# TODO: upstream, patch out for py3 support
-2to3-3.7 -w /usr/local/sbin/upload-salt-reports
-sed -i '' -e 's/%s/{}/g' /usr/local/sbin/upload-salt-reports
-sed -i '' -e 's/" % (/".format(/g' /usr/local/sbin/upload-salt-reports
-
-# TODO: upstream, patch out failure to upload reports
-patch /usr/local/lib/python3.7/site-packages/salt/utils/stringutils.py << 'EOF'
---- /usr/local/lib/python3.7/site-packages/salt/utils/stringutils.py.orig       Sat Nov  9 20:09:47 2019
-+++ /usr/local/lib/python3.7/site-packages/salt/utils/stringutils.py    Sat Nov  9 20:10:28 2019
-@@ -496,14 +496,16 @@
-     Wrapper around print() that suppresses tracebacks on broken pipes (i.e.
-     when salt output is piped to less and less is stopped prematurely).
-     '''
-     while retries:
-         try:
-             try:
-                 print(msg)
-+            except TypeError:
-+                to_bytes(msg)
-             except UnicodeEncodeError:
-                 print(msg.encode('utf-8'))
-         except IOError as exc:
-             err = "{0}".format(exc)
-             if exc.errno != errno.EPIPE:
-                 if (
-                     ("temporarily unavailable" in err or
-'EOF'
-
 # Add to crontab to upload reports from SaltStack to Foreman
 sed -i '' -e 's|^LOCK_FILE = .*|LOCK_FILE = "/var/run/salt/master/salt-report-upload.lock"|' /usr/local/sbin/upload-salt-reports
 cat > /var/cron/tabs/saltmaster << 'EOF'
@@ -2214,7 +2162,7 @@ chmod 600 /var/cron/tabs/saltmaster
 # sync to secondary master server (idea from http://dapurberita.info/index.php/2019/03/19/install-lsyncd-freebsd-12/)
 # MASTER
 # * first generate needed ssh keys and ensure able to log in
-#ssh-keygen ...
+# ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519
 # SLAVE(S)
 # * copy pub component to /root/.ssh/authorized_keys
 # * enable login to root with ssh keys
@@ -2241,7 +2189,7 @@ sync {
   default.rsync,
   delay = 0,
   source = "/usr/local/etc/salt",
-  target = "10.100.82.13:/usr/local/etc/salt",
+  target = "10.82.2.13:/usr/local/etc/salt",
   exclude = {
     '/.ssh',
     '/last_uploaded',
@@ -2264,7 +2212,7 @@ sync {
   default.rsync,
   delay = 0,
   source = "/usr/local/etc/salt-formulas",
-  target = "10.100.82.13:/usr/local/etc/salt-formulas",
+  target = "10.82.2.13:/usr/local/etc/salt-formulas",
   rsync = {
     binary = "/usr/local/bin/rsync",
     archive  = true,
@@ -2288,28 +2236,28 @@ service lsyncd start
 # http://wiki.serviio.org/doku.php?id=build_ffmpeg_linux
 ################################################################################
 
-iocage create -n serviio -r 12.1-RELEASE
+iocage create -n serviio-122 -r 12.2-RELEASE
 iocage set vnet=on boot="on" \
   interfaces='vnet1:bridge1' \
-  ip4_addr="vnet1|10.100.102.14/24" \
-  defaultrouter='10.100.102.1' \
-  ip6_addr="vnet1|accept_rtadv" serviio
+  ip4_addr="vnet1|10.102.2.14/24" \
+  defaultrouter='10.102.2.1' \
+  ip6_addr="vnet1|accept_rtadv" serviio-122
 
-mkdir -p /zroot/iocage/jails/serviio/root/zfs/homedirs/common_media
-mkdir -p /zroot/iocage/jails/serviio/root/zfs/homedirs/common_photos
-echo "/zfs/homedirs/common_media /zroot/iocage/jails/serviio/root/zfs/homedirs/common_media nullfs ro 0 0" \
-	>> /zroot/iocage/jails/serviio/fstab
-echo "/zfs/homedirs/common_photos /zroot/iocage/jails/serviio/root/zfs/homedirs/common_photos nullfs ro 0 0" \
-	>> /zroot/iocage/jails/serviio/fstab
+mkdir -p /zroot/iocage/jails/serviio-122/root/zfs/homedirs/common_media
+mkdir -p /zroot/iocage/jails/serviio-122/root/zfs/homedirs/common_photos
+echo "/zfs/homedirs/common_media /zroot/iocage/jails/serviio-122/root/zfs/homedirs/common_media nullfs ro 0 0" \
+	>> /zroot/iocage/jails/serviio-122/fstab
+echo "/zfs/homedirs/common_photos /zroot/iocage/jails/serviio-122/root/zfs/homedirs/common_photos nullfs ro 0 0" \
+	>> /zroot/iocage/jails/serviio-122/fstab
 
-iocage start serviio
-iocage console serviio
+iocage start serviio-122
+iocage console serviio-122
 
 # Set baseline environment
 passwd
 
 sysrc hostname="serviio.pa-us.mydomain.name"
-sysrc defaultrouter="10.100.102.1" && route add default 10.100.102.1
+sysrc defaultrouter="10.102.2.1" && route add default 10.102.2.1
 hostname serviio.pa-us.mydomain.name
 
 pkg install bash zsh tmux vim-console pstree cmdwatch tree
@@ -2330,22 +2278,22 @@ service serviio start
 ##                   Unifi Controller Jail Configuration                      ##
 ################################################################################
 
-iocage create -n unifi -r 12.1-RELEASE
+iocage create -n unifi-122 -r 12.2-RELEASE
 iocage set vnet=on \
   priority="80" boot="on" \
   interfaces='vnet1:bridge1' \
-  ip4_addr="vnet1|10.100.102.18/24" \
-  defaultrouter='10.100.102.1' \
-  ip6_addr="vnet1|accept_rtadv" unifi
+  ip4_addr="vnet1|10.102.2.18/24" \
+  defaultrouter='10.102.2.1' \
+  ip6_addr="vnet1|accept_rtadv" unifi-122
 
-iocage start unifi
-iocage console unifi
+iocage start unifi-122
+iocage console unifi-122
 
 # Set baseline environment
 passwd
 
 sysrc hostname="unifi.pa-us.mydomain.name"
-sysrc defaultrouter="10.100.102.1" && route add default 10.100.102.1
+sysrc defaultrouter="10.102.2.1" && route add default 10.102.2.1
 hostname unifi.pa-us.mydomain.name
 
 pkg install bash zsh tmux vim-console pstree cmdwatch tree
@@ -2362,21 +2310,21 @@ service unifi start
 ##----------------------------------------------------------------------------##
 ################################################################################
 
-iocage create -n graylog -r 12.1-RELEASE
+iocage create -n graylog-122 -r 12.1-RELEASE
 iocage set vnet=on boot="on" \
   mount_procfs=1 \
   interfaces='vnet1:bridge1' \
-  ip4_addr="vnet1|10.100.102.16/24" \
-  ip6_addr="vnet1|accept_rtadv" graylog
+  ip4_addr="vnet1|10.102.2.16/24" \
+  ip6_addr="vnet1|accept_rtadv" graylog-122
 
-iocage start graylog
-iocage console graylog
+iocage start graylog-122
+iocage console graylog-122
 
 # Set baseline environment
 passwd
 
 sysrc hostname="graylog.pa-us.mydomain.name"
-sysrc defaultrouter="10.100.102.1" && route add default 10.100.102.1
+sysrc defaultrouter="10.102.2.1" && route add default 10.102.2.1
 hostname graylog.pa-us.mydomain.name
 
 pkg install bash zsh tmux vim-console pstree cmdwatch tree
@@ -2452,13 +2400,13 @@ dd if=/dev/urandom bs=32 count=1 | openssl base64 | cut -b -32
 cat > /etc/security/auditdistd.conf << 'EOF'
 timeout 300
 receiver {
-	listen "10.100.102.2:7878"
+	listen "10.102.2.2:7878"
 	host "xju-rtr" {
 		remote "10.100.82.1"
 		password "YjwbK69H5cEBlhcT+eJpJgJTFn5B2SrG"
 	}
 	host "xts-rtr" {
-		remote "10.100.102.1"
+		remote "10.102.2.1"
 		password "YjwbK69H5cEBlhcT+eJpJgJTFn5B2SrG"
 	}
 }
@@ -2470,9 +2418,9 @@ sed -i '' -e 's/dist:off/dist:on/g' /etc/security/audit_control
 cat > /etc/security/auditdistd.conf << 'EOF'
 timeout 300
 sender {
-	source "10.100.82.1"
+	source "10.82.2.1"
 	host "xju-rtr" {
-		remote "10.100.102.2:7878"
+		remote "10.102.2.2:7878"
 		fingerprint "SHA256=8F:0A:FC:8A:3D:09:80:AF:D9:AA:38:CC:8A:86:53:E6:8F:B6:1C:55:30:14:D7:F9:AA:8B:3E:73:CD:F5:76:2B"
 		password "YjwbK69H5cEBlhcT+eJpJgJTFn5B2SrG"
 	}
@@ -2481,9 +2429,9 @@ sender {
 cat > /etc/security/auditdistd.conf << 'EOF'
 timeout 300
 sender {
-	source "10.100.102.1"
+	source "10.102.2.1"
 	host "xts-rtr" {
-		remote "10.100.102.2:7878"
+		remote "10.102.2.2:7878"
 		fingerprint "SHA256=8F:0A:FC:8A:3D:09:80:AF:D9:AA:38:CC:8A:86:53:E6:8F:B6:1C:55:30:14:D7:F9:AA:8B:3E:73:CD:F5:76:2B"
 		password "YjwbK69H5cEBlhcT+eJpJgJTFn5B2SrG"
 	}
@@ -2562,7 +2510,7 @@ shutdown -r now
 poudriere jails -c -j 101amd64 -v 10.1-RELEASE -a amd64
 ## Rename current make.conf
 mv /usr/local/etc/poudriere.d/92amd64-make.conf /usr/local/etc/poudriere.d/101amd64-make.conf
-poudriere bulk -f /zfs/poudriere/pkg_list -j 101amd64
+poudriere bulk -f /usr/local/etc/poudriere.d/pkg_list -j 101amd64
 ## Update local repository files to point to the new release
 find / -name myrepo.conf -exec sed -i '' -e 's/92amd64/101amd64/' {} \;
 ## Delete old build jail
@@ -2607,6 +2555,8 @@ service ezjail start
 ################################################################################
 # Tracking CURRENT/STABLE on host with Boot Environments
 ################################################################################
+
+# This covers the legacy style process of kernel, reboot, world/packages, reboot
 # Update /usr/src and build it
 cd /usr/src
 git pull
@@ -2631,7 +2581,7 @@ pkg upgrade
 # Alternate - thorough rebuild all packages and remove old libs/deps, could
 # be useful after __FreeBSD_version increment or major updates like compiler
 poudriere jail -u -j 12xamd64
-poudriere bulk -j 12xamd64 -f /zfs/poudriere/pkg_list
+poudriere bulk -j 12xamd64 -f /usr/local/etc/poudriere.d/pkg_list
 pkg-static upgrade -fy -r myrepo
 pkg check -r
 make -DBATCH_DELETE_OLD_FILES delete-old delete-old-libs
@@ -2641,6 +2591,53 @@ shutdown -r now
 # Make a snapshot
 bectl list
 bectl create <beName@snapshot>
+
+# This covers a one reboot and done style installing everything into the boot env
+# before rebooting
+# Update /usr/src and build it
+cd /usr/src
+git pull
+cd /usr/ports
+git pull --rebase
+# Kick off the batch of builds including a full rebuild of all packages.
+# This is not all required if the old libs/deps are left in place but could
+# be useful after __FreeBSD_version increment or major updates like compiler
+nice make -j `sysctl -n hw.ncpu` buildworld \
+&& nice make -j `sysctl -n hw.ncpu` buildkernel \
+&& poudriere jail -u -j 13xamd64 \
+&& poudriere bulk -c -j 13xamd64 -f /usr/local/etc/poudriere.d/pkg_list
+# Quick version - build source and incremental update of previous package set
+nice make -j `sysctl -n hw.ncpu` buildworld \
+&& nice make -j `sysctl -n hw.ncpu` buildkernel \
+&& poudriere bulk -j 13xamd64 -f /usr/local/etc/poudriere.d/pkg_list
+# Install in new BE
+bectl list
+bectl create `uname -r | sed -e 's/-CURRENT/C/'`-`/bin/date '+%Y%m%d'`
+setenv D /mnt
+bectl mount `uname -r | sed -e 's/-CURRENT/C/'`-`/bin/date '+%Y%m%d'` $D
+# Install Kernel
+make installkernel DESTDIR=$D
+# Run "pre-world" etcupdate
+etcupdate -s /usr/src -D $D -p
+# Install world and run post world install etcupdate
+make installworld DESTDIR=$D
+etcupdate -s /usr/src -D $D
+# Update all packages in new environment
+pkg-static -c $D upgrade -fy
+pkg -c $D clean -a
+# Quick version - incremental updates of previous pkg set
+pkg-static -c $D upgrade
+# check/patch any accordingly
+pkg -c $D check -r
+# Cleanup src environment (not for quick version/only with full pkg build)
+make -DBATCH_DELETE_OLD_FILES delete-old delete-old-libs DESTDIR=$D
+# Cleanup pkgs
+pkg -c $D autoremove
+# Set environment to active next reboot
+bectl unmount `uname -r | sed -e 's/-CURRENT/C/'`-`/bin/date '+%Y%m%d'`
+bectl activate `uname -r | sed -e 's/-CURRENT/C/'`-`/bin/date '+%Y%m%d'`
+bectl list
+shutdown -r now
 
 ################################################################################
 # CONSOLE USE ONLY
