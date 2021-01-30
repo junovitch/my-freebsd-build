@@ -1033,8 +1033,8 @@ sed -i '' -e 's^.*CCACHE_DIR=.*^CCACHE_DIR=/usr/obj/ccache^' poudriere.conf
 rm -r /usr/ports/*
 poudriere ports -c -F -f none -M /usr/ports -p default
 
-# Setup 13-CURRENT build environment
-poudriere jail -c -j 13xamd64 -v 13.0-CURRENT -a amd64 -m src=/usr/src
+# Setup 13-STABLE build environment
+poudriere jail -c -j 13xamd64 -v 13.0-STABLE -a amd64 -m src=/usr/src
 
 # Setup 12.2-RELEASE build environments
 poudriere jail -c -j 122amd64 -v 12.2-RELEASE -a amd64 -m http
