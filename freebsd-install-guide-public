@@ -2310,7 +2310,7 @@ service unifi start
 ##----------------------------------------------------------------------------##
 ################################################################################
 
-iocage create -n graylog-122 -r 12.1-RELEASE
+iocage create -n graylog-122 -r 12.2-RELEASE
 iocage set vnet=on boot="on" \
   mount_procfs=1 \
   interfaces='vnet1:bridge1' \
