@@ -1534,7 +1534,6 @@ sysrc -f /etc/periodic.conf.local daily_pgsql_vacuum_enable="YES"
 
 # Create users and databases
 su - postgres
-createuser -sdrP admin
 
 # Generate random passwords for each database
 dd if=/dev/urandom bs=32 count=1 | openssl base64 | cut -b -32
@@ -1570,30 +1569,37 @@ pw useradd -n foreman -c "The Foreman,,," -u 813 -g foreman -d /opt/foreman -s /
 # Installing Foreman from Git
 mkdir /opt
 cd /opt
-git clone https://github.com/theforeman/foreman.git -b 1.24-stable
+git clone https://github.com/theforeman/foreman.git -b 2.0-stable
 cd foreman
 cp config/settings.yaml.example config/settings.yaml
 
-# Enable download of Foreman Salt Plugin (1.24 supporting version),
-# Foreman-tasks (1.0 is for Foreman 2.0 per support matrix), and
-# Foreman_remote_exeecution (2.0 is for foreman 1.24 per code)
+# Enable download of Foreman Salt Plugin (2.0 supporting version),
+# Foreman-tasks (1.0 is for Foreman 2.0 per support matrix but 1.1 specifically
+# due to 'ArgumentError: Unknown migration version "6.0"; expected one of "4.2", "5.0", "5.1", "5.2"' with 1.2)), and
+# Foreman_remote_execution (3.0 is for Foreman 1.25+ per code)
 echo "gem 'foreman_salt', '~> 13.2'" > bundler.d/Gemfile.local.rb
-echo "gem 'foreman-tasks', '~> 0.17.0'" >> bundler.d/Gemfile.local.rb
-echo "gem 'foreman_remote_execution', '~> 2.0'" >> bundler.d/Gemfile.local.rb
+echo "gem 'foreman-tasks', '~> 1.1.0'" >> bundler.d/Gemfile.local.rb
+echo "gem 'foreman_remote_execution', '~> 3.2.0'" >> bundler.d/Gemfile.local.rb
 
 # install rubygems components and dependent libraries for first part of install
 pkg install rubygem-bundler rubygem-rake libvirt libxslt
 bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
-bundle config --local build.nokogiri --use-system-libraries --with-xml2-include=/usr/local/include/libxml2 --with-xml2-lib=/usr/local/lib
 bundle config --local path 'vendor'
 bundle config --local without 'journald mysql2 sqlite test'
 bundle install
 
 # install node/npm for second part of install
-pkg install node12 npm-node12
+pkg install node14 npm-node14
 # modify so nginx can find javascript runtime
-sed -i '' -e 's|"node"|"/usr/local/bin/node"|' vendor/ruby/2.6/gems/execjs-2.7.0/lib/execjs/runtimes.rb
-npm install
+sed -i '' -e 's|"node"|"/usr/local/bin/node"|' vendor/ruby/2.7/gems/execjs-2.7.0/lib/execjs/runtimes.rb
+# Python 2.7 is needed as node-sass added Python 3 support very late in the
+# game on 28 Sep, 2020 and this older version of Node requires an older
+# version of node-gyp using this dependency. See the commit at Github URL
+# https://github.com/sass/node-sass/commit/db25736
+pkg install python27
+npm --python=python2.7 install
+npm --python=python2.7 --prefix vendor/ruby/2.7/gems/foreman-tasks-1.1.3 install
+npm --python=python2.7 --prefix vendor/ruby/2.7/gems/foreman_remote_execution-3.2.2 install
 
 # database.yml:  Copy the example database YAML file. Update with database information.
 cd /opt/foreman/config
@@ -1665,14 +1671,13 @@ cd /opt/foreman
 env RAILS_ENV=production bundle exec rake db:migrate
 # XXX: need to rename file due to bug and re-run db:seed after, else there will be
 # an error on 'ActiveRecord::RecordNotFound: Couldn't find JobTemplate'
-mv ./vendor/ruby/2.6/gems/foreman_salt-13.2.4/app/views/foreman_salt/job_templates/salt_run_state_highstate_-_ssh_default.erb ./vendor/ruby/2.6/gems/foreman_salt-13.2.4/app/views/foreman_salt/job_templates/salt_run_state_highstate_-_ssh_default.erb_
+mv ./vendor/ruby/2.7/gems/foreman_salt-13.2.4/app/views/foreman_salt/job_templates/salt_run_state_highstate_-_ssh_default.erb ./vendor/ruby/2.7/gems/foreman_salt-13.2.4/app/views/foreman_salt/job_templates/salt_run_state_highstate_-_ssh_default.erb_
 env RAILS_ENV=production bundle exec rake db:seed
-mv ./vendor/ruby/2.6/gems/foreman_salt-13.2.4/app/views/foreman_salt/job_templates/salt_run_state_highstate_-_ssh_default.erb_ ./vendor/ruby/2.6/gems/foreman_salt-13.2.4/app/views/foreman_salt/job_templates/salt_run_state_highstate_-_ssh_default.erb
+mv ./vendor/ruby/2.7/gems/foreman_salt-13.2.4/app/views/foreman_salt/job_templates/salt_run_state_highstate_-_ssh_default.erb_ ./vendor/ruby/2.7/gems/foreman_salt-13.2.4/app/views/foreman_salt/job_templates/salt_run_state_highstate_-_ssh_default.erb
 env RAILS_ENV=production bundle exec rake db:seed
 env RAILS_ENV=production bundle exec rake apipie:cache
+sed -i '' -e 's|//= require vendor||' /opt/foreman/app/assets/javascripts/application.js
 env RAILS_ENV=production bundle exec rake assets:precompile
-# XXX: npm probably didn't install packages needed so webpack compile will fail
-npm install humanize-duration react-html-parser
 env RAILS_ENV=production bundle exec rake webpack:compile
 env RAILS_ENV=production bundle exec rake locale:pack
 
@@ -1710,8 +1715,8 @@ events {
 http {
     include                  /usr/local/etc/nginx/sites-enabled/*;
 
-    passenger_root           /usr/local/lib/ruby/gems/2.6/gems/passenger-6.0.6/;
-    passenger_ruby           /usr/local/bin/ruby26;
+    passenger_root           /usr/local/lib/ruby/gems/2.7/gems/passenger-6.0.7/;
+    passenger_ruby           /usr/local/bin/ruby27;
     passenger_max_pool_size  10;
     passenger_pool_idle_time 300;
     passenger_sticky_sessions on;
@@ -1741,6 +1746,7 @@ http {
     ssl_session_tickets        off;
     ssl_protocols              TLSv1.3 TLSv1.2;
     ssl_ciphers                TLS_CHACHA20_POLY1305_SHA256:TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256;
+    ssl_prefer_server_ciphers  on;
 }
 'EOF'
 
@@ -1796,8 +1802,8 @@ name="foreman_tasks"
 rcvar="foreman_tasks_enable"
 
 command="/usr/local/bin/bundle"
-command_interpreter="/usr/local/bin/ruby26"
-command_args="exec ruby vendor/ruby/2.6/gems/foreman-tasks-0.17.6/bin/dynflow-executor start"
+command_interpreter="/usr/local/bin/ruby27"
+command_args="exec ruby vendor/ruby/2.7/gems/foreman-tasks-1.1.3/bin/dynflow-executor start"
 
 foreman_tasks_env="RAILS_ENV=production"
 foreman_tasks_chdir="/opt/foreman"
