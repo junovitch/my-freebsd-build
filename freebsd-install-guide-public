@@ -857,6 +857,13 @@ printf "0\t5\t*\t*\t*\t/root/bin/unison_sync.sh\n" >> /var/cron/tabs/root
 pkg install zfs-stats
 
 ################################################################################
+# Beadm
+# Work around panic in built in bectl(8) - https://bugs.FreeBSD.org/252396
+################################################################################
+
+pkg install beadm
+
+################################################################################
 ##----------------------------------------------------------------------------##
 ##                    Configure Host System NFS Support                       ##
 ##----------------------------------------------------------------------------##
@@ -1093,6 +1100,7 @@ net/rsync
 net/unison@nox11
 sysutils/zfs-stats
 sysutils/zfstools
+sysutils/beadm
 net/samba412
 net/samba413
 sysutils/iocage
@@ -2562,13 +2570,13 @@ cd /usr/src
 git pull
 nice make -j `sysctl -n hw.ncpu` buildworld && nice make -j `sysctl -n hw.ncpu` buildkernel
 # Install in new BE
-bectl list
-bectl create <newBE>
-bectl mount <newBE> /mnt
+beadm list
+beadm create <newBE>
+beadm mount <newBE> /mnt
 make installkernel DESTDIR=/mnt
-bectl list
-bectl unmount <newBE>
-bectl activate <newBE>
+beadm list
+beadm unmount <newBE>
+beadm activate <newBE>
 # Reboot into the new kernel
 shutdown -r now
 # At this point, if the kernel has been reliable, upgrade config files and userland
@@ -2589,8 +2597,8 @@ pkg autoremove
 # Reboot into the new userland and upgraded packages
 shutdown -r now
 # Make a snapshot
-bectl list
-bectl create <beName@snapshot>
+beadm list
+beadm create <beName@snapshot>
 
 # This covers a one reboot and done style installing everything into the boot env
 # before rebooting
@@ -2611,10 +2619,10 @@ nice make -j `sysctl -n hw.ncpu` buildworld \
 && nice make -j `sysctl -n hw.ncpu` buildkernel \
 && poudriere bulk -j 13xamd64 -f /usr/local/etc/poudriere.d/pkg_list
 # Install in new BE
-bectl list
-bectl create `uname -r | sed -e 's/-CURRENT/C/'`-`/bin/date '+%Y%m%d'`
+beadm list
+beadm create `uname -r | sed -e 's/-CURRENT/C/'`-`/bin/date '+%Y%m%d'`
 setenv D /mnt
-bectl mount `uname -r | sed -e 's/-CURRENT/C/'`-`/bin/date '+%Y%m%d'` $D
+beadm mount `uname -r | sed -e 's/-CURRENT/C/'`-`/bin/date '+%Y%m%d'` $D
 # Install Kernel
 make installkernel DESTDIR=$D
 # Run "pre-world" etcupdate
@@ -2634,9 +2642,9 @@ make -DBATCH_DELETE_OLD_FILES delete-old delete-old-libs DESTDIR=$D
 # Cleanup pkgs
 pkg -c $D autoremove
 # Set environment to active next reboot
-bectl unmount `uname -r | sed -e 's/-CURRENT/C/'`-`/bin/date '+%Y%m%d'`
-bectl activate `uname -r | sed -e 's/-CURRENT/C/'`-`/bin/date '+%Y%m%d'`
-bectl list
+beadm unmount `uname -r | sed -e 's/-CURRENT/C/'`-`/bin/date '+%Y%m%d'`
+beadm activate `uname -r | sed -e 's/-CURRENT/C/'`-`/bin/date '+%Y%m%d'`
+beadm list
 shutdown -r now
 
 ################################################################################
