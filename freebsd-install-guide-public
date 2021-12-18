@@ -1172,8 +1172,9 @@ www/rubygem-passenger@nginx
 sysutils/rubygem-bundler
 devel/libvirt
 textproc/libxslt
-www/node12
-www/npm-node12
+www/node14
+www/npm-node14
+lang/python27
 databases/postgresql12-server
 databases/postgresql12-client
 net/foreman-proxy
@@ -1619,36 +1620,41 @@ pw useradd -n foreman -c "The Foreman,,," -u 813 -g foreman -d /opt/foreman -s /
 # Installing Foreman from Git
 mkdir /opt
 cd /opt
-git clone https://github.com/theforeman/foreman.git -b 2.1-stable
+git clone https://github.com/theforeman/foreman.git -b 2.2-stable
 cd foreman
 cp config/settings.yaml.example config/settings.yaml
 
 # Enable download of Foreman Salt Plugin (2.0+ supporting version),
-# Foreman-tasks (2.0 is for Foreman 2.0 per support matrix), and
-# Foreman_remote_execution (3.0 is for Foreman 1.25+ per code)
+# Foreman-tasks (2.0 is for Foreman >= 2.1 per support matrix)
+#
+# XXX: Need to pin several versions at older releases due to issue running bundle db:migrate later on with the following:
+# NameError: uninitialized constant Proxy
+# /opt/foreman/vendor/ruby/2.7/gems/smart_proxy_dynflow-0.5.2/lib/smart_proxy_dynflow/task_launcher_registry.rb:1:in `<top (required)>'
 echo "gem 'foreman_salt', '~> 13.2'" > bundler.d/Gemfile.local.rb
 echo "gem 'foreman-tasks', '~> 2.0.0'" >> bundler.d/Gemfile.local.rb
+echo "gem 'foreman-tasks-core', '~> 0.3.0'" >> bundler.d/Gemfile.local.rb
 echo "gem 'foreman_remote_execution', '~> 3.3.0'" >> bundler.d/Gemfile.local.rb
+echo "gem 'foreman_remote_execution_core', '~> 1.4.0'" >> bundler.d/Gemfile.local.rb
 
 # install rubygems components and dependent libraries for first part of install
 pkg install rubygem-bundler rubygem-rake libvirt libxslt
 bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
 bundle config --local path 'vendor'
-bundle config --local without 'journald mysql2 sqlite test'
+bundle config --local without 'journald mysql2 sqlite3 test'
 bundle install
+# modify so nginx can find javascript runtime
+sed -i '' -e 's|"node"|"/usr/local/bin/node"|' vendor/ruby/2.7/gems/execjs-2.8.1/lib/execjs/runtimes.rb
 
 # install node/npm for second part of install
 pkg install node14 npm-node14
-# modify so nginx can find javascript runtime
-sed -i '' -e 's|"node"|"/usr/local/bin/node"|' vendor/ruby/2.7/gems/execjs-2.7.0/lib/execjs/runtimes.rb
 # Python 2.7 is needed as node-sass added Python 3 support very late in the
 # game on 28 Sep, 2020 and this older version of Node requires an older
 # version of node-gyp using this dependency. See the commit at Github URL
 # https://github.com/sass/node-sass/commit/db25736
 pkg install python27
 npm --python=python2.7 install
+# For foreman-rake webpack:compile
 npm --python=python2.7 --prefix vendor/ruby/2.7/gems/foreman-tasks-2.0.3 install
-npm --python=python2.7 --prefix vendor/ruby/2.7/gems/foreman_remote_execution-3.3.7 install
 
 # database.yml:  Copy the example database YAML file. Update with database information.
 cd /opt/foreman/config
@@ -1723,9 +1729,7 @@ env RAILS_ENV=production bundle exec rake db:migrate
 mv ./vendor/ruby/2.7/gems/foreman_salt-13.2.4/app/views/foreman_salt/job_templates/salt_run_state_highstate_-_ssh_default.erb ./vendor/ruby/2.7/gems/foreman_salt-13.2.4/app/views/foreman_salt/job_templates/salt_run_state_highstate_-_ssh_default.erb_
 env RAILS_ENV=production bundle exec rake db:seed
 mv ./vendor/ruby/2.7/gems/foreman_salt-13.2.4/app/views/foreman_salt/job_templates/salt_run_state_highstate_-_ssh_default.erb_ ./vendor/ruby/2.7/gems/foreman_salt-13.2.4/app/views/foreman_salt/job_templates/salt_run_state_highstate_-_ssh_default.erb
-env RAILS_ENV=production bundle exec rake db:seed
 env RAILS_ENV=production bundle exec rake apipie:cache
-sed -i '' -e 's|//= require vendor||' /opt/foreman/app/assets/javascripts/application.js
 env RAILS_ENV=production bundle exec rake assets:precompile
 env RAILS_ENV=production bundle exec rake webpack:compile
 env RAILS_ENV=production bundle exec rake locale:pack
@@ -1833,7 +1837,11 @@ cat > /usr/local/etc/nginx/sites-available/foreman << 'EOF'
 'EOF'
 cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/foreman foreman
 
-# Enable a daily log file rotation via newsyslog.conf
+# Enable nginx service and start it. At this point basic functionality is online.
+service nginx enable
+service nginx start
+
+# For Upkeep enable daily nginx log file rotation via newsyslog.conf
 mkdir -p /usr/local/etc/newsyslog.conf.d
 printf "/var/log/nginx/*.log\t\t\t644  7\t   *    @T00  JG    /var/run/nginx.pid  30\n" >> /usr/local/etc/newsyslog.conf.d/nginx.conf
 
@@ -1864,13 +1872,10 @@ run_rc_command "$1"
 'EOF'
 
 chmod 555 /usr/local/etc/rc.d/foreman-tasks
-sysrc foreman_tasks_enable=YES
+service foreman-tasks enable
 service foreman-tasks start
 
-# Enable nginx service and start it. At this point basic functionality is online.
-sysrc nginx_enable=YES
-service nginx start
-
+# Foreman-proxy Setup
 cd /usr/local/etc/foreman-proxy
 cat > settings.yml << 'EOF'
 ---
@@ -1882,7 +1887,7 @@ cat > settings.yml << 'EOF'
 :virsh_network: default
 'EOF'
 
-sysrc foreman_proxy_enable=YES
+service foreman-proxy enable
 service foreman-proxy start
 # XXX: cannot load such file -- logging (LoadError) -- needs rubygem-logging dep upstreamed
 
@@ -1900,14 +1905,10 @@ FOREMAN_HOME=/opt/foreman
 0 7 * * *       bundle exec rake reports:summarize >/var/log/foreman-cron.log 2>&1
 # Expire old reports
 30 7 * * *      bundle exec rake reports:expire >/var/log/foreman-cron.log 2>&1
-# Collects trends data
-*/30 * * * *    bundle exec rake trends:counter >/var/log/foreman-cron.log 2>&1
-# Remove duplicate trends data
-0 8 * * *       bundle exec rake trends:clean >/var/log/foreman-cron.log 2>&1
 'EOF'
 
 # Foreman Upgrade Process
-# Step 1: Prep for upate
+# Step 1: Prep for update
 rm /usr/local/etc/nginx/sites-enabled/foreman
 service nginx reload
 cd /opt/foreman
@@ -1919,31 +1920,36 @@ bundle update
 npm update
 
 # Foreman Upgrade Process
-# Step 2b: Major Updates (Example: 1.22.x to 1.23.x)
+# Step 2b: Major Updates (Example: 2.1.x to 2.2.x)
 git pull
-git checkout 1.23-stable
+git checkout 2.2-stable
 rm -r vendor/ruby node_modules
 rm Gemfile.lock package-lock.json
 # verify bundler.d/Gemfile.local.rb versions and update if needed
 bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
-bundle config --local build.nokogiri --use-system-libraries --with-xml2-include=/usr/local/include/libxml2 --with-xml2-lib=/usr/local/lib
-bundle install --path vendor --without journald mysql2 sqlite test
-sed -i '' -e 's|"node"|"/usr/local/bin/node"|' vendor/ruby/2.7/gems/execjs-2.7.0/lib/execjs/runtimes.rb
-npm install --python=python2.7
+bundle config --local path 'vendor'
+bundle config --local without 'journald mysql2 sqlite3 test'
+bundle install
+# modify so nginx can find javascript runtime
+sed -i '' -e 's|"node"|"/usr/local/bin/node"|' vendor/ruby/2.7/gems/execjs-2.8.1/lib/execjs/runtimes.rb
+npm --python=python2.7 install
+# For foreman-rake webpack:compile
+npm --python=python2.7 --prefix vendor/ruby/2.7/gems/foreman-tasks-2.0.3 install
 
 # Step 3: Database updates/content generation for both minor/major updates
 # Optional step database backup before any database migration
 su - postgres
 cd /var/db/postgres/backups
-pg_dump -Fc foreman > $(/bin/date "+%Y%m%d")-foreman1.22.dump
+pg_dump -Fc foreman > $(/bin/date "+%Y%m%d")-foreman2.1.dump
 exit
 # Required database updates/content generation
 env RAILS_ENV=production bundle exec rake db:migrate
-env RAILS_ENV=production bundle exec rake db:seed
 env RAILS_ENV=production bundle exec rake apipie:cache
 env RAILS_ENV=production bundle exec rake assets:precompile
 env RAILS_ENV=production bundle exec rake webpack:compile
 env RAILS_ENV=production bundle exec rake locale:pack
+# For the updates from 2.1 to 2.2, trends are now part of a separate plugin and can be purged as they are not in use
+env RAILS_ENV=production bundle exec rake purge:trends
 # Step 4: Fix Permissions
 chgrp -R foreman /opt/foreman
 find /opt/foreman/tmp -type d -exec chmod g+rw {} \;
@@ -2031,7 +2037,7 @@ label reboot
 
 # Enable and start tftpd
 chmod -R +r /usr/local/tftp/*
-sysrc tftpd_enable=YES
+service tftpd enable
 service tftpd start
 
 # Populate initial Ubuntu kickstart file
