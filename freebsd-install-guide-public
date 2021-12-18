@@ -1087,10 +1087,6 @@ poudriere jail -c -j 130i386  -v 13.0-RELEASE -a i386  -m http
 poudriere jail -c -j 122amd64 -v 12.2-RELEASE -a amd64 -m http
 poudriere jail -c -j 122i386  -v 12.2-RELEASE -a i386  -m http
 
-# Setup 11.4-RELEASE build environments
-poudriere jail -c -j 114amd64 -v 11.4-RELEASE -a amd64 -m http
-poudriere jail -c -j 114i386  -v 11.4-RELEASE -a i386  -m http
-
 # Additional info on setup for build environments for cross building ports
 # http://blogs.freebsdish.org/brd/2015/08/25/building-arm-packages-with-poudriere-the-simple-way/
 #pkg install qemu-user-static
@@ -1229,7 +1225,6 @@ pkg check -r poudriere-devel
 # Cron entries to automate
 echo 'MAILTO=jason' >> /var/cron/tabs/root
 echo 'PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin' >> /var/cron/tabs/root
-printf "0\t13\t*\t*\tmon\tnice poudriere bulk -f /usr/local/etc/poudriere.d/pkg_list -j 114amd64; nice poudriere bulk -f /usr/local/etc/poudriere.d/pkg_list -j 114i386\n" >> /var/cron/tabs/root
 printf "0\t13\t*\t*\ttue\tnice poudriere bulk -f /usr/local/etc/poudriere.d/pkg_list -j 122amd64; nice poudriere bulk -f /usr/local/etc/poudriere.d/pkg_list -j 122i386\n" >> /var/cron/tabs/root
 printf "0\t13\t*\t*\twed\tnice poudriere bulk -f /usr/local/etc/poudriere.d/pkg_list -j 130amd64; nice poudriere bulk -f /usr/local/etc/poudriere.d/pkg_list -j 130i386\n" >> /var/cron/tabs/root
 printf "0\t13\t*\t*\tthu\tnice poudriere bulk -f /usr/local/etc/poudriere.d/pkg_list -j 13xamd64\n" >> /var/cron/tabs/root
