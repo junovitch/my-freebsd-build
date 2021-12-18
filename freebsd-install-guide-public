@@ -1339,7 +1339,7 @@ service nginx start
 ##----------------------------------------------------------------------------##
 ################################################################################
 
-pkg install py37-iocage
+pkg install py38-iocage
 iocage activate zroot
 
 # Persistance configuration for VIMAGE
@@ -1512,7 +1512,7 @@ iocage console test-jail12
 # Snippet that applies after creation of each jail
 ################################################################################
 
-pkg install py37-salt
+pkg install py38-salt
 sysrc salt_minion_enable=YES
 cat > /usr/local/etc/salt/minion << 'EOF'
 grains:
@@ -2125,7 +2125,7 @@ pkg install bash zsh tmux vim-console pstree cmdwatch tree
 pkg install git-tiny
 
 # Install and enable Salt
-pkg install py37-salt py37-setproctitle
+pkg install py38-salt
 sysrc salt_master_enable=YES
 
 # Create a Salt Master user
