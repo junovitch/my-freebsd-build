@@ -1102,6 +1102,7 @@ ports-mgmt/pkg
 #ports-mgmt/pkg-devel
 ports-mgmt/poudriere-devel
 www/nginx-lite
+security/acme.sh
 devel/ccache
 emulators/qemu-user-static
 ports-mgmt/dialog4ports
@@ -1687,10 +1688,45 @@ production:
     authentication: :none
 'EOF'
 
-# Gen SSL keys
-openssl req -newkey rsa:4096 -nodes -keyout foreman.key -x509 -days 1095 -out foreman.crt
+# Get Letencrypt TLS key
+pkg install acme.sh
+
+# Configure dns update
+sysrc -f /var/db/acme/.acme.sh/account.conf HE_Username="PUT USERNAME HERE"
+sysrc -f /var/db/acme/.acme.sh/account.conf HE_Password="PUT PASSWORD HERE"
+
+# Enable nginx reload without password
+echo 'acme ALL= NOPASSWD: /usr/sbin/service nginx reload' >> /usr/local/etc/sudoers.d/acme
+echo 'Defaults:acme \!requiretty' >> /usr/local/etc/sudoers.d/acme
+
+# Drop initial log file into place after enabling newsyslog(8) log rotation
+cp /usr/local/share/examples/acme.sh/acme.sh.conf /usr/local/etc/newsyslog.conf.d/
+sed -i '' -e "s|#/var/log/acme.sh.log|/var/log/acme.sh.log|" /usr/local/etc/newsyslog.conf.d/acme.sh.conf
+install -o acme -g acme /dev/null /var/log/acme.sh.log
+
+# get initial cert
+sudo -u acme acme.sh --issue --dns 'dns_he' --server 'letsencrypt' --domain 'foreman.mydomain.name'
+
+# the dest files must be owned by the acme user for the initial install to work
+install -o acme -g acme -d /usr/local/etc/ssl/acme/
+sudo -u acme acme.sh --install-cert --server 'letsencrypt' --domain 'foreman.mydomain.name' --cert-file '/usr/local/etc/ssl/acme/foreman.mydomain.name.cer' --key-file '/usr/local/etc/ssl/acme/foreman.mydomain.name.key' --reloadcmd 'sudo /usr/sbin/service nginx reload'
+
+# set up crontab for upkeep
+cat > /var/cron/tabs/acme << 'EOF'
+0 4 * * 6  /usr/local/sbin/acme.sh --cron --server 'letsencrypt' --domain 'foreman.mydomain.name' --cert-file '/usr/local/etc/ssl/acme/foreman.mydomain.name.cer' --key-file '/usr/local/etc/ssl/acme/foreman.mydomain.name.key' --reloadcmd 'sudo /usr/sbin/service nginx reload'
+'EOF'
+
+#
+# OR
+#
+
+# Gen TESTING TLS keys
+mkdir -p /usr/local/etc/ssl/acme/
+cd /usr/local/etc/ssl/acme/
+openssl req -newkey rsa:4096 -nodes -keyout foreman.mydomain.name.key -x509 -days 1095 -out foreman.mydomain.name.crt
 
 # Update settings.yaml file
+cd /opt/foreman/config
 cat > settings.yaml << 'EOF'
 ---
 # You must restart the Rack server after changing either of these values
@@ -1702,14 +1738,14 @@ cat > settings.yaml << 'EOF'
 :mark_translated: false
 :hsts_enabled: false
 :ssl_ca_file: ""
-:ssl_certificate: /opt/foreman/config/foreman.crt
-:ssl_priv_key: /opt/foreman/config/foreman.key
-:websockets_ssl_cert: /opt/foreman/config/foreman.crt
-:websockets_ssl_key: /opt/foreman/config/foreman.key
+:ssl_certificate: /usr/local/etc/ssl/acme/foreman.mydomain.name.crt
+:ssl_priv_key: /usr/local/etc/ssl/acme/foreman.mydomain.name.key
+:websockets_ssl_cert: /usr/local/etc/ssl/acme/foreman.mydomain.name.crt
+:websockets_ssl_key: /usr/local/etc/ssl/acme/foreman.mydomain.name.key
 'EOF'
 
 # Update access perms on these files
-chmod 640 settings.yaml database.yml foreman.key foreman.crt
+chmod 640 settings.yaml database.yml
 
 # Setup production database
 cd /opt/foreman
@@ -1820,9 +1856,8 @@ cat > /usr/local/etc/nginx/sites-available/foreman << 'EOF'
 
         access_log                 /var/log/nginx/foreman_https_access.log;
         root                       /opt/foreman/public;
-        ssl_certificate            /opt/foreman/config/foreman.crt;
-        ssl_certificate_key        /opt/foreman/config/foreman.key;
-        ssl_client_certificate     /opt/foreman/config/foreman.crt;
+        ssl_certificate            /usr/local/etc/ssl/acme/foreman.mydomain.name.crt;
+        ssl_certificate_key        /usr/local/etc/ssl/acme/foreman.mydomain.name.key;
     }
 'EOF'
 cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/foreman foreman
@@ -2354,6 +2389,57 @@ sysrc unifi_enable=YES
 service unifi start
 
 # /usr/local/share/java/unifi/data contains all critical data to move if migrating to new jail
+
+# Get Letencrypt TLS key
+pkg install acme.sh
+pkg install sudo
+
+# Configure dns update
+sysrc -f /var/db/acme/.acme.sh/account.conf HE_Username="PUT USERNAME HERE"
+sysrc -f /var/db/acme/.acme.sh/account.conf HE_Password="PUT PASSWORD HERE"
+
+# Enable nginx reload without password
+echo 'acme ALL= NOPASSWD: /bin/rm /var/db/acme/certs/unifi.mydomain.name/privkey.pem.md5' >> /usr/local/etc/sudoers.d/acme
+echo 'Defaults:acme \!requiretty' >> /usr/local/etc/sudoers.d/acme
+
+# Drop initial log file into place after enabling newsyslog(8) log rotation:w
+cp /usr/local/share/examples/acme.sh/acme.sh.conf /usr/local/etc/newsyslog.conf.d/
+sed -i '' -e "s|#/var/log/acme.sh.log|/var/log/acme.sh.log|" /usr/local/etc/newsyslog.conf.d/acme.sh.conf
+install -o acme -g acme /dev/null /var/log/acme.sh.log
+
+# get initial cert
+sudo -u acme acme.sh --issue --dns 'dns_he' --server 'letsencrypt' --domain 'unifi.mydomain.name'
+
+# set up crontab for upkeep
+cat > /var/cron/tabs/acme << 'EOF'
+0 4 * * 6  /usr/local/sbin/acme.sh --cron --server 'letsencrypt' --domain 'unifi.mydomain.name' --reloadcmd 'sudo /bin/rm /var/db/acme/certs/unifi.mydomain.name/privkey.pem.md5'
+'EOF'
+
+# Fetch script for updating Unifi controller keystore cert
+# TODO: Upstream several FreeBSD related script fixes in general and for acme.sh paths
+fetch https://raw.githubusercontent.com/stevejenkins/unifi-linux-utils/master/unifi_ssl_import.sh -o /usr/local/sbin/unifi_ssl_import.sh
+
+# Add statements for the below:
+UNIFI_HOSTNAME=unifi.mydomain.name
+
+UNIFI_DIR=/usr/local/share/java/unifi
+JAVA_DIR=${UNIFI_DIR}
+KEYSTORE=${UNIFI_DIR}/data/keystore
+
+LE_MODE=true
+LE_LIVE_DIR=/var/db/acme
+
+PRIV_KEY=/var/db/acme/certs/unifi.mydomain.name/unifi.mydomain.name.key
+SIGNED_CRT=/var/db/acme/certs/unifi.mydomain.name/unifi.mydomain.name.cer
+CHAIN_FILE=/var/db/acme/certs/unifi.mydomain.name/fullchain.cer
+# End addition
+
+chmod +x /usr/local/sbin/unifi_ssl_import.sh
+
+sysrc -f /etc/periodic.conf.local weekly_local="/usr/local/sbin/unifi_ssl_import.sh"
+
+/usr/local/sbin/unifi_ssl_import.sh
+
 
 ################################################################################
 ##----------------------------------------------------------------------------##
