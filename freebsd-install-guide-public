@@ -262,7 +262,7 @@ syslogd_flags="-v -v -b 10.102.2.2:syslog"
 'EOF'
 
 ################################################################################
-#  Randomness
+# Randomness
 ################################################################################
 
 echo '' >> /etc/sysctl.conf
@@ -346,12 +346,6 @@ pkg install bash
 ################################################################################
 
 pkg install zsh
-
-################################################################################
-# Fish - The Fish shell
-################################################################################
-
-pkg install fish
 
 ################################################################################
 # Perl - Used for misc editing tasks and various programs.
@@ -457,10 +451,10 @@ pkg install cmdwatch
 pkg install tree
 
 ################################################################################
-# Vim-lite - Handles most text editing, very useful for syntax highlighting.
+# Vim - Handles most text editing, very useful for syntax highlighting.
 ################################################################################
 
-pkg install vim-console
+pkg install vim
 
 ################################################################################
 # Checkbashisms - Checks for potential Bash specific commands in scripts that
@@ -585,7 +579,7 @@ chmod 600 /var/cron/tabs/logcheck
 # Iperf
 ################################################################################
 
-pkg install iperf
+pkg install iperf iperf3
 
 ################################################################################
 # Sudo
@@ -1118,7 +1112,6 @@ textproc/igor
 sysutils/tmux
 shells/bash
 shells/zsh
-shells/fish
 dns/unbound
 mail/dma
 security/openvpn
@@ -1127,7 +1120,8 @@ net-mgmt/iftop
 sysutils/cmdwatch
 sysutils/tree
 security/clamav
-editors/vim-console
+editors/vim
+editors/vim@tiny
 devel/checkbashisms
 sysutils/ipmitool
 sysutils/nut
@@ -1143,11 +1137,12 @@ net/rsync
 net/unison@nox11
 sysutils/zfs-stats
 sysutils/zfstools
-net/samba412
+sysutils/zrepl
 net/samba413
 sysutils/iocage
 security/sudo
 benchmarks/iperf
+benchmarks/iperf3
 shells/mksh
 sysutils/dtrace-toolkit
 mail/mutt
@@ -2678,7 +2673,7 @@ pkg -c $D clean -a
 # Quick version - incremental updates of previous pkg set
 pkg-static -c $D upgrade
 # check/patch any accordingly
-patch /mnt/usr/local/share/poudriere/html/index.html < /home/jason/poudriere-index.patch
+patch $D/usr/local/share/poudriere/html/index.html < /home/jason/poudriere-index.patch
 pkg -c $D check -r poudriere-devel
 # Cleanup src environment (not for quick version/only with full pkg build)
 make -DBATCH_DELETE_OLD_FILES delete-old delete-old-libs DESTDIR=$D
