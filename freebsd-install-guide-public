@@ -1624,12 +1624,12 @@ pw useradd -n foreman -c "The Foreman,,," -u 813 -g foreman -d /opt/foreman -s /
 # Installing Foreman from Git
 mkdir /opt
 cd /opt
-git clone https://github.com/theforeman/foreman.git -b 2.3-stable
+git clone https://github.com/theforeman/foreman.git -b 2.4-stable
 cd foreman
 cp config/settings.yaml.example config/settings.yaml
 
 # Enable download of Foreman Salt Plugin (2.0+ supporting version),
-# Foreman-tasks (2.0 is for Foreman >= 2.1 per support matrix)
+# Foreman-tasks (2.0 is for Foreman >= 2.1 but < 2.6 per support matrix)
 #
 # XXX: Need to pin several versions at older releases due to issue running bundle db:migrate later on with the following:
 # NameError: uninitialized constant Proxy
@@ -1788,6 +1788,15 @@ find /opt/foreman/log -type f -exec chmod g+rw {} \;
 #
 # http://z0mbix.github.io/blog/2012/03/01/use-nginx-and-passenger-to-power-your-puppet-master/
 # http://www.watters.ws/mediawiki/index.php/Configure_puppet_master_using_nginx_and_mod_passenger
+#
+# Please note the statement from https://theforeman.org/manuals/2.4/index.html#Releasenotesfor2.4.1
+# regarding the Passenger based configuration below
+#
+# Deprecations - Passenger support
+# Foreman 2.1 started to default to Puma while still allowing to fall back to Passenger. This
+# support was kept in for users who ran into problems. Now that it has been the default for a
+# few releases, this release deprecates Passenger support which will be removed in the future.
+# (https://community.theforeman.org/t/drop-passenger-support/22787)
 
 mkdir /usr/local/etc/nginx/sites-enabled
 mkdir /usr/local/etc/nginx/sites-available
@@ -1957,9 +1966,9 @@ bundle update
 npm update
 
 # Foreman Upgrade Process
-# Step 2b: Major Updates (Example: 2.2.x to 2.3.x)
+# Step 2b: Major Updates (Example: 2.3.x to 2.4.x)
 git pull
-git checkout 2.3-stable
+git checkout 2.4-stable
 rm -r vendor/ruby node_modules
 rm Gemfile.lock package-lock.json
 # verify bundler.d/Gemfile.local.rb versions and update if needed
@@ -1977,7 +1986,7 @@ npm --python=python2.7 --prefix vendor/ruby/2.7/gems/foreman-tasks-2.0.3 install
 # Optional step database backup before any database migration
 su - postgres
 cd /var/db/postgres/backups
-pg_dump -Fc foreman > $(/bin/date "+%Y%m%d")-foreman2.2.dump
+pg_dump -Fc foreman > $(/bin/date "+%Y%m%d")-foreman2.3.dump
 exit
 # Required database updates/content generation
 env RAILS_ENV=production bundle exec rake db:migrate
