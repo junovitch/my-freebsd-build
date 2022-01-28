@@ -1528,7 +1528,7 @@ sysrc hostname='foreman.mydomain.name'
 sysrc defaultrouter="10.102.2.1" && route add default 10.102.2.1
 hostname foreman.mydomain.name
 
-pkg install bash zsh tmux vim-console pstree cmdwatch tree
+pkg install bash zsh tmux vim pstree cmdwatch tree
 
 #
 # PART 1: Database config
@@ -2139,7 +2139,7 @@ sysrc hostname='salt01.mydomain.name'
 sysrc defaultrouter="10.102.2.1" && route add default 10.102.2.1
 hostname salt01.mydomain.name
 
-pkg install bash zsh tmux vim-console pstree cmdwatch tree
+pkg install bash zsh tmux vim pstree cmdwatch tree
 
 # Install git
 pkg install git-tiny
@@ -2336,7 +2336,7 @@ sysrc hostname="serviio.mydomain.name"
 sysrc defaultrouter="10.102.2.1" && route add default 10.102.2.1
 hostname serviio.mydomain.name
 
-pkg install bash zsh tmux vim-console pstree cmdwatch tree
+pkg install bash zsh tmux vim pstree cmdwatch tree
 
 # Setup FFMPEG options per guidance in the helpful links then start Serviio build.
 # cd /usr/ports/multimedia/ffmpeg && make config WITH_RTMP=YES WITH_X11GRAB=YES WITH_FAAC=YES WITH_LAME=YES WITH_AMR_NB=YES WITH_AMR_WB=YES WITH_ASS=YES
@@ -2372,7 +2372,7 @@ sysrc hostname="unifi.mydomain.name"
 sysrc defaultrouter="10.102.2.1" && route add default 10.102.2.1
 hostname unifi.mydomain.name
 
-pkg install bash zsh tmux vim-console pstree cmdwatch tree
+pkg install bash zsh tmux vim pstree cmdwatch tree
 
 pkg install unifi6
 sysrc unifi_enable=YES
@@ -2454,7 +2454,7 @@ sysrc hostname="graylog.mydomain.name"
 sysrc defaultrouter="10.102.2.1" && route add default 10.102.2.1
 hostname graylog.mydomain.name
 
-pkg install bash zsh tmux vim-console pstree cmdwatch tree
+pkg install bash zsh tmux vim pstree cmdwatch tree
 
 pkg install graylog elasticsearch6 mongodb36 pwgen
 
