@@ -1073,7 +1073,7 @@ poudriere jail -c -j 122i386  -v 12.2-RELEASE -a i386  -m http
 cat > /usr/local/etc/poudriere.d/make.conf << 'EOF'
 multimedia_ffmpeg_SET+=RTMP X11GRAB FAAC LAME AMR_NB AMR_WB ASS
 security_gnutls_UNSET+=TPM
-www_nginx_SET+=PASSENGER HTTP_FANCYINDEX
+www_nginx_SET+=HTTP_FANCYINDEX
 'EOF'
 
 # Setup a package list of all ports used on host and in jails
@@ -1139,8 +1139,8 @@ devel/git@lite
 devel/git@tiny
 devel/ruby-gems
 devel/rubygem-rake
+sysutils/rubygem-god
 www/nginx
-www/rubygem-passenger@nginx
 sysutils/rubygem-bundler
 devel/libvirt
 textproc/libxslt
@@ -1499,16 +1499,8 @@ service salt_minion start
 
 ################################################################################
 ##----------------------------------------------------------------------------##
-##              Foreman on Nginx/Passenger Jail Configuration                 ##
+##                 Foreman on Nginx/Puma Jail Configuration                   ##
 ##----------------------------------------------------------------------------##
-################################################################################
-# References:
-# http://docs.puppetlabs.com/guides/installation.html
-# https://help.ubuntu.com/11.04/serverguide/puppet.html
-# http://daemon-notes.com/articles/network/postgresql
-#
-# All configuration files will be under /usr/local/etc/puppet
-# All state files are under /var/puppet
 ################################################################################
 
 iocage create -n foreman-130 -r 13.0-RELEASE
@@ -1582,7 +1574,7 @@ pg_restore --dbname=foreman pgdump_foreman_2015-01-10T03:01:34
 # PART 2: Foreman config
 #
 
-pkg install git-tiny nginx rubygem-passenger-nginx postgresql13-client sudo foreman-proxy
+pkg install git-tiny nginx postgresql13-client sudo foreman-proxy
 
 # Manually create the 'foreman' user
 pw groupadd -n foreman -g 813
@@ -1608,7 +1600,7 @@ echo "gem 'foreman_remote_execution', '~> 3.3.0'" >> bundler.d/Gemfile.local.rb
 echo "gem 'foreman_remote_execution_core', '~> 1.4.0'" >> bundler.d/Gemfile.local.rb
 
 # install rubygems components and dependent libraries for first part of install
-pkg install rubygem-bundler rubygem-rake libvirt libxslt
+pkg install rubygem-bundler rubygem-rake libvirt libxslt rubygem-god
 bundle config --local build.ruby-libvirt --with-libvirt-include=/usr/local/include/libvirt --with-libvirt-lib=/usr/local/lib/libvirt
 bundle config --local path 'vendor'
 bundle config --local without 'journald mysql2 sqlite3 test'
@@ -1741,7 +1733,8 @@ env RAILS_ENV=production bundle exec rake webpack:compile
 env RAILS_ENV=production bundle exec rake locale:pack
 
 # Fix permissions on everything so far
-mkdir /opt/foreman/tmp
+mkdir -p /opt/foreman/tmp/pids
+mkdir -p /opt/foreman/tmp/sockets
 chgrp -R foreman /opt/foreman
 find /opt/foreman/tmp -type d -exec chmod g+rw {} \;
 find /opt/foreman/tmp -type f -exec chmod g+rw {} \;
@@ -1749,21 +1742,7 @@ find /opt/foreman/log -type d -exec chmod g+rw {} \;
 find /opt/foreman/log -type f -exec chmod g+rw {} \;
 
 # Running Foreman on a Production-Quality Server
-# Configuring Nginx and Passenger
-# Nginx/Passenger Instructions and Configuration was derived from these two examples 
-# that refer to how to set it up on CentOS
-#
-# http://z0mbix.github.io/blog/2012/03/01/use-nginx-and-passenger-to-power-your-puppet-master/
-# http://www.watters.ws/mediawiki/index.php/Configure_puppet_master_using_nginx_and_mod_passenger
-#
-# Please note the statement from https://theforeman.org/manuals/2.4/index.html#Releasenotesfor2.4.1
-# regarding the Passenger based configuration below
-#
-# Deprecations - Passenger support
-# Foreman 2.1 started to default to Puma while still allowing to fall back to Passenger. This
-# support was kept in for users who ran into problems. Now that it has been the default for a
-# few releases, this release deprecates Passenger support which will be removed in the future.
-# (https://community.theforeman.org/t/drop-passenger-support/22787)
+# Configuring Nginx and Puma
 
 mkdir /usr/local/etc/nginx/sites-enabled
 mkdir /usr/local/etc/nginx/sites-available
@@ -1774,21 +1753,12 @@ worker_processes  2;
 error_log         /var/log/nginx/error.log notice;
 pid               /var/run/nginx.pid;
 
-load_module       /usr/local/libexec/nginx/ngx_http_passenger_module.so;
-
 events {
     worker_connections  1024;
 }
 
 http {
     include                  /usr/local/etc/nginx/sites-enabled/*;
-
-    passenger_root           /usr/local/lib/ruby/gems/2.7/gems/passenger/;
-    passenger_ruby           /usr/local/bin/ruby27;
-    passenger_max_pool_size  10;
-    passenger_pool_idle_time 300;
-    passenger_sticky_sessions on;
-    passenger_friendly_error_pages on;
 
     include            mime.types;
     default_type       application/octet-stream;
@@ -1821,31 +1791,43 @@ http {
 
 # Create sites-available config file and follow up with sites-enabled symlink
 cat > /usr/local/etc/nginx/sites-available/foreman << 'EOF'
+    upstream app {
+        server [::1]:3000;
+    }
     server {
         listen       80 default_server accept_filter=httpready reuseport;
         listen       [::]:80 default_server accept_filter=httpready reuseport;
         server_name  foreman.mydomain.name foreman;
 
-        passenger_enabled          on;
-        passenger_user             foreman;
-        passenger_group            foreman;
-
         access_log                 /var/log/nginx/foreman_http_access.log;
         root                       /opt/foreman/public;
+
+        try_files $uri/index.html $uri @app;
+
+        location @app {
+            proxy_pass http://app;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header Host $http_host;
+            proxy_redirect off;
+        }
     }
     server {
         listen       443 ssl http2 accept_filter=dataready reuseport;
         listen       [::]:443 ssl http2 accept_filter=dataready reuseport;
         server_name  foreman.mydomain.name foreman;
 
-        passenger_enabled          on;
-        passenger_set_header       X_CLIENT_S_DN $ssl_client_s_dn;
-        passenger_set_header       X_CLIENT_VERIFY $ssl_client_verify;
-        passenger_user             foreman;
-        passenger_group            foreman;
-
         access_log                 /var/log/nginx/foreman_https_access.log;
         root                       /opt/foreman/public;
+
+        try_files $uri/index.html $uri @app;
+
+        location @app {
+            proxy_pass http://app;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header Host $http_host;
+            proxy_redirect off;
+        }
+
         ssl_certificate            /usr/local/etc/ssl/acme/foreman.mydomain.name.crt;
         ssl_certificate_key        /usr/local/etc/ssl/acme/foreman.mydomain.name.key;
     }
@@ -1860,35 +1842,98 @@ service nginx start
 mkdir -p /usr/local/etc/newsyslog.conf.d
 printf "/var/log/nginx/*.log\t\t\t644  7\t   *    @T00  JG    /var/run/nginx.pid  30\n" >> /usr/local/etc/newsyslog.conf.d/nginx.conf
 
-# Enable and start dynflow workers for async tasks
-# XXX pidfile check fails
-cat > /usr/local/etc/rc.d/foreman-tasks << 'EOF'
+cat > /opt/foreman/config/services.god << 'EOF'
+ENV["RAILS_ENV"] = "production"
+
+RAILS_ENV  = ENV.fetch('RAILS_ENV', 'development')
+RAILS_ROOT = "/opt/foreman"
+
+USER =       "foreman"
+GROUP =      "foreman"
+
+God.watch do |w|
+  w.name =     "puma"
+  w.group =    "foreman"
+  w.dir =      RAILS_ROOT
+  w.start =    "bundle exec puma --pidfile tmp/pids/puma.pid --bind tcp://[::1]:3000"
+  # pumactl restart method causes process is not running (ProcessRunning) error for god
+  w.restart =  "bundle exec pumactl restart -P tmp/pids/puma.pid"
+  w.stop =     "bundle exec pumactl stop -P tmp/pids/puma.pid"
+  w.grace =    10.seconds
+  w.log =      File.join(RAILS_ROOT, "log/puma.log")
+  w.uid =      USER
+  w.gid =      GROUP
+  w.keepalive
+end
+
+God.watch do |w|
+  w.name =     "tasks"
+  w.group =    "foreman"
+  w.dir =      RAILS_ROOT
+  w.start =    "bundle exec ruby vendor/ruby/2.7/gems/foreman-tasks-2.0.3/bin/dynflow-executor start"
+  w.restart =  "bundle exec ruby vendor/ruby/2.7/gems/foreman-tasks-2.0.3/bin/dynflow-executor restart"
+  w.stop =     "bundle exec ruby vendor/ruby/2.7/gems/foreman-tasks-2.0.3/bin/dynflow-executor stop"
+  w.pid_file = File.join(RAILS_ROOT, "tmp/pids/dynflow_executor_monitor.pid")
+  w.grace =    10.seconds
+  w.log =      File.join(RAILS_ROOT, "log/tasks.log")
+  w.uid =      USER
+  w.gid =      GROUP
+  w.behavior(:clean_pid_file)
+  w.keepalive
+end
+'EOF'
+
+cat > /usr/local/etc/rc.d/foreman-god << 'EOF'
 #!/bin/sh
 
-# PROVIDE: foreman-tasks
-# BEFORE: nginx
+# PROVIDE: foreman-god
+# REQUIRE: LOGIN postgresql
 #
 . /etc/rc.subr
 
-name="foreman_tasks"
-rcvar="foreman_tasks_enable"
+name="foreman_god"
+rcvar="foreman_god_enable"
 
-command="/usr/local/bin/bundle"
+command="/usr/local/bin/god"
 command_interpreter="/usr/local/bin/ruby27"
-command_args="exec ruby vendor/ruby/2.7/gems/foreman-tasks-2.0.3/bin/dynflow-executor start"
+command_args="--config-file /opt/foreman/config/services.god"
 
-foreman_tasks_env="RAILS_ENV=production"
-foreman_tasks_chdir="/opt/foreman"
-foreman_tasks_enable=${foreman_tasks_enable:-"NO"}
-foreman_tasks_user=${foreman_tasks_user-"foreman"}
+stop_precmd="stop_precmd"
+
+foreman_god_chdir="/opt/foreman"
+foreman_god_enable=${foreman_god_enable:-"NO"}
 load_rc_config "${name}"
+
+stop_precmd()
+{
+  $command stop foreman
+  echo Sleeping 10 seconds for monitored services to stop
+  sleep 10
+}
+
+export PATH="/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin:/usr/local/sbin"
 
 run_rc_command "$1"
 'EOF'
 
-chmod 555 /usr/local/etc/rc.d/foreman-tasks
-service foreman-tasks enable
-service foreman-tasks start
+chmod 555 /usr/local/etc/rc.d/foreman-god
+service foreman-god enable
+service foreman-god start
+
+# Use this instead of god restart puma
+# su -m foreman -c 'cd /opt/foreman && env RAILS_ENV=production bundle exec pumactl restart -P tmp/pids/puma.pid'
+
+# For other maintenance tasks
+# god log puma
+# god stop puma
+# god start puma
+#
+# god log tasks
+# god stop tasks
+# god start tasks
+#
+# god stop foreman
+# god start foreman
 
 # Foreman-proxy Setup
 cd /usr/local/etc/foreman-proxy
@@ -1922,8 +1967,8 @@ FOREMAN_HOME=/opt/foreman
 
 # Foreman Upgrade Process
 # Step 1: Prep for update
-rm /usr/local/etc/nginx/sites-enabled/foreman
-service nginx reload
+service foreman-god stop
+service nginx stop
 cd /opt/foreman
 
 # Step 2a: Minor Updates (Example: 1.22.1 to 1.22.2)
@@ -1968,9 +2013,9 @@ find /opt/foreman/tmp -type d -exec chmod g+rw {} \;
 find /opt/foreman/tmp -type f -exec chmod g+rw {} \;
 find /opt/foreman/log -type d -exec chmod g+rw {} \;
 find /opt/foreman/log -type f -exec chmod g+rw {} \;
-# Step 5: Enable site and restart Nginx
-cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/foreman foreman
-service nginx reload
+# Step 5: Start backend services and start Nginx
+service foreman-god start
+service nginx start
 
 #
 # PART 3: TFTP config
