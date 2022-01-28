@@ -279,7 +279,10 @@ echo 'kern.randompid="100"' >> /etc/sysctl.conf
 # Kernel support
 echo '# Enable support for kernel TLS offload (13.0-STABLE and up only)' >> /etc/sysctl.conf
 echo 'kern.ipc.tls.enable=1' >> /etc/sysctl.conf
+echo '# Enable external pages, default on in stable/13@02e3eb8d (Jan 8 2021); default off in stable/13@52cd25eb (Nov 29 2021)' >> /etc/sysctl.conf
+echo 'kern.ipc.mb_use_ext_pgs=1' >> /etc/sysctl.conf
 sysctl kern.ipc.tls.enable=1
+sysctl kern.ipc.mb_use_ext_pgs=1
 
 # Backend via OCF
 sysrc kld_list+=ktls_ocf
