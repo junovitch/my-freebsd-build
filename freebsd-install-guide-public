@@ -1233,6 +1233,9 @@ done
 
 pkg install nginx-lite
 
+mkdir /usr/local/etc/nginx/sites-enabled
+mkdir /usr/local/etc/nginx/sites-available
+
 cat > /usr/local/etc/nginx/nginx.conf << 'EOF'
 worker_processes 2;
 
@@ -1241,6 +1244,8 @@ events {
 }
 
 http {
+        include            /usr/local/etc/nginx/sites-enabled/*;
+
 	include            mime.types;
 	default_type       application/octet-stream;
 	sendfile           on;
@@ -1260,12 +1265,60 @@ http {
         types {
                 text/plain                            log;
         }
+}
+'EOF'
 
+cat > /usr/local/etc/nginx/sites-available/default.conf << 'EOF'
+    server {
+        listen       80 default_server;
+        listen       [::]:80 default_server;
+        server_name  _;
+        return       301 https://$host$request_uri;
+    }
+'EOF'
+cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/default.conf default.conf
+
+# For the vhost configuration, allow HTTP requests directly to the vhost by IP address
+# as a fall back for if there are HTTPS issues to allow some time to investigate.
+# Otherwise redirect them to the full domain name so SSL validation matches up.
+
+cat > /usr/local/etc/nginx/sites-available/poudriere.conf << 'EOF'
     server {
         listen       80 accept_filter=httpready reuseport;
         listen       [::]:80 accept_filter=httpready reuseport;
-        server_name  xts-bsd.mydomain.name xts-bsd;
+        server_name  10.102.2.2;
+
+        location /pkgrepo {
+            alias        /usr/local/poudriere/data/packages;
+            autoindex   on;
+        }
+
+        location / {
+            return       301 https://$host$request_uri;
+        }
+    }
+    server {
+        listen       443 ssl;
+        listen       [::]:443 ssl;
+
+        server_name  ~^poudriere$ 10.102.2.2;
+        return       301 https://poudriere.mydomain.name$request_uri;
+
+        ssl_certificate        /usr/local/etc/ssl/acme/home.mydomain.name.cer;
+        ssl_certificate_key    /usr/local/etc/ssl/acme/home.mydomain.name.key;
+        ssl_conf_command       Options KTLS;
+        ssl_protocols          TLSv1.3 TLSv1.2;
+    }
+    server {
+        listen       443 ssl accept_filter=dataready reuseport;
+        listen       [::]:443 ssl accept_filter=dataready reuseport;
+        server_name  poudriere.mydomain.name;
         root         /usr/local/share/poudriere/html;
+
+        ssl_certificate        /usr/local/etc/ssl/acme/home.mydomain.name.cer;
+        ssl_certificate_key    /usr/local/etc/ssl/acme/home.mydomain.name.key;
+        ssl_conf_command       Options KTLS;
+        ssl_protocols          TLSv1.3 TLSv1.2;
 
         # Allow caching static resources
         location ~* ^.+\.(jpg|jpeg|gif|png|ico|svg|woff|css|js|html)$ {
@@ -1302,12 +1355,263 @@ http {
             break;
         }
     }
-}
+'EOF'
+cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/poudriere.conf poudriere.conf
+
+# Get Letencrypt TLS key
+pkg install acme.sh
+
+# Configure dns update
+sysrc -f /var/db/acme/.acme.sh/account.conf HE_Username="PUT USERNAME HERE"
+sysrc -f /var/db/acme/.acme.sh/account.conf HE_Password="PUT PASSWORD HERE"
+
+# Enable nginx reload without password
+echo 'acme ALL= NOPASSWD: /usr/sbin/service nginx reload' >> /usr/local/etc/sudoers.d/acme
+echo 'Defaults:acme \!requiretty' >> /usr/local/etc/sudoers.d/acme
+
+# Drop initial log file into place after enabling newsyslog(8) log rotation
+cp /usr/local/share/examples/acme.sh/acme.sh.conf /usr/local/etc/newsyslog.conf.d/
+sed -i '' -e "s|#/var/log/acme.sh.log|/var/log/acme.sh.log|" /usr/local/etc/newsyslog.conf.d/acme.sh.conf
+install -o acme -g acme /dev/null /var/log/acme.sh.log
+
+# get initial cert
+sudo -u acme acme.sh --issue --dns 'dns_he' --server 'letsencrypt' --domain 'home.mydomain.name' --domain 'poudriere.mydomain.name' --domain 'speedtest.mydomain.name'
+
+# the dest files must be owned by the acme user for the initial install to work
+install -o acme -g acme -d /usr/local/etc/ssl/acme/
+sudo -u acme acme.sh --install-cert --server 'letsencrypt' --domain 'home.mydomain.name' --domain 'poudriere.mydomain.name' --domain 'speedtest.mydomain.name' --fullchain-file '/usr/local/etc/ssl/acme/home.mydomain.name.cer' --key-file '/usr/local/etc/ssl/acme/home.mydomain.name.key' --reloadcmd 'sudo /usr/sbin/service nginx reload'
+
+# set up crontab for upkeep, the args above from --install-cert will be in the /var/db/acme/certs/< --domain arg >/< --domain arg >.conf file
+cat > /var/cron/tabs/acme << 'EOF'
+0 4 * * 6  /usr/local/sbin/acme.sh --cron --reloadcmd 'sudo /usr/sbin/service nginx reload'
 'EOF'
 
 # enable/start
-sysrc nginx_enable=YES
+service nginx enable
 service nginx start
+
+# For Upkeep enable daily nginx log file rotation via newsyslog.conf
+mkdir -p /usr/local/etc/newsyslog.conf.d
+printf "/var/log/nginx/*.log\t\t\t644  7\t   *    @T00  JG    /var/run/nginx.pid  30\n" >> /usr/local/etc/newsyslog.conf.d/nginx.conf
+
+################################################################################
+# Homer Dashboard
+#
+# Full static HTML/JS dashboard with no dependencies
+# https://github.com/bastienwirtz/homer
+#
+# Use to provide a homepage for quick links at minimal costs and dependencies.
+# This allows keeping the host still as lightwight as possible without the need
+# for a database or interpreted language and is in line with having the more
+# complicated and security sensitive applications in a jail.
+################################################################################
+
+# Fetch and unpack
+fetch -o ~/homer.zip https://github.com/bastienwirtz/homer/releases/latest/download/homer.zip
+unzip ~/homer.zip -d /usr/local/www/homer
+
+# Place Initial config
+cat > /usr/local/www/homer/assets/config.yml << 'EOF'
+---
+title: "Jason's dashboard"
+subtitle: "Home Lab Services"
+logo: "logo.png"
+
+header: true
+footer: false
+
+message:
+  style: "is-danger"
+  title: "DuckDuckGo Search Box"
+  icon: "fa fa-exclamation-triangle"
+
+services:
+  - name: "Entertainment"
+    icon: "fas fa-tv"
+    items:
+      - name: "Serviio"
+        logo: "assets/tools/serviio.png"
+        subtitle: "TV Shows & Movie Collection"
+        url: "http://serviio.mydomain.name:23424/mediabrowser/"
+        target: "_blank"
+  - name: "Management"
+    icon: "fas fa-wrench"
+    items:
+      - name: "Serviio Console"
+        logo: "assets/tools/serviio.png"
+        subtitle: "Management Console"
+        url: "http://serviio.mydomain.name:23423/console/"
+        target: "_blank"
+      - name: "Poudriere"
+        logo: "assets/tools/poudriere.svg"
+        subtitle: "Poudriere Package Builder"
+        url: "https://poudriere.mydomain.name/"
+        target: "_blank"
+      - name: "Unifi Controller"
+        logo: "assets/tools/unifi.png"
+        subtitle: "Unifi Device Controler"
+        url: "https://unifi.mydomain.name:8443/"
+        target: "_blank"
+      - name: "Foreman"
+        logo: "assets/tools/foreman.png"
+        subtitle: "The Foreman"
+        url: "https://foreman.mydomain.name/users/login"
+        target: "_blank"
+      - name: "OpenSpeedTest (HTTP)"
+        logo: "assets/tools/openspeedtest.png"
+        subtitle: "OpenSpeedTest (HTTP)"
+        url: "http://speedtest.mydomain.name/"
+        target: "_blank"
+      - name: "OpenSpeedTest (HTTPS)"
+        logo: "assets/tools/openspeedtest.png"
+        subtitle: "OpenSpeedTest (HTTPS)"
+        url: "https://speedtest.mydomain.name/"
+        target: "_blank"
+'EOF'
+
+# Make it user editable for adding new links
+chown jason /usr/local/www/homer/assets/config.yml
+
+# Get baseline set of Homer Icons
+fetch -o ~/homer-icons.zip https://github.com/NX211/homer-icons/archive/refs/heads/master.zip
+unzip ~/homer-icons.zip -j -d /usr/local/www/homer/assets/tools
+
+# Add in a few random extras
+fetch -o /usr/local/www/homer/assets/tools/foreman.png https://raw.githubusercontent.com/theforeman/foreman-graphics/master/logo/foreman.png
+fetch -o /usr/local/www/homer/assets/tools/poudriere.svg https://raw.githubusercontent.com/freebsd/poudriere/master/src/share/poudriere/html/assets/logo.svg
+
+# Add nginx sites-available file and enable the vhost
+cat > /usr/local/etc/nginx/sites-available/homer.conf << 'EOF'
+    server {
+        listen       443 ssl;
+        listen       [::]:443 ssl;
+
+        server_name  ~^home$;
+        return       301 https://home.mydomain.name$request_uri;
+
+        ssl_certificate        /usr/local/etc/ssl/acme/home.mydomain.name.cer;
+        ssl_certificate_key    /usr/local/etc/ssl/acme/home.mydomain.name.key;
+        ssl_conf_command       Options KTLS;
+        ssl_protocols          TLSv1.3 TLSv1.2;
+    }
+    server {
+        listen       443 ssl;
+        listen       [::]:443 ssl;
+
+        server_name  home.mydomain.name;
+        root         /usr/local/www/homer/;
+
+        ssl_certificate        /usr/local/etc/ssl/acme/home.mydomain.name.cer;
+        ssl_certificate_key    /usr/local/etc/ssl/acme/home.mydomain.name.key;
+        ssl_conf_command       Options KTLS;
+        ssl_protocols          TLSv1.3 TLSv1.2;
+
+        # Allow caching static resources
+        location ~* ^.+\.(jpg|jpeg|png|svg|ttf|woff)$ {
+            add_header Cache-Control "public";
+            expires 2d;
+        }
+    }
+'EOF'
+cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/homer.conf homer.conf
+
+service nginx reload
+
+################################################################################
+# OpenSpeedTest
+#
+# Pure HTML5 Network Performance Estimation Tool
+# https://github.com/openspeedtest/Speed-Test
+#
+# Use to provide speedtesting at minimal costs and dependencies without the need
+# for a database or interpreted language. This will help future baselines and
+# testing (KTLS and such) to gather facts without a noticeable maintenance cost.
+################################################################################
+
+# Fetch and unpack
+fetch -o ~/openspeedtest.zip https://github.com/openspeedtest/Speed-Test/archive/refs/heads/main.zip
+mkdir /usr/local/www/openspeedtest
+tar xvf ~/openspeedtest.zip --strip-components=1 -C /usr/local/www/openspeedtest
+
+# Add nginx sites-available file and enable the vhost
+#
+# Based on configs from:
+# https://github.com/openspeedtest/Nginx-Configuration/blob/main/OpenSpeedTest-Server.conf
+cat > /usr/local/etc/nginx/sites-available/speedtest.conf << 'EOF'
+    server {
+        server_name  speedtest.mydomain.name;
+
+        listen       80;
+        listen       [::]:80;
+        listen       443 ssl;
+        listen       [::]:443 ssl;
+
+        ssl_certificate        /usr/local/etc/ssl/acme/home.mydomain.name.cer;
+        ssl_certificate_key    /usr/local/etc/ssl/acme/home.mydomain.name.key;
+        ssl_conf_command       Options KTLS;
+        ssl_protocols          TLSv1.3 TLSv1.2;
+
+        root                  /usr/local/www/openspeedtest/;
+        index                 index.html;
+        client_max_body_size  10000M;
+        error_page  405       =200 $uri;
+        access_log            off;
+        gzip                  off;
+        fastcgi_read_timeout  999;
+        log_not_found         off;
+        server_tokens         off;
+        tcp_nodelay           on;
+        tcp_nopush            on;
+        sendfile              on;
+        open_file_cache       max=200000 inactive=20s;
+        open_file_cache_valid     30s;
+        open_file_cache_min_uses  2;
+        open_file_cache_errors    off;
+
+        location / {
+            add_header 'Access-Control-Allow-Origin' "*" always;
+            add_header 'Access-Control-Allow-Headers' 'Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Mx-ReqToken,X-Requested-With' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
+            add_header Cache-Control 'no-store, no-cache, max-age=0, no-transform';
+            add_header Last-Modified $date_gmt;
+                if_modified_since off;
+                expires off;
+                etag off;
+
+            if ($request_method = OPTIONS ) {
+                add_header Access-Control-Allow-Credentials "true";
+                add_header 'Access-Control-Allow-Headers' 'Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Mx-ReqToken,X-Requested-With' always;
+                add_header 'Access-Control-Allow-Origin' "$http_origin" always;
+                add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+                return 204;
+            }
+        }
+
+        # Caching for Static Files,
+        location ~* ^.+\.(?:css|cur|js|jpe?g|gif|htc|ico|png|html|xml|otf|ttf|eot|woff|woff2|svg)$ {
+            access_log off;
+            expires 365d;
+            add_header Cache-Control public;
+            add_header Vary Accept-Encoding;
+            tcp_nodelay off;
+            open_file_cache max=3000 inactive=120s;
+            open_file_cache_valid 45s;
+            open_file_cache_min_uses 2;
+            open_file_cache_errors off;
+            gzip on;
+            gzip_disable "msie6";
+            gzip_vary on;
+            gzip_proxied any;
+            gzip_comp_level 6;
+            gzip_buffers 16 8k;
+            gzip_http_version 1.1;
+            gzip_types text/plain text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript application/javascript;
+        }
+    }
+'EOF'
+cd /usr/local/etc/nginx/sites-enabled && ln -s ../sites-available/speedtest.conf speedtest.conf
+
+service nginx reload
 
 ################################################################################
 ##----------------------------------------------------------------------------##
