@@ -1689,11 +1689,11 @@ sudo -u acme acme.sh --issue --dns 'dns_he' --server 'letsencrypt' --domain 'for
 
 # the dest files must be owned by the acme user for the initial install to work
 install -o acme -g acme -d /usr/local/etc/ssl/acme/
-sudo -u acme acme.sh --install-cert --server 'letsencrypt' --domain 'foreman.mydomain.name' --cert-file '/usr/local/etc/ssl/acme/foreman.mydomain.name.cer' --key-file '/usr/local/etc/ssl/acme/foreman.mydomain.name.key' --reloadcmd 'sudo /usr/sbin/service nginx reload'
+sudo -u acme acme.sh --install-cert --server 'letsencrypt' --domain 'foreman.mydomain.name' --fullchain-file '/usr/local/etc/ssl/acme/foreman.mydomain.name.cer' --key-file '/usr/local/etc/ssl/acme/foreman.mydomain.name.key' --reloadcmd 'sudo /usr/sbin/service nginx reload'
 
-# set up crontab for upkeep
+# set up crontab for upkeep, the args above from --install-cert will be in the /var/db/acme/certs/< --domain arg >/< --domain arg >.conf file
 cat > /var/cron/tabs/acme << 'EOF'
-0 4 * * 6  /usr/local/sbin/acme.sh --cron --server 'letsencrypt' --domain 'foreman.mydomain.name' --cert-file '/usr/local/etc/ssl/acme/foreman.mydomain.name.cer' --key-file '/usr/local/etc/ssl/acme/foreman.mydomain.name.key' --reloadcmd 'sudo /usr/sbin/service nginx reload'
+0 4 * * 6  /usr/local/sbin/acme.sh --cron --reloadcmd 'sudo /usr/sbin/service nginx reload'
 'EOF'
 
 #
@@ -2388,7 +2388,7 @@ pkg install sudo
 sysrc -f /var/db/acme/.acme.sh/account.conf HE_Username="PUT USERNAME HERE"
 sysrc -f /var/db/acme/.acme.sh/account.conf HE_Password="PUT PASSWORD HERE"
 
-# Enable nginx reload without password
+# Enable removable of key reload without password as it is created by root during weekly periodic
 echo 'acme ALL= NOPASSWD: /bin/rm /var/db/acme/certs/unifi.mydomain.name/privkey.pem.md5' >> /usr/local/etc/sudoers.d/acme
 echo 'Defaults:acme \!requiretty' >> /usr/local/etc/sudoers.d/acme
 
@@ -2400,9 +2400,9 @@ install -o acme -g acme /dev/null /var/log/acme.sh.log
 # get initial cert
 sudo -u acme acme.sh --issue --dns 'dns_he' --server 'letsencrypt' --domain 'unifi.mydomain.name'
 
-# set up crontab for upkeep
+# set up crontab for upkeep, the args above from --issue will be in the /var/db/acme/certs/< --domain arg >/< --domain arg >.conf file
 cat > /var/cron/tabs/acme << 'EOF'
-0 4 * * 6  /usr/local/sbin/acme.sh --cron --server 'letsencrypt' --domain 'unifi.mydomain.name' --reloadcmd 'sudo /bin/rm /var/db/acme/certs/unifi.mydomain.name/privkey.pem.md5'
+0 4 * * 6  /usr/local/sbin/acme.sh --cron --reloadcmd '/usr/local/bin/sudo /bin/rm /var/db/acme/certs/unifi.mydomain.name/privkey.pem.md5'
 'EOF'
 
 # Fetch script for updating Unifi controller keystore cert
