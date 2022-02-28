@@ -1364,14 +1364,14 @@ pkg install acme.sh
 # Configure dns update
 sysrc -f /var/db/acme/.acme.sh/account.conf HE_Username="PUT USERNAME HERE"
 sysrc -f /var/db/acme/.acme.sh/account.conf HE_Password="PUT PASSWORD HERE"
+sysrc -f /var/db/acme/.acme.sh/account.conf LOG_FILE='/var/log/acme.sh.log'
 
 # Enable nginx reload without password
-echo 'acme ALL= NOPASSWD: /usr/sbin/service nginx reload' >> /usr/local/etc/sudoers.d/acme
+echo 'acme ALL= NOPASSWD: /usr/sbin/service nginx reload' > /usr/local/etc/sudoers.d/acme
 echo 'Defaults:acme \!requiretty' >> /usr/local/etc/sudoers.d/acme
 
 # Drop initial log file into place after enabling newsyslog(8) log rotation
-cp /usr/local/share/examples/acme.sh/acme.sh.conf /usr/local/etc/newsyslog.conf.d/
-sed -i '' -e "s|#/var/log/acme.sh.log|/var/log/acme.sh.log|" /usr/local/etc/newsyslog.conf.d/acme.sh.conf
+printf "/var/log/acme.sh.log  acme:acme       640  15    *    @T00   BCE\n" > /usr/local/etc/newsyslog.conf.d/acme.sh.conf
 install -o acme -g acme /dev/null /var/log/acme.sh.log
 
 # get initial cert
@@ -1383,7 +1383,7 @@ sudo -u acme acme.sh --install-cert --server 'letsencrypt' --domain 'home.mydoma
 
 # set up crontab for upkeep, the args above from --install-cert will be in the /var/db/acme/certs/< --domain arg >/< --domain arg >.conf file
 cat > /var/cron/tabs/acme << 'EOF'
-0 4 * * 6  /usr/local/sbin/acme.sh --cron --reloadcmd 'sudo /usr/sbin/service nginx reload'
+0 3 * * 6  /bin/sleep `/usr/bin/jot -r 1 0 3600`; /usr/local/sbin/acme.sh --cron --reloadcmd 'sudo /usr/sbin/service nginx reload'
 'EOF'
 
 # enable/start
@@ -1985,14 +1985,14 @@ pkg install acme.sh
 # Configure dns update
 sysrc -f /var/db/acme/.acme.sh/account.conf HE_Username="PUT USERNAME HERE"
 sysrc -f /var/db/acme/.acme.sh/account.conf HE_Password="PUT PASSWORD HERE"
+sysrc -f /var/db/acme/.acme.sh/account.conf LOG_FILE='/var/log/acme.sh.log'
 
 # Enable nginx reload without password
-echo 'acme ALL= NOPASSWD: /usr/sbin/service nginx reload' >> /usr/local/etc/sudoers.d/acme
+echo 'acme ALL= NOPASSWD: /usr/sbin/service nginx reload' > /usr/local/etc/sudoers.d/acme
 echo 'Defaults:acme \!requiretty' >> /usr/local/etc/sudoers.d/acme
 
 # Drop initial log file into place after enabling newsyslog(8) log rotation
-cp /usr/local/share/examples/acme.sh/acme.sh.conf /usr/local/etc/newsyslog.conf.d/
-sed -i '' -e "s|#/var/log/acme.sh.log|/var/log/acme.sh.log|" /usr/local/etc/newsyslog.conf.d/acme.sh.conf
+printf "/var/log/acme.sh.log  acme:acme       640  15    *    @T00   BCE\n" > /usr/local/etc/newsyslog.conf.d/acme.sh.conf
 install -o acme -g acme /dev/null /var/log/acme.sh.log
 
 # get initial cert
@@ -2004,7 +2004,7 @@ sudo -u acme acme.sh --install-cert --server 'letsencrypt' --domain 'foreman.myd
 
 # set up crontab for upkeep, the args above from --install-cert will be in the /var/db/acme/certs/< --domain arg >/< --domain arg >.conf file
 cat > /var/cron/tabs/acme << 'EOF'
-0 4 * * 6  /usr/local/sbin/acme.sh --cron --reloadcmd 'sudo /usr/sbin/service nginx reload'
+0 3 * * 6  /bin/sleep `/usr/bin/jot -r 1 0 3600`; /usr/local/sbin/acme.sh --cron --reloadcmd 'sudo /usr/sbin/service nginx reload'
 'EOF'
 
 #
@@ -2756,14 +2756,14 @@ pkg install sudo
 # Configure dns update
 sysrc -f /var/db/acme/.acme.sh/account.conf HE_Username="PUT USERNAME HERE"
 sysrc -f /var/db/acme/.acme.sh/account.conf HE_Password="PUT PASSWORD HERE"
+sysrc -f /var/db/acme/.acme.sh/account.conf LOG_FILE='/var/log/acme.sh.log'
 
-# Enable removable of key reload without password as it is created by root during weekly periodic
-echo 'acme ALL= NOPASSWD: /bin/rm /var/db/acme/certs/unifi.mydomain.name/privkey.pem.md5' >> /usr/local/etc/sudoers.d/acme
+# Enable removal of key reload without password as it is created by root during weekly periodic
+echo 'acme ALL= NOPASSWD: /bin/rm /var/db/acme/certs/unifi.mydomain.name/privkey.pem.md5' > /usr/local/etc/sudoers.d/acme
 echo 'Defaults:acme \!requiretty' >> /usr/local/etc/sudoers.d/acme
 
-# Drop initial log file into place after enabling newsyslog(8) log rotation:w
-cp /usr/local/share/examples/acme.sh/acme.sh.conf /usr/local/etc/newsyslog.conf.d/
-sed -i '' -e "s|#/var/log/acme.sh.log|/var/log/acme.sh.log|" /usr/local/etc/newsyslog.conf.d/acme.sh.conf
+# Drop initial log file into place after enabling newsyslog(8) log rotation
+printf "/var/log/acme.sh.log  acme:acme       640  15    *    @T00   BCE\n" > /usr/local/etc/newsyslog.conf.d/acme.sh.conf
 install -o acme -g acme /dev/null /var/log/acme.sh.log
 
 # get initial cert
@@ -2771,7 +2771,7 @@ sudo -u acme acme.sh --issue --dns 'dns_he' --server 'letsencrypt' --domain 'uni
 
 # set up crontab for upkeep, the args above from --issue will be in the /var/db/acme/certs/< --domain arg >/< --domain arg >.conf file
 cat > /var/cron/tabs/acme << 'EOF'
-0 4 * * 6  /usr/local/sbin/acme.sh --cron --reloadcmd '/usr/local/bin/sudo /bin/rm /var/db/acme/certs/unifi.mydomain.name/privkey.pem.md5'
+0 3 * * 6  /bin/sleep `/usr/bin/jot -r 1 0 3600`; /usr/local/sbin/acme.sh --cron --reloadcmd '/usr/local/bin/sudo /bin/rm /var/db/acme/certs/unifi.mydomain.name/privkey.pem.md5'
 'EOF'
 
 # Fetch script for updating Unifi controller keystore cert
