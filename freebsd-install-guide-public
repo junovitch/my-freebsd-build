@@ -2189,9 +2189,9 @@ God.watch do |w|
   w.name =     "tasks"
   w.group =    "foreman"
   w.dir =      RAILS_ROOT
-  w.start =    "bundle exec ruby vendor/ruby/2.7/gems/foreman-tasks-5.2.1/bin/dynflow-executor start"
-  w.restart =  "bundle exec ruby vendor/ruby/2.7/gems/foreman-tasks-5.2.1/bin/dynflow-executor restart"
-  w.stop =     "bundle exec ruby vendor/ruby/2.7/gems/foreman-tasks-5.2.1/bin/dynflow-executor stop"
+  w.start =    "bundle exec ruby vendor/ruby/2.7/gems/foreman-tasks-5.2.2/bin/dynflow-executor start"
+  w.restart =  "bundle exec ruby vendor/ruby/2.7/gems/foreman-tasks-5.2.2/bin/dynflow-executor restart"
+  w.stop =     "bundle exec ruby vendor/ruby/2.7/gems/foreman-tasks-5.2.2/bin/dynflow-executor stop"
   w.pid_file = File.join(RAILS_ROOT, "tmp/pids/dynflow_executor_monitor.pid")
   w.grace =    10.seconds
   w.log =      File.join(RAILS_ROOT, "log/tasks.log")
@@ -2294,7 +2294,7 @@ cd /opt/foreman
 git reset --hard HEAD
 git pull
 bundle update
-npm update
+npm update --legacy-peer-deps
 
 # Foreman Upgrade Process
 # Step 2b: Major Updates (Example: 3.0.x to 3.1.x)
