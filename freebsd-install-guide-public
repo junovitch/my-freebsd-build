@@ -1132,7 +1132,7 @@ irc/irssi
 net/serviio
 graphics/dcraw
 ########## Unifi Jail ##########
-net-mgmt/unifi6
+net-mgmt/unifi7
 ########## Foreman Jail ##########
 devel/git
 devel/git@lite
@@ -2743,7 +2743,7 @@ hostname unifi.mydomain.name
 
 pkg install bash zsh tmux vim pstree cmdwatch tree
 
-pkg install unifi6
+pkg install unifi7
 sysrc unifi_enable=YES
 service unifi start
 
