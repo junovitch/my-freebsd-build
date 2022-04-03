@@ -2349,8 +2349,9 @@ mkdir syslinux-6.03
 unzip -d syslinux-6.03 syslinux-6.03.zip
 
 # Populate tftpboot directory with bare minimum files needed from syslinux package
-mkdir -p /usr/local/tftp/images
-mkdir -p /usr/local/tftp/pxelinux.cfg
+mkdir -p /usr/local/tftp/bios/pxelinux.cfg /usr/local/tftp/bios/images
+mkdir -p /usr/local/tftp/efi32/pxelinux.cfg
+mkdir -p /usr/local/tftp/efi64/pxelinux.cfg
 cp -v \
 	syslinux-6.03/bios/core/pxelinux.0 \
 	syslinux-6.03/bios/core/lpxelinux.0 \
@@ -2363,19 +2364,66 @@ cp -v \
 	syslinux-6.03/bios/com32/menu/vesamenu.c32 \
 	syslinux-6.03/bios/com32/modules/reboot.c32 \
 	syslinux-6.03/bios/memdisk/memdisk \
-	/usr/local/tftp
+	/tftpboot/bios/
+cp -v \
+	syslinux-6.03/efi32/efi/syslinux.efi \
+	syslinux-6.03/efi32/com32/chain/chain.c32 \
+	syslinux-6.03/efi32/com32/elflink/ldlinux/ldlinux.e32 \
+	syslinux-6.03/efi32/com32/lib/libcom32.c32 \
+	syslinux-6.03/efi32/com32/libutil/libutil.c32 \
+	syslinux-6.03/efi32/com32/menu/menu.c32 \
+	syslinux-6.03/efi32/com32/menu/vesamenu.c32 \
+	syslinux-6.03/efi32/com32/modules/reboot.c32 \
+	/tftpboot/efi32/
+#cp -v \
+#	syslinux-6.03/efi64/efi/syslinux.efi \
+#	syslinux-6.03/efi64/com32/chain/chain.c32 \
+#	syslinux-6.03/efi64/com32/elflink/ldlinux/ldlinux.e64 \
+#	syslinux-6.03/efi64/com32/lib/libcom32.c32 \
+#	syslinux-6.03/efi64/com32/libutil/libutil.c32 \
+#	syslinux-6.03/efi64/com32/menu/menu.c32 \
+#	syslinux-6.03/efi64/com32/menu/vesamenu.c32 \
+#	syslinux-6.03/efi64/com32/modules/reboot.c32 \
+#	/tftpboot/efi64/
+# XXX: on efi64 use Grub only. This is needed from a working system that will be netbooted for installs.
+# These are from the shim-signed, grub-common, and grub-efi-amd64-bin packages on Ubuntu 20.04
+
+mkdir -p /tftpboot/grub/
+scp 10.100.82.191:/usr/lib/shim/shimx64.efi.signed /tftpboot/efi64/bootx64.efi
+scp 10.100.82.191:/usr/lib/grub/x86_64-efi-signed/grubnetx64.efi.signed /tftpboot/efi64/grubx64.efi
+
+# XXX WIP
+cat > /tftpboot/grub/grub.cfg << 'EOF'
+set default="0"
+set timeout="10"
+
+menuentry 'Skip Network Boot' {
+  exit
+}
+
+menuentry "Manual Net Install Ubuntu 20.04" {
+ linux /ubuntu-installer/amd64/linux --- quiet
+ initrd /ubuntu-installer/amd64/initrd.gz
+}
+
+menuentry "Auto Kickstart Net Install Ubuntu 20.04" {
+ linux /ubuntu-installer/amd64/linux --- auto=true ks=http://kickstart.mydomain.name/ubuntu.cfg locale=en_US.UTF-8 console-setup/layoutcode=us quiet netcfg/get_hostname=
+ initrd /ubuntu-installer/amd64/initrd.gz
+}
+'EOF'
+
 # Get Ubuntu netboot installer
-cd /usr/local/tftp
-fetch http://archive.ubuntu.com/ubuntu/dists/bionic/main/installer-amd64/current/images/netboot/netboot.tar.gz
-tar xvzf netboot.tar.gz
+cd /usr/local/tftp/
+fetch http://archive.ubuntu.com/ubuntu/dists/focal/main/installer-amd64/current/legacy-images/netboot/netboot.tar.gz
+tar --include ubuntu-installer -xvf netboot.tar.gz
 rm netboot.tar.gz
 # Get mfsBSD images for testing
-cd /usr/local/tftp/images
+cd /usr/local/tftp/bios/images
 fetch https://mfsbsd.vx.sk/files/images/11/amd64/mfsbsd-11.2-RELEASE-amd64.img
-fetch https://mfsbsd.vx.sk/files/images/12/amd64/mfsbsd-12.0-RELEASE-amd64.img
+fetch https://mfsbsd.vx.sk/files/images/12/amd64/mfsbsd-se-12.1-RELEASE-amd64.img
 
 # Populate default configuration using the above
-cat > /usr/local/tftp/pxelinux.cfg/default << 'EOF'
+cat > /usr/local/tftp/bios/pxelinux.cfg/default << 'EOF'
 ui vesamenu.c32
 menu title Network Boot Menu
 # menu background <image.png>
@@ -2387,19 +2435,19 @@ label localboot
   append hd0
 
 label auto_ubuntu
-  menu label Auto Kickstart Net Install Ubuntu 18.04
-  kernel ubuntu-installer/amd64/linux
-  append ks=http://kickstart.mydomain.name/ubuntu.cfg initrd=ubuntu-installer/amd64/initrd.gz locale=en_US.UTF-8 console-setup/layoutcode=us quiet netcfg/get_hostname=
+  menu label Auto Kickstart Net Install Ubuntu 20.04
+  kernel ../ubuntu-installer/amd64/linux
+  append ks=http://kickstart.mydomain.name/ubuntu.cfg initrd=../ubuntu-installer/amd64/initrd.gz locale=en_US.UTF-8 console-setup/layoutcode=us quiet netcfg/get_hostname=
 
 menu begin manual_ubuntu
-	menu title Manual Net Install Ubuntu 18.04
-	include ubuntu-installer/amd64/pxelinux.cfg/default
+    menu title Manual Net Install Ubuntu 20.04
+    include ../ubuntu-installer/amd64/pxelinux.cfg/default
 menu end
 
 label mfsbsd64_12
-  menu label Load mfsBSD 12.0-RELEASE amd64
+  menu label Load mfsBSD 12.1-RELEASE SE amd64
   kernel memdisk
-  initrd images/mfsbsd-12.0-RELEASE-amd64.img raw
+  initrd images/mfsbsd-se-12.1-RELEASE-amd64.img raw
 
 label mfsbsd64_11
   menu label Load mfsBSD 11.2-RELEASE amd64
@@ -2409,6 +2457,20 @@ label mfsbsd64_11
 label reboot
   menu label Reboot
   kernel reboot.c32
+'EOF'
+
+# Populate default EFI configurations using what works on UEFI from above.
+# reboot.c32 and chain.c32 both fail. The working option observed to chainload
+# seems to be reporting a fail to the UEFI BIOS of the boot option boot.
+cat > /usr/local/tftp/efi32/pxelinux.cfg/default << 'EOF'
+ui vesamenu.c32
+menu title Network Boot Menu
+# menu background <image.png>
+timeout 100
+
+label localboot
+  menu label Skip Network Boot
+  LOCALBOOT -1
 'EOF'
 
 # Enable and start tftpd
@@ -2439,9 +2501,10 @@ user jason --fullname "Jason Unovitch" --iscrypted --password <PASSWORD HASH HER
 firewall --disabled
 network --bootproto=dhcp
 # Partitioning
-bootloader --location=mbr
+bootloader --location=boot
 zerombr yes
 clearpart --all
+reqpart
 part / --fstype=btrfs --size 1 --grow  --asprimary
 part swap --size 8192
 # Extra packages
